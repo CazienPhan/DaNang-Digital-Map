@@ -12,6 +12,10 @@ export interface MapContainerProps {
   zoom?: number;
   minZoom?: number;
   maxZoom?: number;
+  markerPosition?: MapCoordinate | null;
+  routePath?: MapCoordinate[] | null;
+  originMarker?: MapCoordinate | null;
+  destinationMarker?: MapCoordinate | null;
   onMapReady?: (map: any) => void;
   onMapClick?: (latLng: MapCoordinate) => void;
   onCameraMove?: (camera: any) => void;
@@ -25,6 +29,10 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   zoom = 12,
   minZoom = 2,
   maxZoom = 22,
+  markerPosition = null,
+  routePath = null,
+  originMarker = null,
+  destinationMarker = null,
   onMapReady,
   onMapClick,
   onCameraMove,
@@ -36,6 +44,10 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const markerRef = useRef<any>(null);
+  const routePolylineRef = useRef<any>(null);
+  const originMarkerRef = useRef<any>(null);
+  const destinationMarkerRef = useRef<any>(null);
 
   // Initialize SDK
   useEffect(() => {
@@ -149,6 +161,107 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       }
     }
   }, [zoom, mapInstance]);
+
+  // Synchronize dynamic marker position
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    // Clear previous marker reference
+    if (markerRef.current) {
+      markerRef.current.setMap(null);
+      markerRef.current = null;
+    }
+
+    if (markerPosition) {
+      try {
+        const marker = new window.map4d.Marker({
+          position: new window.map4d.LatLng(markerPosition.lat, markerPosition.lng),
+          title: 'Search Result',
+          visible: true,
+        });
+        marker.setMap(mapInstance);
+        markerRef.current = marker;
+      } catch (err) {
+        console.error('Failed to create Map4D Marker:', err);
+      }
+    }
+  }, [markerPosition, mapInstance]);
+
+  // Synchronize routing path (polyline) and bounds fitting
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    // 1. Clear previous polyline
+    if (routePolylineRef.current) {
+      routePolylineRef.current.setMap(null);
+      routePolylineRef.current = null;
+    }
+
+    // 2. Clear previous origin/destination markers
+    if (originMarkerRef.current) {
+      originMarkerRef.current.setMap(null);
+      originMarkerRef.current = null;
+    }
+    if (destinationMarkerRef.current) {
+      destinationMarkerRef.current.setMap(null);
+      destinationMarkerRef.current = null;
+    }
+
+    // 3. Draw new route if provided
+    if (routePath && routePath.length > 0) {
+      try {
+        // Draw route polyline
+        const pathLatLngs = routePath.map(
+          (coord) => new window.map4d.LatLng(coord.lat, coord.lng)
+        );
+
+        const polyline = new window.map4d.Polyline({
+          path: pathLatLngs,
+          strokeColor: '#3b82f6', // Premium blue color
+          strokeWidth: 6,
+          strokeOpacity: 0.85,
+        });
+
+        polyline.setMap(mapInstance);
+        routePolylineRef.current = polyline;
+
+        // Draw origin marker
+        if (originMarker) {
+          const startMarker = new window.map4d.Marker({
+            position: new window.map4d.LatLng(originMarker.lat, originMarker.lng),
+            title: 'Origin',
+            label: 'A',
+            visible: true,
+          });
+          startMarker.setMap(mapInstance);
+          originMarkerRef.current = startMarker;
+        }
+
+        // Draw destination marker
+        if (destinationMarker) {
+          const endMarker = new window.map4d.Marker({
+            position: new window.map4d.LatLng(destinationMarker.lat, destinationMarker.lng),
+            title: 'Destination',
+            label: 'B',
+            visible: true,
+          });
+          endMarker.setMap(mapInstance);
+          destinationMarkerRef.current = endMarker;
+        }
+
+        // Fit Bounds to cover the complete route path
+        const bounds = new window.map4d.LatLngBounds();
+        routePath.forEach((coord) => {
+          bounds.extend(new window.map4d.LatLng(coord.lat, coord.lng));
+        });
+
+        mapInstance.fitBounds(bounds);
+
+      } catch (err) {
+        console.error('Failed to draw Route Polyline and fit camera bounds:', err);
+      }
+    }
+  }, [routePath, originMarker, destinationMarker, mapInstance]);
 
   if (error) {
     return (

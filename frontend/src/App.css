@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 html,
 body,
 #root {
@@ -15,4 +17,622 @@ body,
   margin: 0;
   padding: 0;
   border: none;
+}
+
+/* Floating Search Bar Container */
+.search-container {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 20vw;
+  min-width: 300px;
+  max-width: 420px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 6px 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.search-input-wrapper:focus-within {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.25);
+  background: rgba(15, 23, 42, 0.85);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0; /* Prevents text overflow from pushing buttons outside wrapper */
+  background: transparent;
+  border: none;
+  color: #f8fafc;
+  font-size: 0.925rem;
+  font-weight: 500;
+  padding: 6px 4px;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: rgba(248, 250, 252, 0.4);
+}
+
+.search-icon {
+  background: transparent;
+  color: rgba(248, 250, 252, 0.45);
+  padding: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none; /* Icon is decorative/indicator, not clickable */
+}
+
+.gps-button {
+  background: transparent;
+  border: none;
+  color: rgba(248, 250, 252, 0.6);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.gps-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #3b82f6;
+}
+
+.gps-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.search-icon svg, .gps-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* Autocomplete suggestion dropdown results list */
+.suggestions-list {
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.suggestion-item:hover,
+.suggestion-item.focused {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(59, 130, 246, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+.suggestion-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3b82f6;
+  width: 20px;
+  height: 20px;
+}
+
+.suggestion-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: left;
+}
+
+.suggestion-name {
+  color: #f8fafc;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+.suggestion-address {
+  color: rgba(148, 163, 184, 0.6);
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* Lightweight Toast Notification styling */
+.toast-notification {
+  background: rgba(239, 68, 68, 0.95);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  animation: slideInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* GPS Icon State Mappings */
+.gps-button.state-default {
+  color: rgba(248, 250, 252, 0.6);
+}
+
+.gps-button.state-loading {
+  color: #3b82f6;
+}
+
+.gps-button.state-success {
+  color: #10b981;
+}
+
+.gps-button.state-error {
+  color: #ef4444;
+}
+
+.spin-animation {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Direction Button Styling */
+.direction-button {
+  background: transparent;
+  border: none;
+  color: rgba(248, 250, 252, 0.6);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.direction-button:hover,
+.direction-button.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #3b82f6;
+}
+
+.direction-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* Direction Panel Styling */
+.direction-panel {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #f8fafc;
+}
+
+.direction-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.direction-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.close-panel-btn {
+  background: transparent;
+  border: none;
+  color: rgba(248, 250, 252, 0.5);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.close-panel-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.close-panel-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.direction-inputs-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.swap-btn {
+  background: transparent;
+  border: none;
+  color: rgba(248, 250, 252, 0.6);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.swap-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #3b82f6;
+}
+
+.swap-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.inputs-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+.input-group:focus-within {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.origin-dot {
+  background: #10b981;
+}
+
+.dest-dot {
+  background: #ef4444;
+}
+
+.direction-input {
+  background: transparent;
+  border: none;
+  color: #f8fafc;
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  padding: 6px 0;
+}
+
+.direction-input::placeholder {
+  color: rgba(248, 250, 252, 0.35);
+}
+
+/* Direction Autocomplete Dropdown */
+.direction-autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 110;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.direction-autocomplete-item {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.direction-autocomplete-item:hover {
+  background: rgba(59, 130, 246, 0.16);
+}
+
+.direction-autocomplete-item .name {
+  color: #f8fafc;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.direction-autocomplete-item .addr {
+  color: rgba(148, 163, 184, 0.6);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+/* Routing Info Card */
+.route-info-card {
+  display: flex;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  padding: 10px 14px;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.route-metric {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.route-metric .icon {
+  width: 20px;
+  height: 20px;
+  fill: #3b82f6;
+}
+
+.metric-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.metric-details .value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.metric-details .label {
+  font-size: 0.65rem;
+  color: rgba(148, 163, 184, 0.7);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.direction-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.direction-status.loading {
+  color: #3b82f6;
+}
+
+.direction-status.error {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+/* Direction autocomplete focused state */
+.direction-autocomplete-item.focused {
+  background: rgba(59, 130, 246, 0.16);
+}
+
+/* Place Info Card Styling */
+.place-info-card {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #f8fafc;
+  animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+
+.place-info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.place-info-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #3b82f6;
+  padding-right: 24px; /* Space for close button */
+}
+
+.place-info-address {
+  margin: 0;
+  font-size: 0.825rem;
+  color: rgba(248, 250, 252, 0.75);
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.place-info-coords {
+  font-size: 0.75rem;
+  color: rgba(148, 163, 184, 0.6);
+  margin-top: 4px;
+}
+
+.coords-label {
+  font-weight: 500;
+}
+
+.place-info-actions {
+  display: flex;
+  margin-top: 4px;
+}
+
+.get-directions-btn {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.get-directions-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.get-directions-btn:active {
+  transform: translateY(0);
+}
+
+.get-directions-btn .action-icon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.close-card-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: rgba(248, 250, 252, 0.5);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-card-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.close-card-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
