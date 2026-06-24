@@ -3,6 +3,10 @@ import MapContainer, { type MapCoordinate } from './components/Map/MapContainer'
 import SearchBar from './components/Search/SearchBar';
 import { useDirection, type LocationState } from './hooks/useDirection';
 import { SearchService, type PlaceSuggestion } from './services/map4d/search.service';
+import usePlaceDetail from './hooks/usePlaceDetail';
+import PlaceDetailCard from './components/Search/PlaceDetailCard';
+import MapClickHandler from './components/Map/MapClickHandler';
+import { type PlaceDetail } from './services/placeDetail.service';
 import './App.css';
 
 function App() {
@@ -15,6 +19,18 @@ function App() {
 
   // Cache resolved GPS location coordinates and geocoded physical address
   const [cachedGps, setCachedGps] = useState<LocationState | null>(null);
+
+  const [mapInstance, setMapInstance] = useState<any>(null);
+
+  const {
+    clickedLocation,
+    setClickedLocation,
+    selectedPlace: clickedPlace,
+    setSelectedPlace: setClickedPlace,
+    currentCardType,
+    setCurrentCardType,
+    clearPlaceDetail,
+  } = usePlaceDetail();
 
   const {
     origin,
@@ -36,6 +52,7 @@ function App() {
     setCenter(latLng);
     setZoom(16);
     setMarkerPosition(latLng);
+    clearPlaceDetail();
   };
 
   const handleGPSClickSuccess = (coords: MapCoordinate, address: string) => {
@@ -49,6 +66,30 @@ function App() {
     setOrigin(locationState);
     setSelectedPlace(locationState);
     setCachedGps(locationState); // Save to cache
+    clearPlaceDetail();
+  };
+
+  const handlePlaceResolved = (place: PlaceDetail, cardType: 'DEFAULT_CLICK_CARD' | 'SEARCH_RESULT_CARD') => {
+    if (cardType === 'DEFAULT_CLICK_CARD') {
+      // Scenario 1: Default search state (no active search)
+      setSelectedPlace({
+        lat: place.lat,
+        lng: place.lng,
+        address: place.address,
+        name: place.name,
+        category: place.category,
+      });
+      setMarkerPosition({ lat: place.lat, lng: place.lng });
+      // Reset clickedPlace and clickedLocation to make sure secondary card is hidden
+      setClickedLocation(null);
+      setClickedPlace(null);
+      setCurrentCardType(null);
+    } else {
+      // Scenario 2: Active search state (active search exists)
+      setClickedLocation({ lat: place.lat, lng: place.lng });
+      setClickedPlace(place);
+      setCurrentCardType(cardType);
+    }
   };
 
   const handleSelectPlaceSuccess = (place: PlaceSuggestion) => {
@@ -168,18 +209,40 @@ function App() {
           setSelectedPlace(null);
           setMarkerPosition(null);
           clearRoute();
+          clearPlaceDetail();
         }}
         cachedGps={cachedGps}
+        hasClickCard={currentCardType === 'DEFAULT_CLICK_CARD'}
       />
       <MapContainer
         center={center}
         zoom={zoom}
         markerPosition={panelOpen ? null : markerPosition}
+        clickMarker={panelOpen ? null : clickedLocation}
         routePath={panelOpen && routeData ? routeData.path : null}
         originMarker={panelOpen && origin ? { lat: origin.lat, lng: origin.lng } : null}
         destinationMarker={panelOpen && destination ? { lat: destination.lat, lng: destination.lng } : null}
         style={{ width: '100%', height: '100%' }}
+        onMapReady={setMapInstance}
       />
+      {mapInstance && (
+        <MapClickHandler
+          mapInstance={mapInstance}
+          onPlaceResolved={handlePlaceResolved}
+          hasContext={!!selectedPlace && !panelOpen}
+        />
+      )}
+      {clickedPlace && !panelOpen && (
+        <PlaceDetailCard
+          place={clickedPlace}
+          cardType={currentCardType === 'DEFAULT_CLICK_CARD' ? 'DEFAULT_CLICK_CARD' : 'SEARCH_RESULT_CARD'}
+          onGetDirections={() => {
+            clearPlaceDetail();
+            handleDirectionClick();
+          }}
+          onClose={clearPlaceDetail}
+        />
+      )}
     </div>
   );
 }

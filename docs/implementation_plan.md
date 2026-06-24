@@ -1,96 +1,119 @@
-# Implementation Plan: Directions Navigation UI Layout Refinement and Route Summary Separation
+# Implementation Plan: Map Click Place Detail Feature
 
-Improve the Directions Navigation Panel by separating the route metrics (Distance and Duration) into a dedicated glassmorphic card directly below the panel, and aligning all buttons (Close and Swap buttons) to guarantee vertical alignment and visual symmetry.
+Introduce a context-aware Place Detail Card resolved dynamically via Map4D Reverse Geocoding API when the user clicks any location on the map canvas.
 
 ---
 
 ## 1. Requirement Summary
 
-### Phase 1: Global Layout Balancing & UI Refactoring
-- **Layout Margins Balance**: The margins of the Directions Panel layout must satisfy: `Left Margin = Right Margin`.
-- **Button Symmetry**: The Close Panel Button and the Swap Button must align perfectly on the right vertical axis, sharing the same sizing/positioning rules.
-- **Symmetric Gutters**: Content boundaries must align correctly relative to the card's outer boundaries.
+### Map Clicks and Coordinates Detection
+1. **Map Click Event**: Detect clicked coordinate pair (`lat`, `lng`) without reloading or re-initializing the map instance.
+2. **Reverse Geocoding**: Resolve coordinates to a physical address using the existing backend geocoding proxy endpoint `/api/map4d/geocode?location=lat,lng`.
+3. **Marker Display**: Place a clicked location marker at the resolved point, keeping the search marker intact if a search context exists.
 
-### Phase 2: Route Summary Card Separation
-- **Separated Card**: Remove `Distance` and `Duration` metrics from the main Directions Panel card.
-- **Dedicated Route Summary Card**: Create a new, separate glassmorphic card positioned directly below the Directions Navigation Card.
-- **Visual & Width Symmetry**: The new Route Summary Card must match the width of the Directions Panel exactly and support full responsiveness across Desktop, Laptop, and Tablet screen sizes.
-- **Content Integrity**: Do not change distance and duration calculations, logic, icons, colors, or APIs.
+### Context-Aware State Management
+- Manage states: `clickedLocation` (MapCoordinate), `selectedPlace` (PlaceDetailState), `searchValue` (string), and `currentCardType` ('DEFAULT_CLICK_CARD' | 'SEARCH_RESULT_CARD' | 'GPS_LOCATION_CARD').
+- **Case 1: No Search Context**:
+  - Clicked location address is mapped to `searchValue` (populates search input).
+  - Selected place is updated to the clicked location.
+  - Card type is set to `DEFAULT_CLICK_CARD` (renders card with Directions navigation button).
+- **Case 2: Existing Context Active**:
+  - Do NOT override the current search input text, search results, or search markers.
+  - Display an independent card containing only Location Tag, Name, and Address.
+  - The card must have NO Directions button or action buttons.
 
 ---
 
 ## 2. Current Layout Analysis
-- **Close and Swap Buttons**:
-  - The `.close-panel-btn` has `padding: 4px` and a `16px` SVG, resulting in a bounding box of `24x24`px.
-  - The `.swap-btn` has `padding: 8px` and a `20px` SVG, resulting in a bounding box of `36x36`px.
-  - Due to sizing and padding mismatch, the visual icon centers and outer edges do not align vertically on the right side of the card.
-- **Metric Card Placement**:
-  - The `.route-info-card` is rendered as an inner element of the Directions panel container `.direction-panel`, increasing card vertical size and decreasing flexibility.
+- **Search Bar / Info Card**:
+  - Located at the top-left area (`top: 20px; left: 20px`) inside `.search-container`. It renders autocomplete lists and `PlaceInfoCard` elements vertically stacked.
+- **Map Viewport**:
+  - Takes 100% width/height. Events are registered inside `MapContainer.tsx`.
+- **Spacing**:
+  - The bottom-left area of the viewport is empty, which is ideal for displaying a floating click detail card without blocking overlays.
 
 ---
 
 ## 3. UI Refactoring Plan
-- **Equalize Button Bounding Boxes**:
-  - Update `.close-panel-btn` and `.swap-btn` in [App.css](file:///d:/PROJECT/MAP4D/frontend/src/App.css) to share the same bounding box dimensions: `width: 36px; height: 36px` and `padding: 0`.
-  - Use `display: flex; align-items: center; justify-content: center` to center SVGs cleanly.
-  - Align right borders exactly at `16px` from the card edge.
-- **Clean Inputs and Header Gutters**:
-  - Verify that the title and inputs wrapper are flush with the left boundary of the card (`16px`).
+- **Unified Glassmorphic Card Styling**:
+  - Style the new `.place-detail-click-card` in [App.css](file:///d:/PROJECT/MAP4D/frontend/src/App.css) to inherit the same aesthetics as the directions panel (blur, translucent borders, drop shadow, rounded corners).
+  - Position it at `bottom: 30px; left: 20px; width: 30vw (min-width: 420px, max-width: 600px)` so it aligns cleanly with the search bar.
+  - Add responsiveness via media queries to scale to full width on mobile widths.
 
 ---
 
-## 4. Route Summary Separation Plan
-1. **Refactor JSX in [DirectionPanel.tsx](file:///d:/PROJECT/MAP4D/frontend/src/components/Search/DirectionPanel.tsx)**:
-   - Wrap the component in a React Fragment (`<> ... </>`).
-   - The first child is the `.direction-panel` container containing the Header, Origin Input, Destination Input, and Swap Button.
-   - The second child is the `.route-summary-card` rendered if `routeData && !loading && !error`.
-2. **Apply CSS Styling in [App.css](file:///d:/PROJECT/MAP4D/frontend/src/App.css)**:
-   - Introduce `.route-summary-card` with identical glassmorphic layout rules as `.direction-panel` (background, blur, border, border-radius, box-shadow).
-   - Style the inner contents as a flex container displaying distance and duration metrics evenly (using `justify-content: space-around`).
-   - Remove obsolete `.route-info-card` styling rules.
-3. **Responsive Width Alignment**:
-   - Because both card containers are immediate children of `.search-container` (which has a flex column layout, `gap: 8px`, width `30vw`, and responsive width media queries), the Route Summary Card will naturally match the width of the Directions Panel and scale smoothly.
+## 4. Proposed Solution & Architecture
+
+We will create the required modules without rewriting any core systems:
+
+### 1. Hook: `usePlaceDetail`
+- Create [usePlaceDetail.ts](file:///d:/PROJECT/MAP4D/frontend/src/hooks/usePlaceDetail.ts):
+  - Exposes states: `clickedLocation`, `selectedPlace` (clicked place details), `currentCardType` ('DEFAULT_CLICK_CARD' | 'SEARCH_RESULT_CARD' | 'GPS_LOCATION_CARD' | null), and status setters.
+
+### 2. Service: `placeDetail.service`
+- Create [placeDetail.service.ts](file:///d:/PROJECT/MAP4D/frontend/src/services/placeDetail.service.ts):
+  - Fetches details from `/api/map4d/geocode?location=lat,lng` proxy and parses results into a structured `PlaceDetail` object (including category, address, name).
+
+### 3. Component: `MapClickHandler`
+- Create [MapClickHandler.tsx](file:///d:/PROJECT/MAP4D/frontend/src/components/Map/MapClickHandler.tsx):
+  - Receives the `mapInstance` from the parent and registers map click event listeners dynamically.
+  - On click, triggers reverse geocoding, determines if context exists, and forwards resolved place detail to the parent callback.
+
+### 4. Component: `PlaceDetailCard`
+- Create [PlaceDetailCard.tsx](file:///d:/PROJECT/MAP4D/frontend/src/components/Search/PlaceDetailCard.tsx):
+  - Renders the floating detail card.
+  - Conditional check: shows `Directions` action button only if `cardType === 'DEFAULT_CLICK_CARD'`.
+
+### 5. Integration in `App.tsx`
+- Integrate `usePlaceDetail` states.
+- Capture `map` instances from `MapContainer`'s `onMapReady` callback.
+- Render `<MapClickHandler mapInstance={map} ... />` inside the DOM tree.
+- Pass `clickMarker` to `MapContainer` to render a separate marker for the clicked location under Case 2.
+- Synchronize search inputs and type checks.
 
 ---
 
 ## 5. Files Affected
-- [DirectionPanel.tsx](file:///d:/PROJECT/MAP4D/frontend/src/components/Search/DirectionPanel.tsx) (Frontend Component JSX)
-- [App.css](file:///d:/PROJECT/MAP4D/frontend/src/App.css) (Frontend Layout Styles)
+- [App.tsx](file:///d:/PROJECT/MAP4D/frontend/src/App.tsx) (Parent integration & state coordination)
+- [App.css](file:///d:/PROJECT/MAP4D/frontend/src/App.css) (Click card styling and media query responsiveness)
+- [MapContainer.tsx](file:///d:/PROJECT/MAP4D/frontend/src/components/Map/MapContainer.tsx) (Add `clickMarker` support)
+- [NEW] [placeDetail.service.ts](file:///d:/PROJECT/MAP4D/frontend/src/services/placeDetail.service.ts) (Reverse geocoding helper)
+- [NEW] [usePlaceDetail.ts](file:///d:/PROJECT/MAP4D/frontend/src/hooks/usePlaceDetail.ts) (State management hook)
+- [NEW] [MapClickHandler.tsx](file:///d:/PROJECT/MAP4D/frontend/src/components/Map/MapClickHandler.tsx) (Click event observer)
+- [NEW] [PlaceDetailCard.tsx](file:///d:/PROJECT/MAP4D/frontend/src/components/Search/PlaceDetailCard.tsx) (Floating detail card)
 
 ---
 
 ## 6. Risk Analysis
-- **Layout Breakage on Desktop/Mobile Viewports**:
-  - *Risk*: Separating cards might result in layout overflows or misalignment on narrow mobile screens.
-  - *Mitigation*: Rely on parent `.search-container` flex layout to automatically stack cards and inherit correct media query overrides.
-- **Icon Rendering Distortion**:
-  - *Risk*: Icon SVG elements might stretch or distort under new button sizes.
-  - *Mitigation*: Ensure `width` and `height` properties on the SVGs remain absolute (e.g. `16px` for close, `20px` for swap/metrics), centering them inside flex button boxes.
+- **Duplicate Map Click Events**:
+  - *Risk*: Multiple click listeners on the map could cause parallel reverse geocode calls.
+  - *Mitigation*: Unbind listeners inside `useEffect` cleanup hook in `MapClickHandler.tsx`.
+- **State Overlaps**:
+  - *Risk*: Case 1 sets both `selectedPlace` (search) and `clickedPlace`. This might cause duplicate cards to show.
+  - *Mitigation*: Update card rendering conditions in `SearchBar` and `App` to ensure only one card is active at a time (e.g. show Click Card if active, else fallback to search Card).
 
 ---
 
 ## 7. Verification Checklist
 
-### Layout Alignment
-- [ ] Close Button box has dimensions `36x36`px.
-- [ ] Swap Button box has dimensions `36x36`px.
-- [ ] Right boundary of Close button aligns vertically with Swap button.
-- [ ] Left boundary of Header aligns vertically with inputs.
-- [ ] Gutter sizes on left and right borders of the card are equal (`16px`).
+### Click Handlers
+- [ ] Map clicks capture correct coordinate details.
+- [ ] Map instance is preserved without redraws or flashing.
+- [ ] Panning, zooming, and scrolling continue working after clicks.
 
-### Route Summary Card
-- [ ] Distance and Duration rendered in a separate card.
-- [ ] Dedicated card is positioned below the Directions Navigation card with standard spacing.
-- [ ] Route Summary Card has the same glassmorphism styling as Directions Navigation card.
-- [ ] Route Summary Card width matches Directions Navigation card width.
-- [ ] Metrics contain correct values (Distance, Duration) and business logic remains unchanged.
+### Case 1: Click Without Context
+- [ ] Clicking map updates search input to resolved address.
+- [ ] Floating Click Detail card appears at the bottom.
+- [ ] Card contains a Direction action button.
+- [ ] Clicking Directions button opens directions panel and autofills inputs.
 
-### Icons & Assets
-- [ ] Distance icon is preserved and aligned.
-- [ ] Duration icon is preserved and aligned.
-- [ ] Icons are not distorted or miscolored.
+### Case 2: Click With Context
+- [ ] Clicking map does NOT override search input text or search card at the top-left.
+- [ ] Floating Click Detail card appears at the bottom.
+- [ ] Card contains only Location Tag, Name, and Address (no Directions button).
+- [ ] A click marker is placed at the clicked point, while search result marker remains visible.
 
-### Responsive & Device Testing
-- [ ] Desktop viewport renders cleanly without layout gaps.
-- [ ] Tablet viewport adjusts width correctly.
-- [ ] Mobile screen viewports scale cards to 100% width cleanly.
+### Performance & Security
+- [ ] API keys are retrieved from environment proxy contexts (no leaks).
+- [ ] Coordinates are resolved correctly via backend reverse geocoding API.
+- [ ] Layout behaves responsively on Desktop, Tablet, and Mobile viewports.

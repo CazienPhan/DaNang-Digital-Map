@@ -29,6 +29,7 @@ interface SearchBarProps {
   selectedPlace: LocationState | null;
   onCloseInfoCard: () => void;
   cachedGps?: LocationState | null;
+  hasClickCard?: boolean;
 }
 
 type GpsState = 'default' | 'loading' | 'success' | 'error';
@@ -53,6 +54,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   selectedPlace,
   onCloseInfoCard,
   cachedGps,
+  hasClickCard,
 }) => {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 350);
@@ -297,7 +299,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       )}
 
       {/* Place Info Card */}
-      {selectedPlace && !directionActive && (
+      {selectedPlace && !directionActive && !hasClickCard && (
         <PlaceInfoCard
           place={selectedPlace}
           onGetDirections={onDirectionClick}

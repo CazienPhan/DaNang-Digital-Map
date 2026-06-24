@@ -12,6 +12,11 @@ export const PlaceInfoCard: React.FC<PlaceInfoCardProps> = ({
 }) => {
   return (
     <div className="place-info-card">
+      <div className="place-info-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+        <span className="location-tag">
+          📍 {place.category || 'Location'}
+        </span>
+      </div>
       <div className="place-info-content">
         <h4 className="place-info-title">{place.name || 'Selected Location'}</h4>
         {place.address && <p className="place-info-address">{place.address}</p>}

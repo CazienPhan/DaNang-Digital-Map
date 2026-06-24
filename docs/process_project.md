@@ -527,3 +527,68 @@ Verified using Playwright browser subagent:
 - Card widths match exactly (`420px`).
 - Responsive layout verified on desktop, tablet, and mobile resizes.
 - Production builds compile successfully without issues.
+
+
+## 2026-06-25 01:35:00
+
+
+### Requirement
+Implement "Place Detail by Map Click" to capture clicked coordinates, resolve place details via reverse geocoding, and behave differently depending on the application state:
+1. Scenario 1 (Default search state): Resolve clicked place, populate search bar automatically, and display the primary Place Information Card (containing Tag, Name, Address, and Directions Button).
+2. Scenario 2 (Active search state): Do not replace search bar or primary card. Instead, display a Secondary Place Detail Card and a secondary click marker.
+
+### Problem
+Map click events were previously uncoordinated, resulting in both the primary card and secondary card appearing at the same time in Scenario 1, violating the single card constraint. The primary card lacked category tags.
+
+### Solution
+- Refactored `handlePlaceResolved` and `MapClickHandler`'s context triggers in `App.tsx` to segment state updates: Scenario 1 sets `selectedPlace` and `markerPosition` (hiding secondary details); Scenario 2 sets `clickedPlace` and `clickedLocation` (leaving primary states intact).
+- Added `category?: string` to `LocationState` in `useDirection.ts` and rendered it as a `.location-tag` category badge inside `PlaceInfoCard.tsx`.
+- Updated `PlaceDetailCard.tsx` to omit coordinates when used as a secondary card.
+- Optimized secondary card `.place-detail-click-card` size, border radius, and padding in `App.css` to differentiate it from the primary card.
+
+### Changed Files
+- `frontend/src/hooks/useDirection.ts`
+- `frontend/src/components/Search/PlaceInfoCard.tsx`
+- `frontend/src/components/Search/PlaceDetailCard.tsx`
+- `frontend/src/App.tsx`
+- `frontend/src/App.css`
+
+### Testing Result
+Verified using Playwright browser subagent:
+- Map click in default state (Scenario 1) centers coordinate, updates input query, and displays only the primary PlaceInfoCard with category tag.
+- Map click in active state (Scenario 2) preserves search query and primary card, displaying the secondary card at bottom-left.
+- Build compiles and runs successfully with zero warnings.
+
+
+## 2026-06-25 01:55:00
+
+
+### Requirement
+Refine the UI/UX of the Secondary Place Detail Card and the Secondary Place Marker:
+1. Move the Secondary Card to the bottom-right side of the screen.
+2. Remove the Tag and show strictly Place Name and Address inside the Secondary Card.
+3. Apply a light-themed design for the Secondary Card: white background (#FFFFFF), light gray border (#E5E7EB), and a subtle elevation shadow.
+4. Style typography: Place Name must be black (#111827) and bold; Address must be gray (#6B7280) and smaller.
+5. Redesign the Secondary Marker using a gray color palette (#6B7280) that is visually distinct from red/blue primary markers.
+6. Enforce that only one secondary marker exists on the map.
+
+### Problem
+The secondary card was located on the left side of the viewport, which could visually collide with the primary search panel. It was styled in a dark theme, making it hard to distinguish from the primary card. The secondary marker used the default red pin, which did not differentiate it as a reference place.
+
+### Solution
+- Modified `PlaceDetailCard.tsx` to render a simplified layout displaying strictly Name and Address when `cardType === 'SEARCH_RESULT_CARD'`, omitting the tag, close button, and coordinates.
+- Added override rules in `App.css` for `.place-detail-click-card.secondary-card` positioning it at `right: 20px; left: auto; bottom: 30px` and styling it with a white background, light gray border, subtle shadow, bold black title, and smaller gray address text.
+- Customized the clicked marker in `MapContainer.tsx` using Map4D's `iconView` constructor parameter to render an inline gray pin (`#6B7280`) SVG with a white outline and cutout.
+- Relied on the React state update cycle to replace old secondary markers on each subsequent click.
+
+### Changed Files
+- `frontend/src/components/Search/PlaceDetailCard.tsx`
+- `frontend/src/components/Map/MapContainer.tsx`
+- `frontend/src/App.css`
+
+### Testing Result
+Verified using Playwright browser subagent:
+- Secondary card displays on the bottom-right side of the screen with a clean white/gray look, black bold name, and gray address text.
+- Custom gray marker is dropped on map clicks. Clicking a third spot updates/replaces the old marker correctly.
+- Layout scales responsively to mobile views with center reflows.
+- Dev and production builds compile successfully without warnings.

@@ -13,6 +13,7 @@ export interface MapContainerProps {
   minZoom?: number;
   maxZoom?: number;
   markerPosition?: MapCoordinate | null;
+  clickMarker?: MapCoordinate | null;
   routePath?: MapCoordinate[] | null;
   originMarker?: MapCoordinate | null;
   destinationMarker?: MapCoordinate | null;
@@ -30,6 +31,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   minZoom = 2,
   maxZoom = 22,
   markerPosition = null,
+  clickMarker = null,
   routePath = null,
   originMarker = null,
   destinationMarker = null,
@@ -45,6 +47,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const markerRef = useRef<any>(null);
+  const clickMarkerRef = useRef<any>(null);
   const routePolylineRef = useRef<any>(null);
   const originMarkerRef = useRef<any>(null);
   const destinationMarkerRef = useRef<any>(null);
@@ -179,6 +182,39 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       }
     }
   }, [markerPosition, mapInstance]);
+
+  // Synchronize click marker position
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    // Clear previous click marker reference
+    if (clickMarkerRef.current) {
+      clickMarkerRef.current.setMap(null);
+      clickMarkerRef.current = null;
+    }
+
+    if (clickMarker) {
+      try {
+        const marker = new window.map4d.Marker({
+          position: new window.map4d.LatLng(clickMarker.lat, clickMarker.lng),
+          title: 'Clicked Location',
+          visible: true,
+          iconView: `
+            <div style="display: flex; flex-direction: column; align-items: center; width: 28px; height: 36px;">
+              <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 0C6.27 0 0 6.27 0 14C0 24.5 14 36 14 36C14 36 28 24.5 28 14C28 6.27 21.73 0 14 0ZM14 19C11.24 19 9 16.76 9 14C9 11.24 11.24 9 14 9C16.76 9 19 11.24 19 14C19 16.76 16.76 19 14 19Z" fill="#6B7280" stroke="#FFFFFF" stroke-width="2"/>
+              </svg>
+            </div>
+          `,
+          anchor: { x: 0.5, y: 1.0 }
+        });
+        marker.setMap(mapInstance);
+        clickMarkerRef.current = marker;
+      } catch (err) {
+        console.error('Failed to create Map4D Click Marker:', err);
+      }
+    }
+  }, [clickMarker, mapInstance]);
 
   // Synchronize routing path (polyline) and bounds fitting
   useEffect(() => {

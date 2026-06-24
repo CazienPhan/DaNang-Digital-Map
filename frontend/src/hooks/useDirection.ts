@@ -7,6 +7,7 @@ export interface LocationState {
   lng: number;
   address: string;
   name?: string;
+  category?: string;
 }
 
 export function useDirection() {
