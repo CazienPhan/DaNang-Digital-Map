@@ -4,7 +4,6 @@ import { type MapCoordinate } from '../Map/MapContainer';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import SearchResult from './SearchResult';
-import DirectionButton from './DirectionButton';
 import DirectionPanel from './DirectionPanel';
 import { type LocationState } from '../../hooks/useDirection';
 import { type RouteResult } from '../../services/map4d/routing.service';
@@ -29,6 +28,7 @@ interface SearchBarProps {
   onCloseDirection: () => void;
   selectedPlace: LocationState | null;
   onCloseInfoCard: () => void;
+  cachedGps?: LocationState | null;
 }
 
 type GpsState = 'default' | 'loading' | 'success' | 'error';
@@ -52,6 +52,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onCloseDirection,
   selectedPlace,
   onCloseInfoCard,
+  cachedGps,
 }) => {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 350);
@@ -107,6 +108,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       abortController.abort();
     };
   }, [debouncedQuery, currentCenter]);
+
+  // Synchronize query text with selectedPlace details
+  useEffect(() => {
+    if (selectedPlace) {
+      setQuery(selectedPlace.name || selectedPlace.address || '');
+    } else {
+      setQuery('');
+    }
+  }, [selectedPlace]);
 
   // Request user positioning coordinates using HTML5 Geolocation hook
   const handleGPSClick = () => {
@@ -202,6 +212,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           loading={routeLoading}
           error={routeError}
           onClose={onCloseDirection}
+          cachedGps={cachedGps}
         />
         {/* Inline lightweight toast warnings */}
         {toastMessage && (
@@ -239,8 +250,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onKeyDown={handleKeyDown}
         />
 
-        {/* Direction button beside GPS */}
-        <DirectionButton onClick={onDirectionClick} isActive={directionActive} />
+        {/* Clear Search button (X) */}
+        {query && (
+          <button
+            type="button"
+            className="clear-search-button"
+            onClick={() => {
+              setQuery('');
+              onCloseInfoCard();
+            }}
+            title="Clear search"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+            </svg>
+          </button>
+        )}
 
         {/* GPS location fetch trigger with multi-state support */}
         <button
@@ -275,7 +300,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       {selectedPlace && !directionActive && (
         <PlaceInfoCard
           place={selectedPlace}
-          onClose={onCloseInfoCard}
           onGetDirections={onDirectionClick}
         />
       )}

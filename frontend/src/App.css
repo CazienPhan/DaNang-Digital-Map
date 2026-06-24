@@ -24,9 +24,9 @@ body,
   position: absolute;
   top: 20px;
   left: 20px;
-  width: 20vw;
-  min-width: 300px;
-  max-width: 420px;
+  width: 30vw;
+  min-width: 420px;
+  max-width: 600px;
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -58,7 +58,7 @@ body,
   background: transparent;
   border: none;
   color: #f8fafc;
-  font-size: 0.925rem;
+  font-size: 0.85rem;
   font-weight: 500;
   padding: 6px 4px;
   outline: none;
@@ -101,7 +101,26 @@ body,
   cursor: not-allowed;
 }
 
-.search-icon svg, .gps-button svg {
+.clear-search-button {
+  background: transparent;
+  border: none;
+  color: rgba(248, 250, 252, 0.6);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.clear-search-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ef4444;
+}
+
+.search-icon svg, .gps-button svg, .clear-search-button svg {
   width: 18px;
   height: 18px;
   fill: currentColor;
@@ -161,7 +180,7 @@ body,
 
 .suggestion-name {
   color: #f8fafc;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -171,7 +190,7 @@ body,
 
 .suggestion-address {
   color: rgba(148, 163, 184, 0.6);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 400;
   margin-top: 2px;
   white-space: nowrap;
@@ -282,21 +301,29 @@ body,
 
 .direction-panel-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #3b82f6;
 }
 
-.close-panel-btn {
+.close-panel-btn,
+.swap-btn {
   background: transparent;
   border: none;
-  color: rgba(248, 250, 252, 0.5);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  transition: all 0.2s;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.close-panel-btn {
+  color: rgba(248, 250, 252, 0.5);
 }
 
 .close-panel-btn:hover {
@@ -317,17 +344,7 @@ body,
 }
 
 .swap-btn {
-  background: transparent;
-  border: none;
   color: rgba(248, 250, 252, 0.6);
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0;
 }
 
 .swap-btn:hover {
@@ -382,7 +399,7 @@ body,
   background: transparent;
   border: none;
   color: #f8fafc;
-  font-size: 0.85rem;
+  font-size: 0.775rem;
   font-family: inherit;
   outline: none;
   width: 100%;
@@ -429,7 +446,7 @@ body,
 
 .direction-autocomplete-item .name {
   color: #f8fafc;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -438,22 +455,27 @@ body,
 
 .direction-autocomplete-item .addr {
   color: rgba(148, 163, 184, 0.6);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   margin-top: 1px;
 }
 
-/* Routing Info Card */
-.route-info-card {
+/* Dedicated Route Summary Card styling matching direction-panel */
+.route-summary-card {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   display: flex;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 12px;
-  padding: 10px 14px;
   justify-content: space-around;
   align-items: center;
+  color: #f8fafc;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .route-metric {
@@ -537,7 +559,7 @@ body,
 
 .place-info-title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #3b82f6;
   padding-right: 24px; /* Space for close button */
@@ -545,7 +567,7 @@ body,
 
 .place-info-address {
   margin: 0;
-  font-size: 0.825rem;
+  font-size: 0.75rem;
   color: rgba(248, 250, 252, 0.75);
   line-height: 1.4;
   white-space: normal;
@@ -553,7 +575,7 @@ body,
 }
 
 .place-info-coords {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: rgba(148, 163, 184, 0.6);
   margin-top: 4px;
 }
@@ -573,7 +595,7 @@ body,
   border: none;
   padding: 10px 16px;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 0.775rem;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
@@ -634,5 +656,16 @@ body,
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Mobile responsive media query for search container width */
+@media (max-width: 480px) {
+  .search-container {
+    width: calc(100% - 40px);
+    min-width: unset;
+    max-width: unset;
+    left: 20px;
+    top: 20px;
   }
 }

@@ -13,6 +13,9 @@ function App() {
   // Track selected place in search mode (for Case 2: Search First)
   const [selectedPlace, setSelectedPlace] = useState<LocationState | null>(null);
 
+  // Cache resolved GPS location coordinates and geocoded physical address
+  const [cachedGps, setCachedGps] = useState<LocationState | null>(null);
+
   const {
     origin,
     setOrigin,
@@ -45,6 +48,7 @@ function App() {
     };
     setOrigin(locationState);
     setSelectedPlace(locationState);
+    setCachedGps(locationState); // Save to cache
   };
 
   const handleSelectPlaceSuccess = (place: PlaceSuggestion) => {
@@ -77,11 +81,15 @@ function App() {
           try {
             const address = await SearchService.reverseGeocode(coords.lat, coords.lng);
             const startAddress = address || 'Current Location';
-            setOrigin({ lat: coords.lat, lng: coords.lng, address: startAddress });
+            const locationState = { lat: coords.lat, lng: coords.lng, address: startAddress };
+            setOrigin(locationState);
             setDestination(selectedPlace);
+            setCachedGps(locationState); // Save to cache
           } catch {
-            setOrigin({ lat: coords.lat, lng: coords.lng, address: 'Current Location' });
+            const locationState = { lat: coords.lat, lng: coords.lng, address: 'Current Location' };
+            setOrigin(locationState);
             setDestination(selectedPlace);
+            setCachedGps(locationState); // Save to cache
           }
         },
         () => {
@@ -109,11 +117,15 @@ function App() {
             try {
               const address = await SearchService.reverseGeocode(coords.lat, coords.lng);
               const startAddress = address || 'Current Location';
-              setOrigin({ lat: coords.lat, lng: coords.lng, address: startAddress });
+              const locationState = { lat: coords.lat, lng: coords.lng, address: startAddress };
+              setOrigin(locationState);
               setDestination(null);
+              setCachedGps(locationState); // Save to cache
             } catch {
-              setOrigin({ lat: coords.lat, lng: coords.lng, address: 'Current Location' });
+              const locationState = { lat: coords.lat, lng: coords.lng, address: 'Current Location' };
+              setOrigin(locationState);
               setDestination(null);
+              setCachedGps(locationState); // Save to cache
             }
           },
           () => {
@@ -130,7 +142,6 @@ function App() {
   const handleCloseDirection = () => {
     setPanelOpen(false);
     clearRoute();
-    setSelectedPlace(null);
   };
 
   return (
@@ -156,7 +167,9 @@ function App() {
         onCloseInfoCard={() => {
           setSelectedPlace(null);
           setMarkerPosition(null);
+          clearRoute();
         }}
+        cachedGps={cachedGps}
       />
       <MapContainer
         center={center}

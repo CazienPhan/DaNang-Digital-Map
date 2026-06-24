@@ -126,41 +126,34 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     };
   }, [loading, error, mapInstance]);
 
-  // Synchronize dynamic center property
+  // Synchronize dynamic center and zoom properties together with smooth camera transition
   useEffect(() => {
-    if (mapInstance && center) {
-      const camera = mapInstance.getCamera();
-      const currentCenter = camera.getTarget();
-      if (
-        currentCenter.lat !== center.lat ||
-        currentCenter.lng !== center.lng
-      ) {
-        const newCamera = new window.map4d.CameraPosition(
-          new window.map4d.LatLng(center.lat, center.lng),
-          camera.getTilt(),
-          camera.getBearing(),
-          camera.getZoom()
-        );
-        mapInstance.moveCamera(newCamera);
-      }
-    }
-  }, [center, mapInstance]);
+    if (!mapInstance) return;
 
-  // Synchronize dynamic zoom property
-  useEffect(() => {
-    if (mapInstance && zoom !== undefined) {
-      const camera = mapInstance.getCamera();
-      if (camera.getZoom() !== zoom) {
-        const newCamera = new window.map4d.CameraPosition(
-          camera.getTarget(),
-          camera.getTilt(),
-          camera.getBearing(),
-          zoom
-        );
-        mapInstance.moveCamera(newCamera);
-      }
+    const camera = mapInstance.getCamera();
+    const currentCenter = camera.getTarget();
+    const currentZoom = camera.getZoom();
+
+    const centerChanged = center && (currentCenter.lat !== center.lat || currentCenter.lng !== center.lng);
+    const zoomChanged = zoom !== undefined && currentZoom !== zoom;
+
+    if (centerChanged || zoomChanged) {
+      const targetLatLng = center
+        ? new window.map4d.LatLng(center.lat, center.lng)
+        : camera.getTarget();
+
+      const targetZoom = zoom !== undefined ? zoom : currentZoom;
+
+      const newCamera = new window.map4d.CameraPosition(
+        targetLatLng,
+        camera.getTilt(),
+        camera.getBearing(),
+        targetZoom
+      );
+
+      mapInstance.moveCamera(newCamera, { animate: true });
     }
-  }, [zoom, mapInstance]);
+  }, [center, zoom, mapInstance]);
 
   // Synchronize dynamic marker position
   useEffect(() => {

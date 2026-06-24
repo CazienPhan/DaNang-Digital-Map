@@ -16,6 +16,7 @@ interface DirectionPanelProps {
   loading: boolean;
   error: string | null;
   onClose: () => void;
+  cachedGps?: LocationState | null;
 }
 
 export const DirectionPanel: React.FC<DirectionPanelProps> = ({
@@ -30,6 +31,7 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
   loading,
   error,
   onClose,
+  cachedGps,
 }) => {
   const [originText, setOriginText] = useState('');
   const [destText, setDestText] = useState('');
@@ -42,6 +44,19 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
 
   const [activeInput, setActiveInput] = useState<'origin' | 'dest' | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+
+  const handleSelectCurrentLocation = () => {
+    if (cachedGps) {
+      setOrigin({
+        lat: cachedGps.lat,
+        lng: cachedGps.lng,
+        address: cachedGps.address,
+        name: 'Current Location',
+      });
+      setOriginText(cachedGps.address);
+      setOriginSuggestions([]);
+    }
+  };
 
   // Reset focus index when suggestions or active input changes
   useEffect(() => {
@@ -130,17 +145,26 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
   };
 
   const handleOriginKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (originSuggestions.length === 0) return;
+    const totalItems = originSuggestions.length + (cachedGps ? 1 : 0);
+    if (totalItems === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setFocusedIndex((prev) => (prev < originSuggestions.length - 1 ? prev + 1 : 0));
+      setFocusedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setFocusedIndex((prev) => (prev > 0 ? prev - 1 : originSuggestions.length - 1));
+      setFocusedIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (focusedIndex >= 0 && focusedIndex < originSuggestions.length) {
-        handleSelectOrigin(originSuggestions[focusedIndex]);
+      if (focusedIndex >= 0 && focusedIndex < totalItems) {
+        if (cachedGps) {
+          if (focusedIndex === 0) {
+            handleSelectCurrentLocation();
+          } else {
+            handleSelectOrigin(originSuggestions[focusedIndex - 1]);
+          }
+        } else {
+          handleSelectOrigin(originSuggestions[focusedIndex]);
+        }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -170,113 +194,129 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
   };
 
   return (
-    <div className="direction-panel">
-      <div className="direction-panel-header">
-        <h3>Directions Navigation</h3>
-        <button className="close-panel-btn" onClick={onClose} title="Close Directions">
-          <svg viewBox="0 0 24 24">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-          </svg>
-        </button>
-      </div>
+    <>
+      <div className="direction-panel">
+        <div className="direction-panel-header">
+          <h3>Directions Navigation</h3>
+          <button className="close-panel-btn" onClick={onClose} title="Close Directions">
+            <svg viewBox="0 0 24 24">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+            </svg>
+          </button>
+        </div>
 
-      <div className="direction-inputs-container">
-        {/* Swap Button on the left */}
-        <button className="swap-btn" onClick={handleSwap} title="Swap start and destination">
-          <svg viewBox="0 0 24 24">
-            <path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z" />
-          </svg>
-        </button>
+        <div className="direction-inputs-container">
+          <div className="inputs-wrapper">
+            {/* Origin Search */}
+            <div className="input-group">
+              <span className="dot origin-dot"></span>
+              <input
+                type="text"
+                className="direction-input"
+                placeholder="Choose starting point..."
+                value={originText}
+                onChange={(e) => {
+                  setOriginText(e.target.value);
+                  if (origin && origin.address !== e.target.value) {
+                    setOrigin(null); // Clear selected coords if edited
+                  }
+                }}
+                onKeyDown={handleOriginKeyDown}
+                onFocus={() => setActiveInput('origin')}
+                onBlur={() => setTimeout(() => setActiveInput(null), 250)}
+              />
+              {activeInput === 'origin' && (cachedGps || originSuggestions.length > 0) && (
+                <div className="direction-autocomplete-list">
+                  {cachedGps && (
+                    <div
+                      className={`direction-autocomplete-item${focusedIndex === 0 ? ' focused' : ''}`}
+                      onMouseDown={handleSelectCurrentLocation}
+                    >
+                      <span className="name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ color: '#10b981' }}>📍</span> Current Location
+                      </span>
+                      <span className="addr">{cachedGps.address}</span>
+                    </div>
+                  )}
+                  {originSuggestions.map((item, index) => {
+                    const actualIndex = cachedGps ? index + 1 : index;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`direction-autocomplete-item${focusedIndex === actualIndex ? ' focused' : ''}`}
+                        onMouseDown={() => handleSelectOrigin(item)}
+                      >
+                        <span className="name">{item.name}</span>
+                        <span className="addr">{item.address}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-        <div className="inputs-wrapper">
-          {/* Origin Search */}
-          <div className="input-group">
-            <span className="dot origin-dot"></span>
-            <input
-              type="text"
-              className="direction-input"
-              placeholder="Choose starting point..."
-              value={originText}
-              onChange={(e) => {
-                setOriginText(e.target.value);
-                if (origin && origin.address !== e.target.value) {
-                  setOrigin(null); // Clear selected coords if edited
-                }
-              }}
-              onKeyDown={handleOriginKeyDown}
-              onFocus={() => setActiveInput('origin')}
-              onBlur={() => setTimeout(() => setActiveInput(null), 250)}
-            />
-            {originSuggestions.length > 0 && activeInput === 'origin' && (
-              <div className="direction-autocomplete-list">
-                {originSuggestions.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className={`direction-autocomplete-item${focusedIndex === index ? ' focused' : ''}`}
-                    onMouseDown={() => handleSelectOrigin(item)}
-                  >
-                    <span className="name">{item.name}</span>
-                    <span className="addr">{item.address}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Destination Search */}
+            <div className="input-group">
+              <span className="dot dest-dot"></span>
+              <input
+                type="text"
+                className="direction-input"
+                placeholder="Choose destination..."
+                value={destText}
+                onChange={(e) => {
+                  setDestText(e.target.value);
+                  if (destination && destination.address !== e.target.value) {
+                    setDestination(null); // Clear selected coords if edited
+                  }
+                }}
+                onKeyDown={handleDestKeyDown}
+                onFocus={() => setActiveInput('dest')}
+                onBlur={() => setTimeout(() => setActiveInput(null), 250)}
+              />
+              {destSuggestions.length > 0 && activeInput === 'dest' && (
+                <div className="direction-autocomplete-list">
+                  {destSuggestions.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`direction-autocomplete-item${focusedIndex === index ? ' focused' : ''}`}
+                      onMouseDown={() => handleSelectDest(item)}
+                    >
+                      <span className="name">{item.name}</span>
+                      <span className="addr">{item.address}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Destination Search */}
-          <div className="input-group">
-            <span className="dot dest-dot"></span>
-            <input
-              type="text"
-              className="direction-input"
-              placeholder="Choose destination..."
-              value={destText}
-              onChange={(e) => {
-                setDestText(e.target.value);
-                if (destination && destination.address !== e.target.value) {
-                  setDestination(null); // Clear selected coords if edited
-                }
-              }}
-              onKeyDown={handleDestKeyDown}
-              onFocus={() => setActiveInput('dest')}
-              onBlur={() => setTimeout(() => setActiveInput(null), 250)}
-            />
-            {destSuggestions.length > 0 && activeInput === 'dest' && (
-              <div className="direction-autocomplete-list">
-                {destSuggestions.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className={`direction-autocomplete-item${focusedIndex === index ? ' focused' : ''}`}
-                    onMouseDown={() => handleSelectDest(item)}
-                  >
-                    <span className="name">{item.name}</span>
-                    <span className="addr">{item.address}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+          {/* Swap Button on the right */}
+          <button className="swap-btn" onClick={handleSwap} title="Swap start and destination">
+            <svg viewBox="0 0 24 24">
+              <path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Info panel results */}
+        {loading && (
+          <div className="direction-status loading">
+            <svg className="spin-animation" viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: '#3b82f6', marginRight: '8px' }}>
+              <path d="M12 4V2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8zm0 16c4.41 0 8-3.59 8-8h2c0 5.52-4.48 10-10 10v-2z" />
+            </svg>
+            <span>Finding route...</span>
           </div>
-        </div>
+        )}
+
+        {error && (
+          <div className="direction-status error">
+            <span>{error}</span>
+          </div>
+        )}
       </div>
-
-      {/* Info panel results */}
-      {loading && (
-        <div className="direction-status loading">
-          <svg className="spin-animation" viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: '#3b82f6', marginRight: '8px' }}>
-            <path d="M12 4V2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8zm0 16c4.41 0 8-3.59 8-8h2c0 5.52-4.48 10-10 10v-2z" />
-          </svg>
-          <span>Finding route...</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="direction-status error">
-          <span>{error}</span>
-        </div>
-      )}
 
       {routeData && !loading && !error && (
-        <div className="route-info-card">
+        <div className="route-summary-card">
           <div className="route-metric">
             <svg viewBox="0 0 24 24" className="icon">
               <path d="M12.5 18.5c-1.9 0-3.4-1.5-3.4-3.4 0-1.2.6-2.2 1.5-2.8l-1.4-1.4c-1.3.9-2.1 2.4-2.1 4.2 0 2.8 2.2 5 5 5 1.8 0 3.3-.8 4.2-2.1l-1.4-1.4c-.6.9-1.6 1.5-2.8 1.5zM16 11.5c.6 0 1 .4 1 1s-.4 1-1 1-1-.4-1-1 .4-1 1-1m-3.5-3c-2.8 0-5 2.2-5 5H5l3.5 3.5L12 13.5H9.5c0-1.9 1.5-3.4 3.4-3.4 1.2 0 2.2.6 2.8 1.5l1.4-1.4C15.8 9.3 14.3 8.5 12.5 8.5z" />
@@ -297,7 +337,7 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

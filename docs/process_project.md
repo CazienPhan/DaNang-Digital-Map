@@ -355,3 +355,175 @@ Verified using Playwright browser subagent:
 - Default Scenario: Clicking directions button directly opens the panel with Origin correctly populated with user location and Destination left empty.
 - Keyboard navigation inside Direction Panel autocomplete suggestions functions as expected.
 - App builds successfully without TypeScript compilation or Vite build errors.
+
+## 2026-06-24 23:30:00
+
+### Requirement
+Resolve geocoding and autocomplete search failures, reduce font sizes to establish cleaner hierarchy, expand search panel width to 30% of desktop viewport (min-width 420px, max-width 600px), and support fully responsive mobile layout.
+
+### Problem
+- The backend API proxy server on port 5000 was stopped, causing geocoding and autocomplete requests to fail with connection errors.
+- Search panel was too narrow (20vw) and typography sizes were disproportionately large.
+- Mobile screens did not have media queries to adjust search overlays.
+
+### Solution
+- Booted backend proxy server on port 5000 via npm run dev.
+- Resized `.search-container` in App.css to 30vw (min 420px, max 600px).
+- Reduced font-size properties for `.search-input`, `.suggestion-name`, `.suggestion-address`, `.direction-input`, `.direction-panel-header h3`, `.direction-autocomplete-item .name`, `.direction-autocomplete-item .addr`, `.place-info-title`, `.place-info-address`, `.place-info-coords`, and `.get-directions-btn`.
+- Added media queries for screen widths below 480px to expand the container to full screen.
+
+### Changed Files
+- `frontend/src/App.css`
+
+### Testing Result
+Verified using Playwright browser subagent:
+- GPS locator successfully reverse-geocodes current coordinates to "37 Bùi Hiển, Phường An Khê, Thành phố Đà Nẵng, Việt Nam" in the search box.
+- Autocomplete suggestions load immediately on single character queries (e.g. "C").
+- Layout scales to 30% of screen width cleanly.
+- Font sizes are optimized.
+- Mobile responsiveness operates correctly on smaller screen viewports.
+- No console or API runtime errors.
+
+## 2026-06-24 23:50:00
+
+### Requirement
+Refactor the Search -> Place Detail -> Direction Routing flow by removing duplicate direction buttons, adding clear inputs, and ensuring Direction Panel exit preserves the selected place details, input query, and markers while resetting route indicators.
+
+### Problem
+- Duplicate Direction buttons existed in both the Search Bar and the Place Card.
+- Closing the Directions Panel triggered a full application state reset, clearing the place card and input query instead of returning back to the Place Detail state.
+- Search input values were not synchronized with selected place changes.
+
+### Solution
+- Removed `DirectionButton` from `SearchBar.tsx`, leaving it only inside the `PlaceInfoCard`.
+- Added a clear search button `X` inside the input wrapper in `SearchBar.tsx`, styled in `App.css`.
+- Refactored `handleCloseDirection` in `App.tsx` to keep `selectedPlace` intact.
+- Updated `onCloseInfoCard` in `App.tsx` to call `clearRoute()` to reset routes and origin/dest markers.
+- Added a `useEffect` hook in `SearchBar.tsx` to sync search `query` with `selectedPlace`.
+
+### Changed Files
+- `frontend/src/App.tsx`
+- `frontend/src/components/Search/SearchBar.tsx`
+- `frontend/src/App.css`
+
+### Testing Result
+Verified using Playwright browser subagent:
+- Search Bar has no Direction button, only Search input, GPS, and clear X.
+- Card contains the only Directions trigger.
+- Closing Directions Panel preserves selected place, search input text, and map markers, while clearing route polyline.
+- Clearing Search Bar resets all inputs, cards, markers, and routes.
+- Zero console or runtime errors.
+
+## 2026-06-25 00:20:00
+
+### Requirement
+Refine the Search -> Place Detail -> Direction Routing flow by enforcing the "Only ONE X button exists" rule, ensuring the X button is strictly within the Search Bar/Directions components, removing the close button from the Place Info Card, and integrating a GPS positioning button inside the Directions Panel.
+
+### Problem
+- The Place Info Card contained a close button, leading to two visible X buttons when search details were displayed.
+- The Directions Panel lacked a GPS locator button, making it hard for users to quickly autofill the starting coordinates back to their location.
+
+### Solution
+- Removed the close button (`close-card-btn`) and the `onClose` prop from `PlaceInfoCard.tsx` and `SearchBar.tsx`.
+- Integrated `useGeolocation` and added a styled GPS Locate button next to the close button in `DirectionPanel.tsx`'s header. Clicking it resolves coordinates via reverse geocoding and populates the Origin input field.
+
+### Changed Files
+- `frontend/src/components/Search/PlaceInfoCard.tsx`
+- `frontend/src/components/Search/SearchBar.tsx`
+- `frontend/src/components/Search/DirectionPanel.tsx`
+
+### Testing Result
+Verified using Playwright browser subagent:
+- Only one close button exists on the screen in all layout states, located exclusively in the Search / Direction containers.
+- Place Card does not contain any close button.
+- GPS button exists inside the Directions Panel header and successfully geocodes/populates starting coordinates with "37 Bùi Hiển, Phường An Khê, Thành phố Đà Nẵng".
+- Exiting directions Panel returns to Search/Place Detail state, keeping input text, markers, and cards preserved without console warnings or runtime failures.
+
+## 2026-06-25 00:30:00
+
+### Requirement
+Fix GPS location success camera focusing and zoom issues: automatically pan/center the map to the coordinates, zoom to level 16, and use smooth animated transitions.
+
+### Problem
+In MapContainer.tsx, two independent useEffect hooks synchronized center and zoom props separately. When center and zoom changed simultaneously on GPS success, both hooks executed in parallel, leading to conflicting moveCamera calls where one overrode the other (and neither had options for smooth camera transition).
+
+### Solution
+Refactored MapContainer.tsx to consolidate the center and zoom useEffect hooks into a single hook. If either center or zoom changes, a single moveCamera call is made with `{ animate: true }`.
+
+### Changed Files
+- `frontend/src/components/Map/MapContainer.tsx`
+
+### Testing Result
+Verified using Playwright browser subagent:
+- Map camera successfully pans and zooms smoothly to center user location marker on GPS click.
+- Address field and marker are updated correctly.
+- Moving the map away and clicking GPS successfully centers and zooms camera back to current user position.
+- Zoom level is maintained appropriately at 16.
+- No console or SDK runtime errors.
+
+
+## 2026-06-25 01:00:00
+
+
+### Requirement
+Refine Directions Navigation UI layout (Phase 1) and implement cached "Current Location" suggestion for empty Origin input (Phase 2).
+1. Remove redundant GPS button inside Directions Panel.
+2. Place Swap button on the right side, vertically centered relative to inputs.
+3. Left-align inputs with equal width.
+4. When Origin is focused/clicked while empty, prepend "📍 Current Location" as the first suggestion using cached geocode data, restoring the street address without repeat geocoding/GPS calls.
+
+### Problem
+- The Directions Panel header included a redundant GPS locate button.
+- User location could not be quickly selected from autocomplete dropdown when editing/clearing the Origin field, prompting users to re-trigger GPS centering manually.
+
+### Solution
+- Removed the GPS button references and unused geolocator code in [DirectionPanel.tsx](file:///d:/PROJECT/MAP4D/frontend/src/components/Search/DirectionPanel.tsx).
+- Positioned the Swap button next to inputs on the right side of `.direction-inputs-container`.
+- Added `cachedGps` to [DirectionPanelProps](file:///d:/PROJECT/MAP4D/frontend/src/components/Search/DirectionPanel.tsx) to pass cached session coordinates and resolved physical address.
+- Prepended `📍 Current Location` to the autocomplete dropdown when focusing the Origin field.
+- Updated `handleOriginKeyDown` key captures and mouse handlers to offset suggestion index indexing by `1`, selecting `Current Location` populates the text field with the cached physical street address and triggers route recalculation.
+
+### Changed Files
+- `frontend/src/components/Search/DirectionPanel.tsx`
+
+### Testing Result
+Verified using Playwright browser subagent:
+- GPS button removed from Directions Panel header.
+- Swap button positioned correctly on the right and vertically centered.
+- Focusing empty Origin input successfully displays `📍 Current Location` suggestion.
+- Selecting it populates input with `"37 Bùi Hiển, Phường An Khê, Thành phố Đà Nẵng, Việt Nam"` (no raw coordinates) and renders the route correctly.
+- Keyboard arrow navigation and Enter selections are fully functional and stable.
+- Production build succeeds without errors.
+
+
+## 2026-06-25 01:10:00
+
+
+### Requirement
+Improve Directions Navigation UI by balancing layout margins (Phase 1) and separating Route Summary metrics into a dedicated card (Phase 2).
+1. Ensure all panel components satisfy: `Left Margin = Right Margin`.
+2. Close panel button and Swap button must align perfectly on the right vertical axis.
+3. Completely separate Distance and Duration metrics into a dedicated glassmorphic card directly below the Directions panel, matching its width, styles, and responsiveness.
+
+### Problem
+- The panel margins were visually unbalanced: Close button box size (`24x24px`) and Swap button box size (`36x36px`) had padding differences that misaligned their visual centers and right edges.
+- Having the Route Summary metrics inside the Directions panel increased vertical clutter, making the layout less readable.
+
+### Solution
+- Harmonized button bounding box dimensions: updated `.close-panel-btn` and `.swap-btn` inside [App.css](file:///d:/PROJECT/MAP4D/frontend/src/App.css) to share `width: 36px; height: 36px` with zero padding, ensuring perfect right vertical guide alignment.
+- Refactored [DirectionPanel.tsx](file:///d:/PROJECT/MAP4D/frontend/src/components/Search/DirectionPanel.tsx) to return a React Fragment. Left the input fields in `.direction-panel` and placed the route metrics in `.route-summary-card` rendered directly below it.
+- Styled `.route-summary-card` with the same glassmorphism styles (dark blur background, borders, border-radius, box-shadow) as the Directions panel.
+- Removed obsolete `.route-info-card` rules from `App.css`.
+
+### Changed Files
+- `frontend/src/components/Search/DirectionPanel.tsx`
+- `frontend/src/App.css`
+
+### Testing Result
+Verified using Playwright browser subagent:
+- Close button and Swap button align perfectly on the right vertical axis.
+- Left and right gutters are symmetrical (symmetrical `16px` gutters).
+- Route Summary Card rendered directly below Directions card, showing correct distance (`7.477km`) and duration (`9 phút 44 giây`) values.
+- Card widths match exactly (`420px`).
+- Responsive layout verified on desktop, tablet, and mobile resizes.
+- Production builds compile successfully without issues.
