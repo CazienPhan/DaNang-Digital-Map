@@ -21,7 +21,7 @@ interface SearchBarProps {
   destination: LocationState | null;
   setDestination: (loc: LocationState | null) => void;
   routeData: RouteResult | null;
-  onCalculateRoute: (start: MapCoordinate, end: MapCoordinate) => void;
+  onCalculateRoute: (start: MapCoordinate, end: MapCoordinate, mode?: string) => void;
   onClearRoute: () => void;
   routeLoading: boolean;
   routeError: string | null;
@@ -30,6 +30,11 @@ interface SearchBarProps {
   onCloseInfoCard: () => void;
   cachedGps?: LocationState | null;
   hasClickCard?: boolean;
+  selectedTransportMode: string;
+  setSelectedTransportMode: (mode: string) => void;
+  matrixData: Record<string, { distance: string; duration: string }> | null;
+  matrixLoading: boolean;
+  onCalculateMatrix: (start: MapCoordinate, end: MapCoordinate) => void;
 }
 
 type GpsState = 'default' | 'loading' | 'success' | 'error';
@@ -55,6 +60,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onCloseInfoCard,
   cachedGps,
   hasClickCard,
+  selectedTransportMode,
+  setSelectedTransportMode,
+  matrixData,
+  matrixLoading,
+  onCalculateMatrix,
 }) => {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 350);
@@ -215,6 +225,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           error={routeError}
           onClose={onCloseDirection}
           cachedGps={cachedGps}
+          selectedTransportMode={selectedTransportMode}
+          setSelectedTransportMode={setSelectedTransportMode}
+          matrixData={matrixData}
+          matrixLoading={matrixLoading}
+          onCalculateMatrix={onCalculateMatrix}
         />
         {/* Inline lightweight toast warnings */}
         {toastMessage && (

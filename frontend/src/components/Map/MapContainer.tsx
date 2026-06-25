@@ -259,8 +259,16 @@ export const MapContainer: React.FC<MapContainerProps> = ({
           const startMarker = new window.map4d.Marker({
             position: new window.map4d.LatLng(originMarker.lat, originMarker.lng),
             title: 'Origin',
-            label: 'A',
             visible: true,
+            iconView: `
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 24px; height: 24px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" fill="#FFFFFF" stroke="#3b82f6" stroke-width="3" style="filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.25));"/>
+                  <circle cx="12" cy="12" r="5" fill="#3b82f6"/>
+                </svg>
+              </div>
+            `,
+            anchor: { x: 0.5, y: 0.5 }
           });
           startMarker.setMap(mapInstance);
           originMarkerRef.current = startMarker;
@@ -271,8 +279,16 @@ export const MapContainer: React.FC<MapContainerProps> = ({
           const endMarker = new window.map4d.Marker({
             position: new window.map4d.LatLng(destinationMarker.lat, destinationMarker.lng),
             title: 'Destination',
-            label: 'B',
             visible: true,
+            iconView: `
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 24px; height: 24px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" fill="#FFFFFF" stroke="#ef4444" stroke-width="3" style="filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.25));"/>
+                  <circle cx="12" cy="12" r="5" fill="#ef4444"/>
+                </svg>
+              </div>
+            `,
+            anchor: { x: 0.5, y: 0.5 }
           });
           endMarker.setMap(mapInstance);
           destinationMarkerRef.current = endMarker;

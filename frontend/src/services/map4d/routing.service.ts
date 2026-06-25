@@ -54,14 +54,20 @@ export class RoutingService {
 
   /**
    * Fetches routing details from backend Express proxy server.
+   * @param origin Starting coordinate.
+   * @param destination Ending coordinate.
+   * @param mode Travel mode (car, motorcycle, bike, foot).
    */
-  static async fetchRoute(origin: MapCoordinate, destination: MapCoordinate): Promise<RouteResult> {
+  static async fetchRoute(origin: MapCoordinate, destination: MapCoordinate, mode?: string): Promise<RouteResult> {
     try {
       const originStr = `${origin.lat},${origin.lng}`;
       const destStr = `${destination.lat},${destination.lng}`;
-      const response = await fetch(
-        `${MAP4D_CONFIG.backendUrl}/api/map4d/route?origin=${encodeURIComponent(originStr)}&destination=${encodeURIComponent(destStr)}`
-      );
+      let url = `${MAP4D_CONFIG.backendUrl}/api/map4d/route?origin=${encodeURIComponent(originStr)}&destination=${encodeURIComponent(destStr)}`;
+      if (mode) {
+        url += `&mode=${encodeURIComponent(mode)}`;
+      }
+      
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -86,6 +92,29 @@ export class RoutingService {
       throw new Error('No routes returned from Map4D API.');
     } catch (error) {
       console.error('Failed to fetch route via proxy service:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches distance matrix details from backend Express proxy server.
+   */
+  static async fetchDistanceMatrix(origins: string, destinations: string, mode?: string): Promise<any> {
+    try {
+      let url = `${MAP4D_CONFIG.backendUrl}/api/map4d/route/matrix?origins=${encodeURIComponent(origins)}&destinations=${encodeURIComponent(destinations)}`;
+      if (mode) {
+        url += `&mode=${encodeURIComponent(mode)}`;
+      }
+      
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to fetch distance matrix via proxy service:', error);
       throw error;
     }
   }

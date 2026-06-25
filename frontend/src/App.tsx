@@ -39,6 +39,11 @@ function App() {
     setError: setRouteError,
     panelOpen,
     setPanelOpen,
+    selectedTransportMode,
+    setSelectedTransportMode,
+    matrixData,
+    matrixLoading,
+    calculateMatrix,
   } = useDirection();
 
   // Synchronize activeDestination with routing destination from useDirection hook
@@ -215,6 +220,11 @@ function App() {
         }}
         cachedGps={cachedGps}
         hasClickCard={false}
+        selectedTransportMode={selectedTransportMode}
+        setSelectedTransportMode={setSelectedTransportMode}
+        matrixData={matrixData}
+        matrixLoading={matrixLoading}
+        onCalculateMatrix={calculateMatrix}
       />
       <MapContainer
         center={center}
@@ -241,6 +251,22 @@ function App() {
           onClose={() => {
             setSecondarySelectedPlace(null);
             setClickedLocation(null);
+          }}
+          onGetDirections={() => {
+            // Set secondary location as the new route destination
+            const locationState = {
+              lat: secondarySelectedPlace.lat,
+              lng: secondarySelectedPlace.lng,
+              address: secondarySelectedPlace.address,
+              name: secondarySelectedPlace.name,
+            };
+            setDestination(locationState);
+            // Clear secondary location card and marker
+            setSecondarySelectedPlace(null);
+            setClickedLocation(null);
+            // Ensure directions view is active
+            setRouteMode(true);
+            setPanelOpen(true);
           }}
         />
       )}

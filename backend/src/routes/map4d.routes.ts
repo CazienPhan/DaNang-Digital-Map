@@ -90,10 +90,10 @@ router.get('/autosuggest', async (req: Request, res: Response) => {
 
 /**
  * Endpoint: GET /api/map4d/route
- * Query Params: origin (string), destination (string)
+ * Query Params: origin (string), destination (string), mode (string, optional)
  */
 router.get('/route', async (req: Request, res: Response) => {
-  const { origin, destination } = req.query;
+  const { origin, destination, mode } = req.query;
 
   if (!origin || typeof origin !== 'string' || !destination || typeof destination !== 'string') {
     return res.status(400).json({
@@ -103,12 +103,45 @@ router.get('/route', async (req: Request, res: Response) => {
   }
 
   try {
-    const data = await Map4dBackendService.route(origin, destination);
+    const data = await Map4dBackendService.route(
+      origin,
+      destination,
+      mode as string | undefined
+    );
     return res.status(200).json(data);
   } catch (error: any) {
     return res.status(500).json({
       status: 'ERROR',
       message: error.message || 'Error occurred while processing route request.',
+    });
+  }
+});
+
+/**
+ * Endpoint: GET /api/map4d/route/matrix
+ * Query Params: origins (string), destinations (string), mode (string, optional)
+ */
+router.get('/route/matrix', async (req: Request, res: Response) => {
+  const { origins, destinations, mode } = req.query;
+
+  if (!origins || typeof origins !== 'string' || !destinations || typeof destinations !== 'string') {
+    return res.status(400).json({
+      status: 'INVALID_REQUEST',
+      message: 'Query parameters "origins" and "destinations" are required and must be strings.',
+    });
+  }
+
+  try {
+    const data = await Map4dBackendService.distanceMatrix(
+      origins,
+      destinations,
+      mode as string | undefined
+    );
+    return res.status(200).json(data);
+  } catch (error: any) {
+    return res.status(500).json({
+      status: 'ERROR',
+      message: error.message || 'Error occurred while processing distance matrix request.',
     });
   }
 });

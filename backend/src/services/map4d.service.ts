@@ -80,21 +80,51 @@ export class Map4dBackendService {
    * Proxies route queries to Map4D Route API.
    * @param origin Starting coordinate pair (lat,lng).
    * @param destination Ending coordinate pair (lat,lng).
+   * @param mode Travel mode (car, motorcycle, bike, foot).
    */
-  static async route(origin: string, destination: string): Promise<any> {
+  static async route(origin: string, destination: string, mode?: string): Promise<any> {
     try {
       const key = this.getApiKey();
+      const params: any = {
+        key,
+        origin,
+        destination,
+      };
+      if (mode) params.mode = mode;
+
       const response = await axios.get('https://api.map4d.vn/sdk/route', {
-        params: {
-          key,
-          origin,
-          destination,
-        },
+        params,
       });
       return response.data;
     } catch (error: any) {
       console.error('Map4D Route API Error:', error.message);
       throw new Error(`Failed to contact Map4D Route endpoint: ${error.message}`);
+    }
+  }
+
+  /**
+   * Proxies distance matrix queries to Map4D Route Matrix API.
+   * @param origins Starting coordinate pair(s) (lat,lng).
+   * @param destinations Ending coordinate pair(s) (lat,lng).
+   * @param mode Travel mode (car, motorcycle, bike, foot).
+   */
+  static async distanceMatrix(origins: string, destinations: string, mode?: string): Promise<any> {
+    try {
+      const key = this.getApiKey();
+      const params: any = {
+        key,
+        origins,
+        destinations,
+      };
+      if (mode) params.mode = mode;
+
+      const response = await axios.get('https://api.map4d.vn/sdk/route/matrix', {
+        params,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Map4D Distance Matrix API Error:', error.message);
+      throw new Error(`Failed to contact Map4D Distance Matrix endpoint: ${error.message}`);
     }
   }
 }

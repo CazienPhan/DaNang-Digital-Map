@@ -11,12 +11,17 @@ interface DirectionPanelProps {
   destination: LocationState | null;
   setDestination: (loc: LocationState | null) => void;
   routeData: RouteResult | null;
-  onCalculateRoute: (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => void;
+  onCalculateRoute: (start: { lat: number; lng: number }, end: { lat: number; lng: number }, mode?: string) => void;
   onClear: () => void;
   loading: boolean;
   error: string | null;
   onClose: () => void;
   cachedGps?: LocationState | null;
+  selectedTransportMode: string;
+  setSelectedTransportMode: (mode: string) => void;
+  matrixData: Record<string, { distance: string; duration: string }> | null;
+  matrixLoading: boolean;
+  onCalculateMatrix: (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => void;
 }
 
 export const DirectionPanel: React.FC<DirectionPanelProps> = ({
@@ -32,6 +37,9 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
   error,
   onClose,
   cachedGps,
+  selectedTransportMode,
+  setSelectedTransportMode,
+  onCalculateMatrix,
 }) => {
   const [originText, setOriginText] = useState('');
   const [destText, setDestText] = useState('');
@@ -44,6 +52,49 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
 
   const [activeInput, setActiveInput] = useState<'origin' | 'dest' | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+
+  const transportModes = [
+    {
+      id: 'car',
+      label: 'Car',
+      icon: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+        </svg>
+      )
+    },
+    {
+      id: 'motorcycle',
+      label: 'Motorbike',
+      icon: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <circle cx="5" cy="18" r="3" />
+          <circle cx="19" cy="18" r="3" />
+          <path d="M19 15c0-2.21-1.79-4-4-4h-1.5l-2.5-3.5h-4l-1.5 2H3v2h2l1.5-2H8l2.5 3.5H15c1.1 0 2 .9 2 2s-.9 2-2 2h-2v2h2c2.21 0 4-1.79 4-4z"/>
+        </svg>
+      )
+    },
+    {
+      id: 'bike',
+      label: 'Bicycle',
+      icon: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <circle cx="5.5" cy="15.5" r="3" />
+          <circle cx="18.5" cy="15.5" r="3" />
+          <path d="M10.8 12.2l.9-1.1c.39-.39.39-1.02 0-1.41L10 8.3c-.39-.39-1.02-.39-1.41 0l-.9 1.1c-.39.39-.39 1.02 0 1.41l1.7 1.7.9-1.1c.39-.39 1.02-.39 1.41 0zM15.5 12h-4.3L8.5 7h4v2h2.5l-1.2-2.4H10v1.5H8.2L5.4 12.5H8v1.5h2.8z" />
+        </svg>
+      )
+    },
+    {
+      id: 'foot',
+      label: 'Walking',
+      icon: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 17.6l-1.4-.5c-.4-.1-.7.2-.6.6l.8 2.5c.1.3.4.5.7.5H11v-2h2.2l2.4-7.5c.3-.9-.4-1.8-1.4-1.8H9.8z"/>
+        </svg>
+      )
+    }
+  ];
 
   const handleSelectCurrentLocation = () => {
     if (cachedGps) {
@@ -108,15 +159,26 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
     return () => controller.abort();
   }, [debouncedDest, activeInput, destination, currentCenter]);
 
-  // Calculate route automatically when both coordinates are active
+  // Calculate detailed route when coordinates or selected mode changes
   useEffect(() => {
     if (origin && destination) {
       onCalculateRoute(
         { lat: origin.lat, lng: origin.lng },
-        { lat: destination.lat, lng: destination.lng }
+        { lat: destination.lat, lng: destination.lng },
+        selectedTransportMode
       );
     } else {
       onClear();
+    }
+  }, [origin, destination, selectedTransportMode]);
+
+  // Calculate matrix values only when origin or destination changes
+  useEffect(() => {
+    if (origin && destination && onCalculateMatrix) {
+      onCalculateMatrix(
+        { lat: origin.lat, lng: origin.lng },
+        { lat: destination.lat, lng: destination.lng }
+      );
     }
   }, [origin, destination]);
 
@@ -205,11 +267,37 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
           </button>
         </div>
 
+        {/* Transport Mode Selection Tabs */}
+        <div className="transport-tabs">
+          {transportModes.map((modeInfo) => {
+            const isActive = selectedTransportMode === modeInfo.id;
+
+            return (
+              <button
+                key={modeInfo.id}
+                type="button"
+                className={`transport-tab-btn${isActive ? ' active' : ''}`}
+                onClick={() => setSelectedTransportMode(modeInfo.id)}
+                title={modeInfo.label}
+              >
+                <div className="tab-icon">{modeInfo.icon}</div>
+                <span className="tab-label">{modeInfo.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="direction-inputs-container">
+          {/* Google Maps style Origin/Destination left indicators */}
+          <div className="route-indicator">
+            <span className="indicator-dot origin-indicator-dot"></span>
+            <span className="indicator-line"></span>
+            <span className="indicator-dot dest-indicator-dot"></span>
+          </div>
+
           <div className="inputs-wrapper">
             {/* Origin Search */}
             <div className="input-group">
-              <span className="dot origin-dot"></span>
               <input
                 type="text"
                 className="direction-input"
@@ -257,7 +345,6 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
 
             {/* Destination Search */}
             <div className="input-group">
-              <span className="dot dest-dot"></span>
               <input
                 type="text"
                 className="direction-input"
@@ -318,8 +405,10 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
       {routeData && !loading && !error && (
         <div className="route-summary-card">
           <div className="route-metric">
-            <svg viewBox="0 0 24 24" className="icon">
-              <path d="M12.5 18.5c-1.9 0-3.4-1.5-3.4-3.4 0-1.2.6-2.2 1.5-2.8l-1.4-1.4c-1.3.9-2.1 2.4-2.1 4.2 0 2.8 2.2 5 5 5 1.8 0 3.3-.8 4.2-2.1l-1.4-1.4c-.6.9-1.6 1.5-2.8 1.5zM16 11.5c.6 0 1 .4 1 1s-.4 1-1 1-1-.4-1-1 .4-1 1-1m-3.5-3c-2.8 0-5 2.2-5 5H5l3.5 3.5L12 13.5H9.5c0-1.9 1.5-3.4 3.4-3.4 1.2 0 2.2.6 2.8 1.5l1.4-1.4C15.8 9.3 14.3 8.5 12.5 8.5z" />
+            <svg viewBox="0 0 24 24" className="icon" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="6" cy="19" r="3" />
+              <circle cx="18" cy="5" r="3" />
+              <path d="M9 19h6.5a3.5 3.5 0 0 0 0-7h-7a3.5 3.5 0 0 1 0-7H15" />
             </svg>
             <div className="metric-details">
               <span className="value">{routeData.distance}</span>
@@ -327,8 +416,9 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
             </div>
           </div>
           <div className="route-metric">
-            <svg viewBox="0 0 24 24" className="icon">
-              <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+            <svg viewBox="0 0 24 24" className="icon" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
             </svg>
             <div className="metric-details">
               <span className="value">{routeData.duration}</span>

@@ -340,7 +340,43 @@ body,
 .direction-inputs-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+/* Google Maps style route indicator styling */
+.route-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 14px;
+  align-self: stretch;
+  padding: 15px 0;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.origin-indicator-dot {
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+}
+
+.dest-indicator-dot {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.indicator-line {
+  flex: 1;
+  width: 0;
+  border-left: 2px dashed rgba(255, 255, 255, 0.25);
+  margin: 4px 0;
 }
 
 .swap-btn {
@@ -388,7 +424,7 @@ body,
 }
 
 .origin-dot {
-  background: #10b981;
+  background: #3b82f6;
 }
 
 .dest-dot {
@@ -487,7 +523,8 @@ body,
 .route-metric .icon {
   width: 20px;
   height: 20px;
-  fill: #3b82f6;
+  stroke: #3b82f6;
+  fill: none;
 }
 
 .metric-details {
@@ -808,3 +845,54 @@ body,
     bottom: 20px;
   }
 }
+
+/* Transportation Mode Selector Tabs */
+.transport-tabs {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.transport-tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 8px;
+  cursor: pointer;
+  color: rgba(248, 250, 252, 0.55);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.transport-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(248, 250, 252, 0.85);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.transport-tab-btn.active {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #3b82f6;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+.tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+
