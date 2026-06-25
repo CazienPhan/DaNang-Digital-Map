@@ -72,6 +72,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onCalculateMatrix,
   selectedPoiDetails = null,
   poiDetailLoading = false,
+  poiDetailError = null,
 }) => {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 350);
@@ -321,27 +322,18 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       )}
 
       {/* Primary Card View (Loader, POI Card, or standard click card) */}
-      {poiDetailLoading && !directionActive && (
-        <div className="place-info-card poi-loading-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-            <svg className="spin-animation" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', fill: '#3b82f6' }}>
-              <path d="M12 4V2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8zm0 16c4.41 0 8-3.59 8-8h2c0 5.52-4.48 10-10 10v-2z" />
-            </svg>
-            <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Connecting to Supabase...</span>
-          </div>
-        </div>
-      )}
-
-      {!poiDetailLoading && selectedPoiDetails && !directionActive && (
+      {!directionActive && (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
         <PoiDetailCard
           poi={selectedPoiDetails}
+          loading={poiDetailLoading}
+          error={poiDetailError}
           isSecondary={false}
           onClose={onCloseInfoCard}
           onGetDirections={onDirectionClick}
         />
       )}
 
-      {!poiDetailLoading && !selectedPoiDetails && selectedPlace && !directionActive && !hasClickCard && (
+      {!poiDetailLoading && !selectedPoiDetails && !poiDetailError && selectedPlace && !directionActive && !hasClickCard && (
         <PlaceInfoCard
           place={selectedPlace}
           onGetDirections={onDirectionClick}

@@ -448,25 +448,16 @@ function App() {
         />
       )}
 
-      {secondaryPoiLoading && (
-        <div className="place-detail-click-card secondary-card poi-loading-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-            <svg className="spin-animation" viewBox="0 0 24 24" style={{ width: '28px', height: '28px', fill: '#3b82f6' }}>
-              <path d="M12 4V2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8zm0 16c4.41 0 8-3.59 8-8h2c0 5.52-4.48 10-10 10v-2z" />
-            </svg>
-            <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: 500 }}>Connecting to Supabase...</span>
-          </div>
-        </div>
-      )}
-
-      {secondaryPoiDetails && (
+      {(secondaryPoiDetails || secondaryPoiLoading) && (
         <PoiDetailCard
           poi={secondaryPoiDetails}
+          loading={secondaryPoiLoading}
           isSecondary={true}
           onClose={() => {
             setSecondaryPoiDetails(null);
+            setSecondaryPoiLoading(false);
           }}
-          onGetDirections={() => handlePoiGetDirections(secondaryPoiDetails)}
+          onGetDirections={() => handlePoiGetDirections(secondaryPoiDetails!)}
         />
       )}
       {poiError && (

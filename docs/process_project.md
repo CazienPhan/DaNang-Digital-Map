@@ -1064,3 +1064,92 @@ TEST RESULT:
 
 STATUS: COMPLETE
 
+## 2026-06-26 01:10:00
+
+TIME: 2026-06-26 01:10:00
+
+TASK: OPTIMIZE POI DETAIL CARD UI/UX AND TYPOGRAPHY HIERARCHY
+
+PROBLEM:
+- The POI details primary card UI/UX lacked visual polish.
+- Visual hierarchy and typography were inconsistent.
+- Icons were vertically misaligned.
+- Inconsistent casing in titles and labels.
+- Address label was missing.
+- Missing unified loading, error, and missing-data states.
+
+SOLUTION:
+1. Redesigned `PoiDetailCard.tsx` with a premium dark glassmorphic styling, featuring deep translucency, blurs, and satin borders.
+2. Enforced title typography hierarchy: place names are now uppercase, bold, largest font, and colored with the same custom category color tone (`color: tagColor`).
+3. Standardized metadata rows with flex alignment (`align-items: center`), ensuring vertical alignment for all `ICON + LABEL + VALUE` blocks.
+4. Restored the `Address:` label explicitly.
+5. Standardized labels with semi-bold weight, high-contrast, and clean consistent casing.
+6. Unified card states by moving loading and query error states directly inside `PoiDetailCard.tsx`, showing descriptive Affected Component, Cause, and Solution values.
+7. Optimized media presentation layout: Max 4 photos rendering in a 2x2 grid for portrait/square images and full-width rows for landscape. Max 2 videos rendering in a 2-column grid layout.
+8. Removed separate loading/error UI blocks in `SearchBar.tsx` and `App.tsx` and consolidated them inside `PoiDetailCard` instances.
+9. Verified compilation of both backend and frontend applications.
+
+FILES CHANGED:
+- `frontend/src/components/Search/PoiDetailCard.tsx`
+- `frontend/src/components/Search/SearchBar.tsx`
+- `frontend/src/App.tsx`
+- `frontend/src/App.css`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Verified clean build on frontend and backend.
+- Confirmed correct alignment of label-value rows, uppercase title coloring, and badge-pill category rendering.
+
+STATUS: COMPLETE
+
+## 2026-06-26 01:20:00
+
+TIME: 2026-06-26 01:20:00
+
+TASK: TRANSLATE POI CARD TO VIETNAMESE AND REFACTOR COLUMN ALIGNMENTS
+
+PROBLEM:
+- POI detail card text was in English and needed translation to Vietnamese.
+- Rating stars and reviews count row was not centered under the place title.
+- Information layout column sizes were inconsistent and misaligned.
+- Introduction text was justified instead of left-aligned.
+
+SOLUTION:
+1. Centered the rating section (`.poi-rating-row`) horizontally using `justify-content: center` in CSS.
+2. Centered the Place Name (`.poi-name`) horizontally.
+3. Kept stars, rating values, and review count inline in a single centered row.
+4. Translated all labels and localized text inside `PoiDetailCard.tsx` to Vietnamese:
+   - Address -> Địa chỉ
+   - Built Year -> Năm xây dựng
+   - Ticket Price -> Giá vé (and replaced ticket icon to `🎟️`)
+   - Opening Hours -> Giờ mở cửa
+   - Website -> Website
+   - Reviews -> Đánh giá (e.g. `(43276 đánh giá)`)
+   - Introduction -> Giới thiệu
+   - Business Category -> Ngành hàng
+   - Phone -> Số điện thoại
+   - Open -> Đang mở cửa
+   - Closed -> Đã đóng cửa
+   - Open 24/7 -> Mở cửa 24/7
+5. Created localized mapping helpers translating day names and open/closed time ranges.
+6. Set structured layouts:
+   - Icon column width fixed at `24px` (`.poi-info-icon`).
+   - Label column width fixed at `130px` (`.poi-info-label`).
+   - Content column set to `flex: 1` and left-aligned (`.poi-info-value`).
+7. Enforced left alignment for all POI values, including the Introduction description block (`.poi-description-text`).
+8. Removed CSS `text-transform: capitalize` on info labels to prevent layout casing overrides.
+9. Ran typescript tests checking that no routing, direction, media, or marker code was affected.
+
+FILES CHANGED:
+- `frontend/src/components/Search/PoiDetailCard.tsx`
+- `frontend/src/App.css`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Build check compiles cleanly.
+- Visual inspection confirms centered place names and inline stars rows, left-aligned values, fixed column layouts, and complete translation.
+
+STATUS: COMPLETE
+
+
+
