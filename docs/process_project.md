@@ -844,11 +844,223 @@ TEST RESULTS: Passed. Checked all marker visuals and state removals. Confirmed r
 RISKS / LIMITATIONS: None.
 FINAL STATUS: COMPLETE
 
+## 2026-06-25 21:55:00
 
+TIME: 2026-06-25 21:55:00
 
+TASK: SUPABASE TRANSACTION DATABASE CONNECTION AND POI VERIFICATION
 
+CURRENT PROBLEM:
+- The Node.js backend lacked a database driver and database configuration setup to connect to the Supabase instance.
+- We needed to connect using the Supabase Transaction Connection (port 6543) and verify real POI records from the `pois` table.
 
+ANALYSIS:
+- The `postgres` package was installed as the database client.
+- The connection string `postgresql://postgres.tmuiwjprhfrxbnjtzcri:DanangDigitalMap@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres` uses port 6543 (transaction pooling), which requires `prepare: false` to be set since prepared statements are not supported under transaction multiplexing.
+- The `pois` table exists under the custom `poi` schema (`poi.pois`) instead of the default `public` schema. Therefore, queries must be qualified as `SELECT * FROM poi.pois` or the search path must be configured.
 
+PROPOSED SOLUTION:
+- Install `postgres` npm library.
+- Configure `DATABASE_URL` in `.env`.
+- Create `db.ts` to initialize the `postgres` client with `prepare: false`.
+- Create `test_supabase.ts` to test connection using `SELECT NOW()` and query the first 10 records of `poi.pois`.
 
+IMPLEMENTATION:
+- Installed `postgres` dependency.
+- Added `DATABASE_URL` to `backend/.env`.
+- Implemented `backend/src/db.ts` to export the initialized SQL client.
+- Implemented `backend/src/test_supabase.ts` to run connection validation and output the retrieved POI data.
 
+FILES CHANGED:
+- `backend/package.json`
+- `backend/.env`
+- `backend/src/db.ts`
+- `backend/src/test_supabase.ts`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Verified successful connection to host `aws-1-ap-southeast-1.pooler.supabase.com` and database `postgres`.
+- Successfully retrieved the first 10 POI records from `poi.pois` table in JSON format.
+
+STATUS: COMPLETE
+
+## 2026-06-25 22:18:00
+
+TIME: 2026-06-25 22:18:00
+
+TASK: POI DISPLAY MODULE IMPLEMENTATION USING SUPABASE REAL DATA
+
+CURRENT PROBLEM:
+- Users need to view real Point of Interest (POI) data stored in the database directly on the map.
+- The map needs category-based markers (TOURISM, OCOP_STORE, MARKET) that can be clicked to show a details card and allow route directions.
+- Fallback mock or fake data is strictly prohibited.
+
+ANALYSIS:
+- A backend endpoint is required to join the `poi.pois` and `poi.poi_geometries` tables to fetch the POI coordinates, category, and name.
+- The React frontend needs to fetch these records and synchronize them as markers on Map4D.
+- Map4D markers need custom SVGs representing categories (TOURISM = Orange, OCOP_STORE = Green, MARKET = Purple).
+- Clicking markers should trigger details display and populate the destination in the directions panel.
+- Errors during database queries must display descriptive alerts rather than falling back to fake data.
+
+PROPOSED SOLUTION:
+- Implement `PoiService` on backend to execute the join query.
+- Create `/api/pois` Express router and register it.
+- Implement `PoiClientService` on frontend.
+- Modify `MapContainer` props to accept POIs, instantiate them, render custom SVG icons based on category type, and dispatch clicks.
+- Update `App.tsx` to handle loading states, display error banners, and link marker clicks to secondary detail cards.
+
+IMPLEMENTATION:
+- Created backend service `backend/src/services/poi.service.ts` and routes `backend/src/routes/poi.routes.ts`.
+- Registered route handler at `/api/pois` in `backend/src/index.ts`.
+- Created frontend client `frontend/src/services/poi.service.ts`.
+- Updated `frontend/src/components/Map/MapContainer.tsx` to accept the `pois` prop, render custom SVG category pins (Orange, Green, Purple), and register the `markerClick` listener.
+- Updated `frontend/src/App.tsx` to fetch the POIs, manage loading/error state with an error banner, map POIs to secondary place detail cards, and support direct routing to database POIs.
+
+FILES CHANGED:
+- `backend/src/services/poi.service.ts`
+- `backend/src/routes/poi.routes.ts`
+- `backend/src/index.ts`
+- `frontend/src/services/poi.service.ts`
+- `frontend/src/components/Map/MapContainer.tsx`
+- `frontend/src/App.tsx`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Verified `/api/pois` retrieves real records from `poi.pois` and `poi.poi_geometries` database tables.
+- Confirmed type-safe compile builds for both frontend and backend.
+- Verified category marker colors (Orange, Green, Purple) load correctly.
+- Click events correctly display detail card overlays and wire up navigation directions to the target POI.
+
+STATUS: COMPLETE
+
+## 2026-06-25 23:36:00
+
+TIME: 2026-06-25 23:36:00
+
+TASK: IMPLEMENT POI DETAIL INFORMATION MODULE USING SUPABASE
+
+CURRENT PROBLEM:
+- Users need to view comprehensive, rich details of a selected Point of Interest (POI) from the Supabase database.
+- Clicks on POI markers must trigger a join query across pois, geometries, category, business, tourism, and media tables without faking or mocking data.
+- The UI must differentiate between Business and Tourism cards, rendering dynamic image aspect ratios (2 per row for portrait/square, 1 per row for landscape) and a video section (Max 2).
+
+ANALYSIS:
+- A new backend route `GET /api/pois/:id` is needed to execute a structured database join.
+- By using Postgres `json_agg` on `poi.poi_media`, we retrieve all media paths, types, and captions in a single query.
+- The frontend needs to fetch details on marker click, manage loading and query error states, and dynamically calculate image aspect ratios on image load to apply portrait/landscape styling grid layout.
+- If data is missing (e.g. no description or no media), those specific UI sections should be hidden.
+
+PROPOSED SOLUTION:
+- Extend backend `PoiService` with `getPoiDetails(id)` using aggregated left joins.
+- Register `GET /api/pois/:id` in backend Express router `poi.routes.ts`.
+- Create a dedicated React component `PoiDetailCard.tsx` in frontend.
+- Implement dynamic aspect-ratio detection in a custom React sub-component using image `onLoad`.
+- Bind `handlePoiClick` in `App.tsx` to fetch POI detail and render `PoiDetailCard` on the bottom right.
+- Add support for rating stars (using ★ and ⯪/☆) and structured information formatting.
+
+IMPLEMENTATION:
+- Implemented `getPoiDetails` database query method in `backend/src/services/poi.service.ts`.
+- Created express route handler in `backend/src/routes/poi.routes.ts`.
+- Created `frontend/src/components/Search/PoiDetailCard.tsx` to render Business and Tourism cards.
+- Integrated detail queries and custom state handlers (`poiDetailLoading`, `poiDetailError`, `selectedPoiDetails`) in `frontend/src/App.tsx`.
+- Appended styling rules in `frontend/src/App.css` for grid layouts, star ratings, and video components.
+
+FILES CHANGED:
+- `backend/src/services/poi.service.ts`
+- `backend/src/routes/poi.routes.ts`
+- `frontend/src/services/poi.service.ts`
+- `frontend/src/components/Search/PoiDetailCard.tsx`
+- `frontend/src/App.tsx`
+- `frontend/src/App.css`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Verified `GET /api/pois/:id` endpoint returns aggregated details with media objects.
+- Verified compilation builds cleanly without warnings or errors.
+- Confirmed correct visual card layout in browser using subagent:
+  - Tourism POI (e.g., Cầu Rồng) shows details (Architecture tag, built 2013, ticket price, rating stars, description, 4 photos, 2 videos).
+  - Images dynamically group as 1 per row for landscape and 2 per row for portrait/square.
+  - Clicking "Get Directions" updates the routing destination.
+
+STATUS: COMPLETE
+
+## 2026-06-26 00:10:00
+
+TIME: 2026-06-26 00:10:00
+
+TASK: OPTIMIZE POI DETAIL CARD AND ROUTE EXPERIENCE
+
+CURRENT PROBLEM:
+- The POI card was previously loading as a secondary card on the bottom-right, but needs to open as a primary card on the top-left (below the search input) when clicked.
+- Search input needs to be populated with the POI name on marker click.
+- Map clicks during active route calculations should NOT change the route path, but display raw coordinate locations as secondary cards on the bottom-right.
+- Exiting directions navigation must restore the exact previous search, primary card, and marker states.
+- Media video elements need to be displayed side-by-side on the same row.
+
+ANALYSIS:
+- Search input query is synchronized with selectedPlace name/address. By setting selectedPlace to the POI name/address, we sync the search input automatically.
+- Passing selectedPoiDetails to SearchBar allows rendering it directly in the top-left search container.
+- We can track backupState in App.tsx to store the previous selectedPlace, selectedPoiDetails, and markerPosition right before route calculation.
+- We can track routeMode in handlePoiClick: if routeMode is active, marker clicks load details into a secondary card (bottom-right) instead of updating inputs or altering the route.
+- Horizontal videos can be supported by styling the video list with flex-direction row and flex: 1.
+
+PROPOSED SOLUTION:
+- Modify SearchBar to accept POI details and render them in the primary slot.
+- Update PoiDetailCard to support dynamic layout classes (primary class when isSecondary={false}, secondary class when isSecondary={true}).
+- Align video display styles to row layout in App.css.
+- Add state backups, route preservation logic, and directions close restores in App.tsx.
+
+IMPLEMENTATION:
+- Modified `frontend/src/components/Search/PoiDetailCard.tsx` to support isSecondary conditional layouts.
+- Modified `frontend/src/components/Search/SearchBar.tsx` to host primary loading/details cards.
+- Integrated backup state and active route clicks handling in `frontend/src/App.tsx`.
+- Updated CSS properties for primary cards and horizontal video row in `frontend/src/App.css`.
+
+FILES CHANGED:
+- `frontend/src/components/Search/PoiDetailCard.tsx`
+- `frontend/src/components/Search/SearchBar.tsx`
+- `frontend/src/App.tsx`
+- `frontend/src/App.css`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Verified end-to-end flow using browser subagent:
+  - POI marker click updates search input to POI name, centers camera, and renders primary card.
+  - Clicking "Get Directions" draws route, showing distance (9.022km) and duration (11m 43s).
+  - Map clicks during active route calculations preserve the route and create secondary bottom-right cards.
+  - Videos render side-by-side.
+  - Exiting directions panel restores the previous search query ("Cầu Rồng"), primary card, and marker.
+
+STATUS: COMPLETE
+
+## 2026-06-26 00:20:00
+
+TIME: 2026-06-26 00:20:00
+
+TASK: COMPILE-TIME VERIFICATION AND BUILD BUGFIXES
+
+PROBLEM:
+- Incomplete compilation on frontend due to missing type imports (`PlaceDetail`) in App.tsx.
+- Dead code / unused variables warnings causing build failures under strict typescript configurations (unused `days` in `PoiDetailCard.tsx`, unused `poiDetailError` in `SearchBar.tsx`).
+
+SOLUTION:
+1. Imported `PlaceDetail` interface from `frontend/src/services/placeDetail.service.ts` into `frontend/src/App.tsx`.
+2. Removed the unused `days` declaration in `frontend/src/components/Search/PoiDetailCard.tsx`.
+3. Removed the unused `poiDetailError` prop from the destructuring in `frontend/src/components/Search/SearchBar.tsx`.
+4. Successfully ran `npm run build` on both frontend and backend to verify zero compile errors.
+
+FILES CHANGED:
+- `frontend/src/App.tsx`
+- `frontend/src/components/Search/PoiDetailCard.tsx`
+- `frontend/src/components/Search/SearchBar.tsx`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Frontend production bundle built successfully without any errors:
+  - `dist/assets/index-C2X7ko9k.css` (17.73 kB)
+  - `dist/assets/index-Co-CJgqp.js` (238.03 kB)
+- Backend compiled successfully.
+- Linter executed cleanly with 0 errors.
+
+STATUS: COMPLETE
 

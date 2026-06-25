@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MAP4D_CONFIG } from '../../config/map.config';
 import { loadMap4dSDK } from '../../utils/map.helper';
+import { type POIData } from '../../services/poi.service';
 
 export interface MapCoordinate {
   lat: number;
@@ -17,6 +18,8 @@ export interface MapContainerProps {
   routePath?: MapCoordinate[] | null;
   originMarker?: MapCoordinate | null;
   destinationMarker?: MapCoordinate | null;
+  pois?: POIData[] | null;
+  onPoiClick?: (poi: POIData) => void;
   onMapReady?: (map: any) => void;
   onMapClick?: (latLng: MapCoordinate) => void;
   onCameraMove?: (camera: any) => void;
@@ -35,6 +38,8 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   routePath = null,
   originMarker = null,
   destinationMarker = null,
+  pois = null,
+  onPoiClick,
   onMapReady,
   onMapClick,
   onCameraMove,
@@ -51,6 +56,13 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const routePolylineRef = useRef<any>(null);
   const originMarkerRef = useRef<any>(null);
   const destinationMarkerRef = useRef<any>(null);
+  const poisMarkersRef = useRef<any[]>([]);
+  const onPoiClickRef = useRef(onPoiClick);
+
+  // Keep callback ref updated to prevent marker recreations
+  useEffect(() => {
+    onPoiClickRef.current = onPoiClick;
+  }, [onPoiClick]);
 
   // Initialize SDK
   useEffect(() => {
@@ -117,6 +129,16 @@ export const MapContainer: React.FC<MapContainerProps> = ({
           onZoomChanged(camera.getZoom());
         }
       });
+
+      // Register map-level click listener for custom marker selection
+      map.addListener('click', (args: any) => {
+        if (args && args.marker) {
+          const poi = args.marker.poiData;
+          if (poi && onPoiClickRef.current) {
+            onPoiClickRef.current(poi);
+          }
+        }
+      }, { marker: true });
 
     } catch (err: any) {
       console.error('Failed to initialize Map4D map:', err);
@@ -308,6 +330,48 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     }
   }, [routePath, originMarker, destinationMarker, mapInstance]);
 
+  // Synchronize dynamic database POI markers
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    // 1. Clear previous database markers
+    poisMarkersRef.current.forEach((marker) => {
+      marker.setMap(null);
+    });
+    poisMarkersRef.current = [];
+
+    // 2. Render new database markers if provided
+    if (pois && pois.length > 0) {
+      const markers: any[] = [];
+      pois.forEach((poi) => {
+        try {
+          const marker = new window.map4d.Marker({
+            position: new window.map4d.LatLng(poi.lat, poi.lng),
+            title: poi.name,
+            visible: true,
+            iconView: getPoiMarkerIcon(poi.poi_type),
+            anchor: { x: 0.5, y: 1.0 },
+          });
+          // Attach custom property to marker for identifying it in the markerClick listener
+          marker.poiData = poi;
+          marker.setMap(mapInstance);
+          markers.push(marker);
+        } catch (err) {
+          console.error(`Failed to render POI marker for ${poi.name}:`, err);
+        }
+      });
+      poisMarkersRef.current = markers;
+    }
+
+    return () => {
+      // Clean up markers if component unmounts
+      poisMarkersRef.current.forEach((marker) => {
+        marker.setMap(null);
+      });
+      poisMarkersRef.current = [];
+    };
+  }, [pois, mapInstance]);
+
   if (error) {
     return (
       <div 
@@ -349,4 +413,43 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     </div>
   );
 };
+
+function getPoiMarkerIcon(poiType: string): string {
+  let color = '#3b82f6'; // Default
+  let innerIcon = ''; // SVG path definition
+  
+  if (poiType === 'TOURISM') {
+    color = '#f97316'; // Orange / Tourism
+    innerIcon = `
+      <path d="M12 10.5L11.2 12H9C7.9 12 7 12.9 7 14V20C7 21.1 7.9 22 9 22H23C24.1 22 25 21.1 25 20V14C25 12.9 24.1 12 23 12H20.8L20 10.5H12ZM16 20C13.8 20 12 18.2 12 16C12 13.8 13.8 12 16 12C18.2 12 20 13.8 20 16C20 18.2 18.2 20 16 20ZM16 14C14.9 14 14 14.9 14 16C14 17.1 14.9 18 16 18C17.1 18 18 17.1 18 16C18 14.9 17.1 14 16 14Z" fill="#FFFFFF"/>
+    `;
+  } else if (poiType === 'OCOP_STORE') {
+    color = '#10b981'; // Green / Emerald
+    innerIcon = `
+      <path d="M20 6H17C17 3.24 14.76 1 12 1C9.24 1 7 3.24 7 6H4C2.9 6 2 6.9 2 8V20C2 21.1 2.9 22 4 22H20C21.1 22 22 21.1 22 20V8C22 6.9 21.1 6H20ZM12 3C13.66 3 15 4.34 15 6H9C9 4.34 10.34 3 12 3ZM20 20H4V8H20V20ZM12 10C9.79 10 8 11.79 8 14C8 16.21 9.79 18 12 18C14.21 18 16 16.21 16 14C16 11.79 14.21 10 12 10ZM12 16C10.9 16 10 15.1 10 14C10 12.9 10.9 12 12 12C13.1 12 14 12.9 14 14C14 15.1 13.1 16 12 16Z" fill="#FFFFFF"/>
+    `;
+  } else if (poiType === 'MARKET') {
+    color = '#8b5cf6'; // Purple
+    innerIcon = `
+      <path d="M18.14 11H19.78C20.67 11 21.34 11.83 21.16 12.7L19.46 20.35C19.3 21.05 18.68 21.55 17.96 21.55H6.04C5.32 21.55 4.7 21.05 4.54 20.35L2.84 12.7C2.66 11.83 3.33 11 4.22 11H5.86L10.59 2.5C10.96 1.83 11.96 1.83 12.33 2.5L17.06 11ZM12 4.4L8.3 11H15.7L12 4.4ZM11 15H13V19H11V15ZM7 15H9V19H7V15ZM15 15H17V19H15V15Z" fill="#FFFFFF"/>
+    `;
+  } else {
+    color = '#6b7280'; // Gray fallback
+    innerIcon = `
+      <circle cx="12" cy="12" r="5" fill="#FFFFFF"/>
+    `;
+  }
+
+  return `
+    <div style="display: flex; flex-direction: column; align-items: center; width: 32px; height: 42px; filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.35));">
+      <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 0C7.16 0 0 7.16 0 16C0 28 16 42 16 42C16 42 32 28 32 16C32 7.16 24.84 0 16 0Z" fill="${color}" stroke="#FFFFFF" stroke-width="2"/>
+        <g transform="translate(4, 4)">
+          ${innerIcon}
+        </g>
+      </svg>
+    </div>
+  `;
+}
+
 export default MapContainer;

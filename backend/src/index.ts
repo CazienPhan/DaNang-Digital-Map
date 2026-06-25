@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import map4dRouter from './routes/map4d.routes';
+import poiRouter from './routes/poi.routes';
 
 // Load environment configurations from .env file
 dotenv.config();
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Set up route handlers
 app.use('/api/map4d', map4dRouter);
+app.use('/api/pois', poiRouter);
 
 // Base sanity check / health route
 app.get('/health', (req, res) => {
