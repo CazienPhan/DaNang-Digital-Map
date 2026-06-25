@@ -592,3 +592,60 @@ Verified using Playwright browser subagent:
 - Custom gray marker is dropped on map clicks. Clicking a third spot updates/replaces the old marker correctly.
 - Layout scales responsively to mobile views with center reflows.
 - Dev and production builds compile successfully without warnings.
+
+
+## 2026-06-25 09:35:00
+
+
+### Requirement
+Implement Place Detail state management with Primary Card and Secondary Card logic, including:
+1. Search/Autocomplete selection always creates the Primary Card.
+2. Clicking another map location AFTER Search but BEFORE Directions replaces the Primary Card and updates the Search Bar query.
+3. Clicking another map location DURING Directions Mode creates a Secondary Card only.
+4. Closing Directions panel does NOT reset destination context or clear the route/markers from the map.
+5. After closing Directions, clicking another location still creates a Secondary Card.
+6. Route state must remain intact while the Secondary Card is displayed.
+7. Search Bar must not be modified by Secondary Card actions.
+8. Maintain clear state separation: selectedPlace, activeDestination, routeMode, secondarySelectedPlace.
+
+
+### Current System Status
+The app uses basic conditional checks that conflate search active states and directions states, resulting in closing the directions panel clearing the entire route, and clicking map locations before directions displaying a secondary card instead of replacing the primary card.
+
+
+### Analysis
+We need to decouple the directions input panel's visibility (`panelOpen`) from the general routing lifecycle (`routeMode`). The states `selectedPlace` (primary), `activeDestination` (routing end-point), `routeMode` (routing active/inactive indicator), and `secondarySelectedPlace` (secondary clicked inspector card) must be managed independently:
+- `selectedPlace` manages the Primary Card and Search Bar text.
+- `activeDestination` manages the route target coordinate.
+- `routeMode` controls if routing details are kept on the map and if map clicks route to the secondary card.
+- `secondarySelectedPlace` manages the inspector card on the bottom-right and the gray location marker.
+
+
+### Implementation Plan
+1. Declare separated states `selectedPlace`, `activeDestination`, `routeMode`, and `secondarySelectedPlace` in `App.tsx`.
+2. Update map click handler inside `App.tsx` to branch on `routeMode` (if true: set `secondarySelectedPlace`; if false: set `selectedPlace` and update search query).
+3. Decouple directions panel close from route clearance so route markers and paths are preserved on close, keeping `routeMode` as `true`.
+4. Ensure Search Bar query input is strictly decoupled from `secondarySelectedPlace` clicks and closures.
+5. Verify changes with a Vite production build.
+
+
+### Implementation Result
+Successfully decoupled directions inputs visibility (`panelOpen`) from the general routing state lifetime (`routeMode`). The states `selectedPlace`, `activeDestination`, `routeMode`, and `secondarySelectedPlace` are now declared and tracked separately in [App.tsx](file:///d:/PROJECT/MAP4D/frontend/src/App.tsx). Replaced the `usePlaceDetail` hook with local state tracking for `secondarySelectedPlace` and its coordinates `clickedLocation`. Decoupled `handleCloseDirection` so it only toggles `panelOpen` to `false`, leaving the route polyline and markers visible on the map. Linked `MapClickHandler` contexts to `routeMode`, so map clicks replace primary searches before directions and drop secondary markers / cards during/after directions.
+
+
+### Changed Files
+- `frontend/src/App.tsx`
+
+
+### Testing Result
+Verified using Playwright browser subagent:
+- Search autocomplete selection correctly renders the Primary Card (`PlaceInfoCard` at top-left).
+- Map click in default state (before directions) updates the Search Bar query input to the resolved address (`18 Phùng Khắc Khoan`) and updates the Primary Card.
+- Entering directions calculates a route and fits camera bounds (origin and destination A/B markers visible).
+- Map click during directions opens a Secondary Card (`PlaceDetailCard` at bottom-right) displaying the place name and address without overriding the Search Bar query or route states.
+- Closing the directions panel hides the input forms but preserves the route path on the map.
+- Map click after directions panel is closed still opens the Secondary Card (due to `routeMode` remaining active).
+- Clearing the search input via the 'X' button performs a full reset, clearing all markers, routes, and cards.
+- Dev and production builds compile successfully without warnings.
+
+

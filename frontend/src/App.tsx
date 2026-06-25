@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MapContainer, { type MapCoordinate } from './components/Map/MapContainer';
 import SearchBar from './components/Search/SearchBar';
 import { useDirection, type LocationState } from './hooks/useDirection';
 import { SearchService, type PlaceSuggestion } from './services/map4d/search.service';
-import usePlaceDetail from './hooks/usePlaceDetail';
 import PlaceDetailCard from './components/Search/PlaceDetailCard';
 import MapClickHandler from './components/Map/MapClickHandler';
 import { type PlaceDetail } from './services/placeDetail.service';
@@ -14,23 +13,17 @@ function App() {
   const [zoom, setZoom] = useState<number>(13);
   const [markerPosition, setMarkerPosition] = useState<MapCoordinate | null>(null);
   
-  // Track selected place in search mode (for Case 2: Search First)
+  // 1. Core separated states
   const [selectedPlace, setSelectedPlace] = useState<LocationState | null>(null);
+  const [activeDestination, setActiveDestination] = useState<LocationState | null>(null);
+  const [routeMode, setRouteMode] = useState<boolean>(false);
+  const [secondarySelectedPlace, setSecondarySelectedPlace] = useState<PlaceDetail | null>(null);
+  const [clickedLocation, setClickedLocation] = useState<MapCoordinate | null>(null);
 
   // Cache resolved GPS location coordinates and geocoded physical address
   const [cachedGps, setCachedGps] = useState<LocationState | null>(null);
 
   const [mapInstance, setMapInstance] = useState<any>(null);
-
-  const {
-    clickedLocation,
-    setClickedLocation,
-    selectedPlace: clickedPlace,
-    setSelectedPlace: setClickedPlace,
-    currentCardType,
-    setCurrentCardType,
-    clearPlaceDetail,
-  } = usePlaceDetail();
 
   const {
     origin,
@@ -48,11 +41,17 @@ function App() {
     setPanelOpen,
   } = useDirection();
 
+  // Synchronize activeDestination with routing destination from useDirection hook
+  useEffect(() => {
+    setActiveDestination(destination);
+  }, [destination]);
+
   const handleSelectPlace = (latLng: MapCoordinate) => {
     setCenter(latLng);
     setZoom(16);
     setMarkerPosition(latLng);
-    clearPlaceDetail();
+    setSecondarySelectedPlace(null);
+    setClickedLocation(null);
   };
 
   const handleGPSClickSuccess = (coords: MapCoordinate, address: string) => {
@@ -66,7 +65,8 @@ function App() {
     setOrigin(locationState);
     setSelectedPlace(locationState);
     setCachedGps(locationState); // Save to cache
-    clearPlaceDetail();
+    setSecondarySelectedPlace(null);
+    setClickedLocation(null);
   };
 
   const handlePlaceResolved = (place: PlaceDetail, cardType: 'DEFAULT_CLICK_CARD' | 'SEARCH_RESULT_CARD') => {
@@ -80,15 +80,13 @@ function App() {
         category: place.category,
       });
       setMarkerPosition({ lat: place.lat, lng: place.lng });
-      // Reset clickedPlace and clickedLocation to make sure secondary card is hidden
+      // Clear secondary card/marker
+      setSecondarySelectedPlace(null);
       setClickedLocation(null);
-      setClickedPlace(null);
-      setCurrentCardType(null);
     } else {
-      // Scenario 2: Active search state (active search exists)
+      // Scenario 2/3: Active search/routing state
       setClickedLocation({ lat: place.lat, lng: place.lng });
-      setClickedPlace(place);
-      setCurrentCardType(cardType);
+      setSecondarySelectedPlace(place);
     }
   };
 
@@ -103,16 +101,20 @@ function App() {
   };
 
   const handleDirectionClick = () => {
+    setRouteMode(true);
     if (panelOpen) {
       setPanelOpen(false);
-      clearRoute();
-      setSelectedPlace(null);
+      return;
+    }
+
+    setPanelOpen(true);
+
+    if (origin && destination) {
       return;
     }
 
     if (selectedPlace && selectedPlace.name !== 'Current Location') {
       // Case 2: Search first -> Automatically Origin = current GPS, Destination = selected place
-      setPanelOpen(true);
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const coords = {
@@ -145,10 +147,8 @@ function App() {
       if (origin) {
         // Case 1: GPS was clicked first, origin is already populated
         setDestination(null);
-        setPanelOpen(true);
       } else {
         // Case 3: Open direction panel and set Origin = current GPS, Destination = empty
-        setPanelOpen(true);
         navigator.geolocation.getCurrentPosition(
           async (position) => {
             const coords = {
@@ -182,7 +182,7 @@ function App() {
 
   const handleCloseDirection = () => {
     setPanelOpen(false);
-    clearRoute();
+    // Closing Directions does NOT reset destination context or clear routing
   };
 
   return (
@@ -196,7 +196,7 @@ function App() {
         onDirectionClick={handleDirectionClick}
         origin={origin}
         setOrigin={setOrigin}
-        destination={destination}
+        destination={activeDestination}
         setDestination={setDestination}
         routeData={routeData}
         onCalculateRoute={calculateRoute}
@@ -208,20 +208,22 @@ function App() {
         onCloseInfoCard={() => {
           setSelectedPlace(null);
           setMarkerPosition(null);
+          setRouteMode(false);
+          setSecondarySelectedPlace(null);
+          setClickedLocation(null);
           clearRoute();
-          clearPlaceDetail();
         }}
         cachedGps={cachedGps}
-        hasClickCard={currentCardType === 'DEFAULT_CLICK_CARD'}
+        hasClickCard={false}
       />
       <MapContainer
         center={center}
         zoom={zoom}
-        markerPosition={panelOpen ? null : markerPosition}
-        clickMarker={panelOpen ? null : clickedLocation}
-        routePath={panelOpen && routeData ? routeData.path : null}
-        originMarker={panelOpen && origin ? { lat: origin.lat, lng: origin.lng } : null}
-        destinationMarker={panelOpen && destination ? { lat: destination.lat, lng: destination.lng } : null}
+        markerPosition={routeMode ? null : markerPosition}
+        clickMarker={clickedLocation}
+        routePath={routeMode && routeData ? routeData.path : null}
+        originMarker={routeMode && origin ? { lat: origin.lat, lng: origin.lng } : null}
+        destinationMarker={routeMode && activeDestination ? { lat: activeDestination.lat, lng: activeDestination.lng } : null}
         style={{ width: '100%', height: '100%' }}
         onMapReady={setMapInstance}
       />
@@ -229,18 +231,17 @@ function App() {
         <MapClickHandler
           mapInstance={mapInstance}
           onPlaceResolved={handlePlaceResolved}
-          hasContext={!!selectedPlace && !panelOpen}
+          hasContext={routeMode}
         />
       )}
-      {clickedPlace && !panelOpen && (
+      {secondarySelectedPlace && (
         <PlaceDetailCard
-          place={clickedPlace}
-          cardType={currentCardType === 'DEFAULT_CLICK_CARD' ? 'DEFAULT_CLICK_CARD' : 'SEARCH_RESULT_CARD'}
-          onGetDirections={() => {
-            clearPlaceDetail();
-            handleDirectionClick();
+          place={secondarySelectedPlace}
+          cardType="SEARCH_RESULT_CARD"
+          onClose={() => {
+            setSecondarySelectedPlace(null);
+            setClickedLocation(null);
           }}
-          onClose={clearPlaceDetail}
         />
       )}
     </div>
