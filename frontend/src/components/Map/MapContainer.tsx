@@ -59,10 +59,115 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const poisMarkersRef = useRef<any[]>([]);
   const onPoiClickRef = useRef(onPoiClick);
 
+  const markerPositionRef = useRef(markerPosition);
+  useEffect(() => {
+    markerPositionRef.current = markerPosition;
+  }, [markerPosition]);
+
   // Keep callback ref updated to prevent marker recreations
   useEffect(() => {
     onPoiClickRef.current = onPoiClick;
   }, [onPoiClick]);
+
+  // Keep track of current zoom to avoid redundant setIconView calls
+  const lastScaleZoomRef = useRef<number | null>(null);
+
+  const updateMarkersScale = (currentZoom: number) => {
+    let scaleCategory = 1;
+    if (currentZoom < 12) {
+      scaleCategory = 0;
+    } else if (currentZoom > 15) {
+      scaleCategory = 2;
+    }
+
+    if (lastScaleZoomRef.current === scaleCategory) return;
+    lastScaleZoomRef.current = scaleCategory;
+
+    poisMarkersRef.current.forEach((marker) => {
+      if (marker && marker.poiData) {
+        marker.setIconView(getPoiMarkerIcon(marker.poiData.poi_type, currentZoom));
+      }
+    });
+  };
+
+  const resolveMarkerCollisions = () => {
+    if (!mapInstance || poisMarkersRef.current.length === 0) return;
+
+    try {
+      console.log("MapInstance prototype:", Object.getPrototypeOf(mapInstance));
+      console.log("MapInstance keys:", Object.keys(mapInstance));
+      if (window.map4d) {
+        console.log("window.map4d keys:", Object.keys(window.map4d));
+      }
+
+      // Check if mapInstance has getProjection or projection or similar
+      const projection = typeof mapInstance.getProjection === 'function' 
+        ? mapInstance.getProjection() 
+        : (mapInstance.projection || null);
+
+      if (!projection) {
+        console.warn("Projection not found on mapInstance. Available methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(mapInstance)));
+        return;
+      }
+
+      const currentMarkerPosition = markerPositionRef.current;
+
+      const markersWithPoints = poisMarkersRef.current.map((marker) => {
+        const pos = marker.getPosition();
+        const pt = projection.fromLatLngToScreen(pos);
+        
+        let priority = 1;
+        const poiType = marker.poiData?.poi_type;
+        if (poiType === 'TOURISM') {
+          priority = 3;
+        } else if (poiType === 'OCOP_STORE') {
+          priority = 2;
+        }
+        
+        const isSelected = currentMarkerPosition && 
+          Math.abs(pos.lat - currentMarkerPosition.lat) < 1e-6 && 
+          Math.abs(pos.lng - currentMarkerPosition.lng) < 1e-6;
+        if (isSelected) {
+          priority = 100;
+        }
+
+        return {
+          marker,
+          pt,
+          priority,
+          visible: true,
+        };
+      });
+
+      const collisionRadius = 24;
+      markersWithPoints.sort((a, b) => b.priority - a.priority);
+
+      const visiblePoints: { x: number; y: number }[] = [];
+
+      markersWithPoints.forEach((item) => {
+        if (!item.pt) return;
+        
+        const collides = visiblePoints.some((vp) => {
+          const dx = vp.x - item.pt.x;
+          const dy = vp.y - item.pt.y;
+          return Math.sqrt(dx * dx + dy * dy) < collisionRadius;
+        });
+
+        if (collides && item.priority < 100) {
+          item.visible = false;
+        } else {
+          visiblePoints.push(item.pt);
+        }
+      });
+
+      markersWithPoints.forEach((item) => {
+        item.marker.setVisible(item.visible);
+        item.marker.setZIndex(item.priority);
+      });
+    } catch (e) {
+      console.error("Error resolving marker collisions:", e);
+    }
+  };
 
   // Initialize SDK
   useEffect(() => {
@@ -122,12 +227,15 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       // Map4D SDK 2.6 uses cameraChanging event for both panning and zooming updates
       map.addListener('cameraChanging', () => {
         const camera = map.getCamera();
+        const currentZoom = camera.getZoom();
         if (onCameraMove) {
           onCameraMove(camera);
         }
         if (onZoomChanged) {
-          onZoomChanged(camera.getZoom());
+          onZoomChanged(currentZoom);
         }
+        updateMarkersScale(currentZoom);
+        resolveMarkerCollisions();
       });
 
       // Register map-level click listener for custom marker selection
@@ -343,13 +451,14 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     // 2. Render new database markers if provided
     if (pois && pois.length > 0) {
       const markers: any[] = [];
+      const currentZoom = mapInstance.getCamera().getZoom();
       pois.forEach((poi) => {
         try {
           const marker = new window.map4d.Marker({
             position: new window.map4d.LatLng(poi.lat, poi.lng),
             title: poi.name,
             visible: true,
-            iconView: getPoiMarkerIcon(poi.poi_type),
+            iconView: getPoiMarkerIcon(poi.poi_type, currentZoom),
             anchor: { x: 0.5, y: 1.0 },
           });
           // Attach custom property to marker for identifying it in the markerClick listener
@@ -361,6 +470,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         }
       });
       poisMarkersRef.current = markers;
+      resolveMarkerCollisions();
     }
 
     return () => {
@@ -414,7 +524,21 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   );
 };
 
-function getPoiMarkerIcon(poiType: string): string {
+function getPoiMarkerIcon(poiType: string, zoom: number): string {
+  let scale = 1.0;
+  if (zoom < 12) {
+    scale = 0.8;
+  } else if (zoom > 15) {
+    scale = 1.1;
+  }
+
+  // Base dimensions optimized by 25% to reduce overlap and improve clutter handling
+  const baseWidth = 24;
+  const baseHeight = 33;
+
+  const w = Math.round(baseWidth * scale);
+  const h = Math.round(baseHeight * scale);
+
   let color = '#3b82f6'; // Default
   let innerIcon = ''; // SVG path definition
   
@@ -440,9 +564,10 @@ function getPoiMarkerIcon(poiType: string): string {
     `;
   }
 
+  // Div dimensions must match scaled width/height exactly for precise Map4D bottom-center anchor positioning
   return `
-    <div style="display: flex; flex-direction: column; align-items: center; width: 32px; height: 42px; filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.35));">
-      <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: ${w}px; height: ${h}px; filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.35)); margin: 0; padding: 0; overflow: visible;">
+      <svg width="${w}" height="${h}" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
         <path d="M16 0C7.16 0 0 7.16 0 16C0 28 16 42 16 42C16 42 32 28 32 16C32 7.16 24.84 0 16 0Z" fill="${color}" stroke="#FFFFFF" stroke-width="2"/>
         <g transform="translate(4, 4)">
           ${innerIcon}

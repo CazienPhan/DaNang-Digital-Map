@@ -1151,5 +1151,38 @@ TEST RESULT:
 
 STATUS: COMPLETE
 
+## 2026-06-26 01:30:00
+
+TIME: 2026-06-26 01:30:00
+
+TASK: OPTIMIZE POI MARKERS RESPONSIVENESS AND REDESIGN OPENING HOURS
+
+PROBLEM:
+- POI markers were too large at low zoom levels and cluttered the screen.
+- Overlapping markers in dense areas reduced map readability.
+- Marker anchors were causing offset issues due to drop shadows.
+- Opening hours was rendered as a simple row instead of a dedicated section with live status logic.
+
+SOLUTION:
+1. Reduced POI marker size by 25% (base dimensions scaled to `24x33px` from `32x42px`), maintaining identical proportions and shadow.
+2. Centered icon SVG rendering and fixed container div dimensions to match the scaled SVG exactly, resolving visual offsets and anchoring perfectly to `{ x: 0.5, y: 1.0 }`.
+3. Implemented zoom-responsive scaling: Zoom < 12 (Scale: 0.8), Zoom 12-15 (Scale: 1.0), Zoom > 15 (Scale: 1.1).
+4. Implemented pixel-based marker collision handling: markers within `24px` of screen proximity are hidden dynamically based on priorities (Selected > Tourism > Store > Market).
+5. Redesigned the opening hours display: extracted the row into a dedicated section header and list showing localized day and time ranges.
+6. Implemented live status parsing: calculated whether the POI is currently open or closed (with midnight crossover and AM/PM checks), rendering green `● Đang mở cửa` or red `● Đã đóng cửa` labels.
+
+FILES CHANGED:
+- `frontend/src/components/Map/MapContainer.tsx`
+- `frontend/src/components/Search/PoiDetailCard.tsx`
+- `frontend/src/App.css`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Verified clean compiler check and linter test run.
+- Verified dynamic scaling, collision hiding, and correct local status badge displays.
+
+STATUS: COMPLETE
+
+
 
 
