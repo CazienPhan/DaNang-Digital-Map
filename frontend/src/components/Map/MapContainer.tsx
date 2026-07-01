@@ -18,12 +18,14 @@ export interface MapContainerProps {
   routePath?: MapCoordinate[] | null;
   originMarker?: MapCoordinate | null;
   destinationMarker?: MapCoordinate | null;
-  pois?: POIData[] | null;
   onPoiClick?: (poi: POIData) => void;
   onMapReady?: (map: any) => void;
   onMapClick?: (latLng: MapCoordinate) => void;
   onCameraMove?: (camera: any) => void;
   onZoomChanged?: (zoom: number) => void;
+  onBuiltInPoiClick?: (poi: any) => void;
+  onPlaceClick?: (place: any) => void;
+  onMapEvent?: (eventName: string, args: any) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -38,12 +40,14 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   routePath = null,
   originMarker = null,
   destinationMarker = null,
-  pois = null,
   onPoiClick,
   onMapReady,
   onMapClick,
   onCameraMove,
   onZoomChanged,
+  onBuiltInPoiClick,
+  onPlaceClick,
+  onMapEvent,
   className,
   style,
 }) => {
@@ -56,118 +60,34 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const routePolylineRef = useRef<any>(null);
   const originMarkerRef = useRef<any>(null);
   const destinationMarkerRef = useRef<any>(null);
-  const poisMarkersRef = useRef<any[]>([]);
+  const poiOverlayRef = useRef<any>(null);
+
   const onPoiClickRef = useRef(onPoiClick);
+  const onBuiltInPoiClickRef = useRef(onBuiltInPoiClick);
+  const onPlaceClickRef = useRef(onPlaceClick);
+  const onMapEventRef = useRef(onMapEvent);
 
   const markerPositionRef = useRef(markerPosition);
   useEffect(() => {
     markerPositionRef.current = markerPosition;
   }, [markerPosition]);
 
-  // Keep callback ref updated to prevent marker recreations
+  // Keep callback refs updated to prevent marker/POI recreations
   useEffect(() => {
     onPoiClickRef.current = onPoiClick;
   }, [onPoiClick]);
 
-  // Keep track of current zoom to avoid redundant setIconView calls
-  const lastScaleZoomRef = useRef<number | null>(null);
+  useEffect(() => {
+    onBuiltInPoiClickRef.current = onBuiltInPoiClick;
+  }, [onBuiltInPoiClick]);
 
-  const updateMarkersScale = (currentZoom: number) => {
-    let scaleCategory = 1;
-    if (currentZoom < 12) {
-      scaleCategory = 0;
-    } else if (currentZoom > 15) {
-      scaleCategory = 2;
-    }
+  useEffect(() => {
+    onPlaceClickRef.current = onPlaceClick;
+  }, [onPlaceClick]);
 
-    if (lastScaleZoomRef.current === scaleCategory) return;
-    lastScaleZoomRef.current = scaleCategory;
-
-    poisMarkersRef.current.forEach((marker) => {
-      if (marker && marker.poiData) {
-        marker.setIconView(getPoiMarkerIcon(marker.poiData.poi_type, currentZoom));
-      }
-    });
-  };
-
-  const resolveMarkerCollisions = () => {
-    if (!mapInstance || poisMarkersRef.current.length === 0) return;
-
-    try {
-      console.log("MapInstance prototype:", Object.getPrototypeOf(mapInstance));
-      console.log("MapInstance keys:", Object.keys(mapInstance));
-      if (window.map4d) {
-        console.log("window.map4d keys:", Object.keys(window.map4d));
-      }
-
-      // Check if mapInstance has getProjection or projection or similar
-      const projection = typeof mapInstance.getProjection === 'function' 
-        ? mapInstance.getProjection() 
-        : (mapInstance.projection || null);
-
-      if (!projection) {
-        console.warn("Projection not found on mapInstance. Available methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(mapInstance)));
-        return;
-      }
-
-      const currentMarkerPosition = markerPositionRef.current;
-
-      const markersWithPoints = poisMarkersRef.current.map((marker) => {
-        const pos = marker.getPosition();
-        const pt = projection.fromLatLngToScreen(pos);
-        
-        let priority = 1;
-        const poiType = marker.poiData?.poi_type;
-        if (poiType === 'TOURISM') {
-          priority = 3;
-        } else if (poiType === 'OCOP_STORE') {
-          priority = 2;
-        }
-        
-        const isSelected = currentMarkerPosition && 
-          Math.abs(pos.lat - currentMarkerPosition.lat) < 1e-6 && 
-          Math.abs(pos.lng - currentMarkerPosition.lng) < 1e-6;
-        if (isSelected) {
-          priority = 100;
-        }
-
-        return {
-          marker,
-          pt,
-          priority,
-          visible: true,
-        };
-      });
-
-      const collisionRadius = 24;
-      markersWithPoints.sort((a, b) => b.priority - a.priority);
-
-      const visiblePoints: { x: number; y: number }[] = [];
-
-      markersWithPoints.forEach((item) => {
-        if (!item.pt) return;
-        
-        const collides = visiblePoints.some((vp) => {
-          const dx = vp.x - item.pt.x;
-          const dy = vp.y - item.pt.y;
-          return Math.sqrt(dx * dx + dy * dy) < collisionRadius;
-        });
-
-        if (collides && item.priority < 100) {
-          item.visible = false;
-        } else {
-          visiblePoints.push(item.pt);
-        }
-      });
-
-      markersWithPoints.forEach((item) => {
-        item.marker.setVisible(item.visible);
-        item.marker.setZIndex(item.priority);
-      });
-    } catch (e) {
-      console.error("Error resolving marker collisions:", e);
-    }
-  };
+  useEffect(() => {
+    onMapEventRef.current = onMapEvent;
+  }, [onMapEvent]);
 
   // Initialize SDK
   useEffect(() => {
@@ -205,24 +125,113 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       };
 
       const map = new window.map4d.Map(containerRef.current, mapOptions);
+      (window as any).map = map;
       setMapInstance(map);
+
+      // Enable built-in POIs
+      map.setPOIsEnabled(true);
+      console.log('Built-in POIs status (isPOIsEnabled):', map.isPOIsEnabled());
+
+
 
       // Trigger callback with map instance
       if (onMapReady) {
         onMapReady(map);
       }
 
-      // Register Events
-      if (onMapClick) {
-        map.addListener('click', (args: any) => {
-          if (args && args.location) {
-            onMapClick({
-              lat: args.location.lat,
-              lng: args.location.lng,
+      // Register a single unified map-level click listener for all interactive target types
+      map.addListener('click', (args: any) => {
+        console.log('[Map Event - Unified Click] Click arguments received:', args);
+
+        // 1. Check if a custom Database POI or built-in POI was clicked
+        if (args && args.poi) {
+          const clickedPoi = args.poi;
+          if (clickedPoi.id && clickedPoi.id.startsWith('database-poi-')) {
+            const dbId = clickedPoi.id.replace('database-poi-', '');
+            console.log('[Map Event] Database POI clicked:', dbId, clickedPoi.title);
+            if (onPoiClickRef.current) {
+              onPoiClickRef.current({
+                id: dbId,
+                name: clickedPoi.title || '',
+                name_en: clickedPoi.name_en || null,
+                poi_type: clickedPoi.type || clickedPoi.poi_type || 'TOURISM',
+                lat: clickedPoi.location ? clickedPoi.location.lat : (clickedPoi.position ? clickedPoi.position.lat : 0),
+                lng: clickedPoi.location ? clickedPoi.location.lng : (clickedPoi.position ? clickedPoi.position.lng : 0),
+                dia_chi: clickedPoi.dia_chi || null
+              });
+            }
+            return;
+          } else {
+            console.log('[Map Event] Built-in base POI clicked:', clickedPoi.name || clickedPoi.title);
+            if (onBuiltInPoiClickRef.current) {
+              const projection = typeof map.getProjection === 'function' ? map.getProjection() : (map.projection || null);
+              let pixel = { x: 0, y: 0 };
+              if (projection && clickedPoi.location) {
+                const screenPt = projection.fromLatLngToScreen(clickedPoi.location);
+                if (screenPt) {
+                  pixel = { x: screenPt.x, y: screenPt.y };
+                }
+              } else if (args.pixel) {
+                pixel = args.pixel;
+              }
+              onBuiltInPoiClickRef.current({
+                id: clickedPoi.id || '',
+                name: clickedPoi.name || clickedPoi.title || '',
+                type: clickedPoi.type || 'POI',
+                lat: clickedPoi.location ? clickedPoi.location.lat : (clickedPoi.position ? clickedPoi.position.lat : 0),
+                lng: clickedPoi.location ? clickedPoi.location.lng : (clickedPoi.position ? clickedPoi.position.lng : 0),
+                pixel,
+                metadata: clickedPoi
+              });
+            }
+            return;
+          }
+        }
+
+        // 2. Check if a Place was clicked
+        if (args && args.place) {
+          const place = args.place;
+          console.log('[Map Event] Place clicked:', place.name);
+
+          if (onPlaceClickRef.current) {
+            onPlaceClickRef.current({
+              id: place.id || '',
+              name: place.name || '',
+              lat: place.location ? place.location.lat : 0,
+              lng: place.location ? place.location.lng : 0,
+              metadata: place
             });
           }
-        });
-      }
+          return;
+        }
+
+        // 3. Fallback to general blank map canvas click
+        if (args && args.location && onMapClick) {
+          onMapClick({
+            lat: args.location.lat,
+            lng: args.location.lng,
+          });
+        }
+      }, { marker: true, mappoi: true, place: true, poi: true });
+
+      // Helper to register general Map events safely
+      const bindMapEvent = (eventName: string, sdkEventName: string) => {
+        try {
+          map.addListener(sdkEventName, (args: any) => {
+            console.log(`[Map Event - SDK: ${sdkEventName}] ${eventName} triggered`, args);
+            if (onMapEventRef.current) {
+              onMapEventRef.current(eventName, args);
+            }
+          });
+        } catch (e) {
+          console.warn(`Failed to bind map general event ${sdkEventName}:`, e);
+        }
+      };
+
+      // Register only supported general map interaction events
+      bindMapEvent('click', 'click');
+      bindMapEvent('hover', 'hover');
+      bindMapEvent('drag', 'drag');
 
       // Map4D SDK 2.6 uses cameraChanging event for both panning and zooming updates
       map.addListener('cameraChanging', () => {
@@ -234,19 +243,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         if (onZoomChanged) {
           onZoomChanged(currentZoom);
         }
-        updateMarkersScale(currentZoom);
-        resolveMarkerCollisions();
       });
-
-      // Register map-level click listener for custom marker selection
-      map.addListener('click', (args: any) => {
-        if (args && args.marker) {
-          const poi = args.marker.poiData;
-          if (poi && onPoiClickRef.current) {
-            onPoiClickRef.current(poi);
-          }
-        }
-      }, { marker: true });
 
     } catch (err: any) {
       console.error('Failed to initialize Map4D map:', err);
@@ -258,6 +255,56 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       // Map4D listeners do not require explicit cleanup if the container DOM is deleted
     };
   }, [loading, error, mapInstance]);
+
+  // Synchronize POIOverlay lifecycle with mapInstance
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    // Create POIOverlay for Database POIs
+    const overlay = new window.map4d.POIOverlay({
+      getUrl: (x: number, y: number, zoom: number) => {
+        return `${MAP4D_CONFIG.backendUrl}/api/pois/tile/${x}/${y}/${zoom}`;
+      },
+      parserData: (response: any) => {
+        let data = response;
+        if (typeof response === 'string') {
+          try {
+            data = JSON.parse(response);
+          } catch (e) {
+            console.error('Failed to parse tile POI JSON:', e);
+            return [];
+          }
+        }
+        const items = Array.isArray(data) ? data : (data?.pois || []);
+        return items.map((poi: any) => ({
+          id: poi.id,
+          position: {
+            lat: Number(poi.lat),
+            lng: Number(poi.lng)
+          },
+          title: poi.name,
+          name_en: poi.name_en || null,
+          titleColor: poi.poi_type === 'TOURISM' ? '#f97316' : (poi.poi_type === 'OCOP_STORE' ? '#10b981' : (poi.poi_type === 'MARKET' ? '#8b5cf6' : '#3b82f6')),
+          type: poi.poi_type,
+          poi_type: poi.poi_type,
+          dia_chi: poi.dia_chi || null,
+          icon: getPoiMarkerIconDataUri(poi.poi_type, 16)
+        }));
+      },
+      prefixId: 'database-poi-',
+      visible: true
+    });
+
+    overlay.setMap(mapInstance);
+    poiOverlayRef.current = overlay;
+
+    return () => {
+      if (poiOverlayRef.current) {
+        poiOverlayRef.current.setMap(null);
+        poiOverlayRef.current = null;
+      }
+    };
+  }, [mapInstance]);
 
   // Synchronize dynamic center and zoom properties together with smooth camera transition
   useEffect(() => {
@@ -438,60 +485,17 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     }
   }, [routePath, originMarker, destinationMarker, mapInstance]);
 
-  // Synchronize dynamic database POI markers
-  useEffect(() => {
-    if (!mapInstance) return;
-
-    // 1. Clear previous database markers
-    poisMarkersRef.current.forEach((marker) => {
-      marker.setMap(null);
-    });
-    poisMarkersRef.current = [];
-
-    // 2. Render new database markers if provided
-    if (pois && pois.length > 0) {
-      const markers: any[] = [];
-      const currentZoom = mapInstance.getCamera().getZoom();
-      pois.forEach((poi) => {
-        try {
-          const marker = new window.map4d.Marker({
-            position: new window.map4d.LatLng(poi.lat, poi.lng),
-            title: poi.name,
-            visible: true,
-            iconView: getPoiMarkerIcon(poi.poi_type, currentZoom),
-            anchor: { x: 0.5, y: 1.0 },
-          });
-          // Attach custom property to marker for identifying it in the markerClick listener
-          marker.poiData = poi;
-          marker.setMap(mapInstance);
-          markers.push(marker);
-        } catch (err) {
-          console.error(`Failed to render POI marker for ${poi.name}:`, err);
-        }
-      });
-      poisMarkersRef.current = markers;
-      resolveMarkerCollisions();
-    }
-
-    return () => {
-      // Clean up markers if component unmounts
-      poisMarkersRef.current.forEach((marker) => {
-        marker.setMap(null);
-      });
-      poisMarkersRef.current = [];
-    };
-  }, [pois, mapInstance]);
 
   if (error) {
     return (
-      <div 
-        className="map-error-fallback" 
-        style={{ 
-          color: '#d9534f', 
-          padding: '1rem', 
-          border: '1px solid #d9534f', 
+      <div
+        className="map-error-fallback"
+        style={{
+          color: '#d9534f',
+          padding: '1rem',
+          border: '1px solid #d9534f',
           borderRadius: '4px',
-          backgroundColor: '#fdf7f7' 
+          backgroundColor: '#fdf7f7'
         }}
       >
         <h4>Map Rendering Error</h4>
@@ -507,12 +511,12 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       style={style || { width: '100%', height: '100%', minHeight: '500px' }}
     >
       {loading && (
-        <div 
-          className="map-loading-indicator" 
-          style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
+        <div
+          className="map-loading-indicator"
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
             height: '100%',
             color: '#555'
           }}
@@ -541,7 +545,7 @@ function getPoiMarkerIcon(poiType: string, zoom: number): string {
 
   let color = '#3b82f6'; // Default
   let innerIcon = ''; // SVG path definition
-  
+
   if (poiType === 'TOURISM') {
     color = '#f97316'; // Orange / Tourism
     innerIcon = `
@@ -575,6 +579,19 @@ function getPoiMarkerIcon(poiType: string, zoom: number): string {
       </svg>
     </div>
   `;
+}
+
+function getPoiMarkerIconDataUri(poiType: string, zoom: number): string {
+  const svgHtml = getPoiMarkerIcon(poiType, zoom);
+  const svgMatch = svgHtml.match(/<svg[\s\S]*?<\/svg>/);
+  if (svgMatch) {
+    const svg = svgMatch[0];
+    const encoded = encodeURIComponent(svg)
+      .replace(/'/g, "%27")
+      .replace(/"/g, "%22");
+    return `data:image/svg+xml;charset=utf-8,${encoded}`;
+  }
+  return '';
 }
 
 export default MapContainer;

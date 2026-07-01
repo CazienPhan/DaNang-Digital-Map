@@ -23,7 +23,6 @@ function App() {
   const [clickedLocation, setClickedLocation] = useState<MapCoordinate | null>(null);
 
   // Database POI states
-  const [pois, setPois] = useState<POIData[] | null>(null);
   const [poiError, setPoiError] = useState<{ message: string; cause: string; solution: string } | null>(null);
   const [selectedPoiDetails, setSelectedPoiDetails] = useState<POIDetailData | null>(null);
   const [poiDetailLoading, setPoiDetailLoading] = useState<boolean>(false);
@@ -45,21 +44,6 @@ function App() {
 
   const [mapInstance, setMapInstance] = useState<any>(null);
 
-  // Fetch real POIs from database on load
-  useEffect(() => {
-    PoiClientService.getPOIs()
-      .then((data) => {
-        setPois(data);
-        setPoiError(null);
-      })
-      .catch((err) => {
-        setPoiError({
-          message: 'Failed to load POI database records',
-          cause: err.message || 'Database connection offline or table missing.',
-          solution: 'Verify Supabase connection, check if table "poi.pois" is online, and inspect backend logs.',
-        });
-      });
-  }, []);
 
   const handlePoiClick = (poi: POIData) => {
     // 1. If routeMode is active: DO NOT change active route/destination or update search inputs
@@ -126,6 +110,141 @@ function App() {
           category: poi.poi_type,
         });
       });
+  };
+
+  const handleBuiltInPoiClick = async (builtInPoi: {
+    id: string;
+    name: string;
+    type: string;
+    lat: number;
+    lng: number;
+    pixel: { x: number; y: number };
+    metadata: any;
+  }) => {
+    console.log('[App] Handling Built-in POI Click (Primary Card Flow):', builtInPoi);
+    
+    // Set map focus
+    setCenter({ lat: builtInPoi.lat, lng: builtInPoi.lng });
+    setClickedLocation(null);
+    
+    // Update selected place with basic info instantly
+    setSelectedPlace({
+      lat: builtInPoi.lat,
+      lng: builtInPoi.lng,
+      name: builtInPoi.name,
+      address: 'Resolving address...',
+      category: builtInPoi.type || 'POI',
+    });
+    setZoom(16);
+    setSecondarySelectedPlace(null);
+
+    setPoiDetailLoading(true);
+    setPoiDetailError(null);
+    setSelectedPoiDetails(null);
+
+    try {
+      const address = await SearchService.reverseGeocode(builtInPoi.lat, builtInPoi.lng);
+      // Update selected place with resolved address
+      setSelectedPlace({
+        lat: builtInPoi.lat,
+        lng: builtInPoi.lng,
+        name: builtInPoi.name,
+        address: address || `Coordinates: ${builtInPoi.lat.toFixed(6)}, ${builtInPoi.lng.toFixed(6)}`,
+        category: builtInPoi.type || 'POI',
+      });
+      
+      const details: POIDetailData = {
+        id: builtInPoi.id,
+        name: builtInPoi.name,
+        name_en: null,
+        poi_type: 'TOURISM',
+        dia_chi: address || `Coordinates: ${builtInPoi.lat.toFixed(6)}, ${builtInPoi.lng.toFixed(6)}`,
+        lat: builtInPoi.lat,
+        lng: builtInPoi.lng,
+        business_id: null,
+        category_id: 0,
+        address_type: null,
+        dia_chi_en: null,
+        source_name: 'Map4D SDK',
+        source_url: null,
+        is_active: true,
+        is_verified: true,
+        gio_mo_cua: null,
+        website: null,
+        so_sao: null,
+        luot_danh_gia: null,
+        category_name: 'Map4D POI',
+        category_color_hex: '#3b82f6',
+        nganh_hang: null,
+        tam_gia: null,
+        sdt: null,
+        gioi_thieu: `Tọa độ pixel: x=${builtInPoi.pixel.x.toFixed(1)}, y=${builtInPoi.pixel.y.toFixed(1)}`,
+        gioi_thieu_en: null,
+        nam_xay_dung: null,
+        don_vi_quan_ly: null,
+        gia_ve: null,
+        media: null,
+      };
+      setSelectedPoiDetails(details);
+      setPoiDetailLoading(false);
+    } catch (err: any) {
+      console.error('Failed to resolve reverse-geocoding for built-in POI details:', err);
+      setPoiDetailError(err.message || 'POI information is temporarily unavailable.');
+      setPoiDetailLoading(false);
+    }
+  };
+
+  const handlePlaceClick = async (place: {
+    id: string;
+    name: string;
+    lat: number;
+    lng: number;
+    metadata: any;
+  }) => {
+    console.log('[App] Handling Place Click:', place);
+    
+    // Set map focus and click marker position
+    setCenter({ lat: place.lat, lng: place.lng });
+    setClickedLocation({ lat: place.lat, lng: place.lng });
+    
+    // Display in Secondary Card instantly
+    setSecondarySelectedPlace({
+      name: place.name,
+      address: 'Resolving address...',
+      lat: place.lat,
+      lng: place.lng,
+      category: 'Place',
+      id: place.id,
+      placeInfo: place.metadata ? `Type: ${place.metadata.type || 'Place'}` : 'Place Event'
+    });
+
+    try {
+      const address = await SearchService.reverseGeocode(place.lat, place.lng);
+      setSecondarySelectedPlace((prev) => {
+        if (prev && prev.id === place.id) {
+          return {
+            ...prev,
+            address: address || `Coordinates: ${place.lat.toFixed(6)}, ${place.lng.toFixed(6)}`,
+          };
+        }
+        return prev;
+      });
+    } catch (err) {
+      console.error('Failed to geocode place address:', err);
+      setSecondarySelectedPlace((prev) => {
+        if (prev && prev.id === place.id) {
+          return {
+            ...prev,
+            address: `Coordinates: ${place.lat.toFixed(6)}, ${place.lng.toFixed(6)}`,
+          };
+        }
+        return prev;
+      });
+    }
+  };
+
+  const handleMapEvent = (eventName: string, args: any) => {
+    console.log(`[App - Event Log] Map event "${eventName}" captured:`, args);
   };
 
   const {
@@ -414,8 +533,10 @@ function App() {
         routePath={routeMode && routeData ? routeData.path : null}
         originMarker={routeMode && origin ? { lat: origin.lat, lng: origin.lng } : null}
         destinationMarker={routeMode && activeDestination ? { lat: activeDestination.lat, lng: activeDestination.lng } : null}
-        pois={pois}
         onPoiClick={handlePoiClick}
+        onBuiltInPoiClick={handleBuiltInPoiClick}
+        onPlaceClick={handlePlaceClick}
+        onMapEvent={handleMapEvent}
         style={{ width: '100%', height: '100%' }}
         onMapReady={setMapInstance}
       />

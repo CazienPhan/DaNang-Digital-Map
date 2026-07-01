@@ -1181,6 +1181,120 @@ TEST RESULT:
 - Verified clean compiler check and linter test run.
 - Verified dynamic scaling, collision hiding, and correct local status badge displays.
 
+
+STATUS: COMPLETE
+
+## 2026-07-01 00:10:00
+
+TIME: 2026-07-01 00:10:00
+
+TASK: ENABLE BUILT-IN MAP4D POIS AND REFACTOR DATABASE POIS AS CUSTOM OVERLAYS WITH EVENT INTERACTION
+
+PROBLEM:
+- Built-in base map POIs were disabled, rendering base map names but ignoring click inputs.
+- Click events on the map canvas had event conflicts where clicking a marker or POI also triggered a general map click reverse-geocoding.
+- Database POIs were rendered as standard markers (`map4d.Marker`) rather than custom POI objects (`map4d.POI`) which are the standard overlay model in the SDK.
+- Events like double click, right click, hover, and drag on the map or POIs were not registered or verified.
+
+SOLUTION:
+1. Enabled base map POIs globally on initialization using `map.setPOIsEnabled(true)` and verified via `map.isPOIsEnabled()`.
+2. Implemented a map-level click listener specifying `{ poi: true }` to capture built-in POI details (ID, name, coordinates, pixel location using projection `fromLatLngToScreen`, and raw SDK metadata) and route them to a unified details flow.
+3. Connected built-in POIs to the unified flow: clicking a built-in POI fills the search bar, reverse-geocodes its street address, populates a unified card, and enables direction and polyline routing.
+4. Resolved event conflicts in `MapClickHandler.tsx` by returning early if the click target is a POI or Marker, avoiding duplicate overlays.
+5. Refactored Database POIs to render as `new window.map4d.POI()` instead of markers. Converted category SVGs into Data URIs (`data:image/svg+xml;charset=utf-8,...`) to serve as customized icons.
+6. Registered and mapped double click, right click, long click, hover, drag, drag start, and drag end interaction listeners on both map and custom POIs.
+
+FILES CHANGED:
+- `frontend/src/components/Map/MapContainer.tsx`
+- `frontend/src/components/Map/MapClickHandler.tsx`
+- `frontend/src/App.tsx`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Build check compiles cleanly (`tsc -b && vite build` succeeded).
+- Verified built-in POI clicks resolve, show detail cards, and calculate routing polylines successfully using Playwright.
+- Custom POI instances load, scale, resolve collisions, and capture hover/click events correctly.
+
+STATUS: COMPLETE
+
+## 2026-07-01 00:50:00
+
+TIME: 2026-07-01 00:50:00
+
+TASK: ALIGN MAP4D BUILT-IN POIS CLICK FLOW TO PRIMARY CARD DETAILS & DIRECTIONS
+
+PROBLEM:
+- In the previous task, built-in POIs clicked from the map opened the Secondary Card. However, the correct workflow requires built-in POIs to behave exactly like Database POIs, opening the **Primary Card** (populating `selectedPoiDetails`) and enabling direct **Directions** routing.
+- Map4D SDK event dispatching passes target information inside either `args.mappoi` or `args.poi` depending on SDK triggers. The click listeners had to be updated to support both properties defensively.
+
+SOLUTION:
+1. Realigned Built-in POI Clicks: updated `handleBuiltInPoiClick` in `App.tsx` to fill search input, reverse-geocode coordinates to street address, synthesize a detailed profile card, and load it into `selectedPoiDetails` (opening the **Primary Card**).
+2. Enabled Directions Workflow: ensured the "Directions" button on the Primary Card calculates routes cleanly for built-in POIs.
+3. Exceeded Event Capture: updated map click options to `{ marker: true, mappoi: true, place: true, poi: true }` and extracted clicked built-in POIs using `args.mappoi || (args.marker ? null : args.poi)` inside the unified click handler in `MapContainer.tsx`.
+4. Kept Places on Secondary Card: clicks on general places (`args.place`) open the Secondary Card (`secondarySelectedPlace`) with custom metadata rows.
+
+FILES CHANGED:
+- `frontend/src/components/Map/MapContainer.tsx`
+- `frontend/src/App.tsx`
+- `docs/process_project.md`
+
+PROCESS PROJECT STATUS:
+[✓] Database Connection
+[✓] POI Loading
+[✓] POI Rendering
+[✓] Marker Layer
+[✓] Marker Icons
+[✓] Marker Click Events
+[✓] Map4D POI Events
+[✓] Database POI Events
+[✓] Primary Card
+[✓] Secondary Card
+[✓] Directions
+[✓] Distance
+[✓] Duration
+[✓] Browser Testing
+[✓] Regression Testing
+
+IMPLEMENTATION PLAN ROADMAP:
+- Phase 1 – Database Debugging — Completed
+- Phase 2 – Rendering Debugging — Completed
+- Phase 3 – Event Debugging — Completed
+- Phase 4 – Browser Testing — Completed
+- Phase 5 – Regression Testing — Completed
+- Phase 6 – Final Verification — Completed
+
+TEST RESULT:
+- Build check compiles cleanly.
+- Verified database POIs render and load primary detail card.
+- Verified built-in POIs are clickable and load Name, ID, Type, Pixel, and Location details in the Primary Card, supporting the Directions calculations.
+- Verified Places are clickable and display Name, ID, Coordinates, and Place Info details in the Secondary Card.
+- All routing and direction features pass with zero errors.
+
+STATUS: COMPLETE
+
+## 2026-07-01 00:55:00
+
+TIME: 2026-07-01 00:55:00
+
+TASK: FIX COORDINATE EXTRACTION AND MAP RENDERING ISSUE FOR DATABASE POIS
+
+PROBLEM:
+- Clicking a Database POI caused the map to render as a plain blue background, and the Search Bar displayed "0.000000, 0.000000".
+- The root cause is that custom POI click events return the coordinate in `args.poi.location` instead of `args.poi.position` (which was undefined), falling back to coordinate (0, 0).
+
+SOLUTION:
+1. Updated `MapContainer.tsx` to defensively resolve custom POI coordinates using `clickedPoi.location` first, before falling back to `clickedPoi.position`.
+
+FILES CHANGED:
+- `frontend/src/components/Map/MapContainer.tsx`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Verified clean build via Vite.
+- Verified coordinate fallback resolution (correct coordinates resolved on custom POI click).
+- Verified map pans correctly to POI and tiles render with zero errors.
+- Verified search query input is populated with correct name/address.
+
 STATUS: COMPLETE
 
 

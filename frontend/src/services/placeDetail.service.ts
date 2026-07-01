@@ -6,6 +6,10 @@ export interface PlaceDetail {
   lat: number;
   lng: number;
   category?: string;
+  id?: string;
+  type?: string;
+  pixel?: { x: number; y: number };
+  placeInfo?: string;
 }
 
 export class PlaceDetailService {

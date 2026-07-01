@@ -29,6 +29,26 @@ export const PlaceDetailCard: React.FC<PlaceDetailCardProps> = ({
         <div className="place-detail-content" style={{ marginTop: onClose ? '-12px' : '0px' }}>
           <h4 className="place-detail-title">{place.name}</h4>
           <p className="place-detail-address">{place.address}</p>
+          {place.id && (
+            <div className="place-detail-meta" style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+              <strong>ID:</strong> {place.id}
+            </div>
+          )}
+          {place.type && (
+            <div className="place-detail-meta" style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+              <strong>Type:</strong> {place.type}
+            </div>
+          )}
+          {place.pixel && (
+            <div className="place-detail-meta" style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+              <strong>Pixel:</strong> x={place.pixel.x.toFixed(1)}, y={place.pixel.y.toFixed(1)}
+            </div>
+          )}
+          {place.placeInfo && (
+            <div className="place-detail-meta" style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', maxWidth: '280px', wordBreak: 'break-all' }}>
+              <strong>Info:</strong> {place.placeInfo}
+            </div>
+          )}
         </div>
         {onGetDirections && (
           <div className="place-detail-actions" style={{ marginTop: '8px' }}>
@@ -61,14 +81,27 @@ export const PlaceDetailCard: React.FC<PlaceDetailCardProps> = ({
       <div className="place-detail-content">
         <h4 className="place-detail-title">{place.name}</h4>
         <p className="place-detail-address">{place.address}</p>
-        {cardType === 'DEFAULT_CLICK_CARD' && (
-          <div className="place-detail-coords">
-            <span className="coords-label">Coordinates: </span>
-            {place.lat.toFixed(6)}, {place.lng.toFixed(6)}
+        <div className="place-detail-coords">
+          <span className="coords-label">Coordinates: </span>
+          {place.lat.toFixed(6)}, {place.lng.toFixed(6)}
+        </div>
+        {place.id && (
+          <div className="place-detail-meta" style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+            <strong>ID:</strong> {place.id}
+          </div>
+        )}
+        {place.type && (
+          <div className="place-detail-meta" style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+            <strong>Type:</strong> {place.type}
+          </div>
+        )}
+        {place.placeInfo && (
+          <div className="place-detail-meta" style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', maxWidth: '280px', wordBreak: 'break-all' }}>
+            <strong>Info:</strong> {place.placeInfo}
           </div>
         )}
       </div>
-      {cardType === 'DEFAULT_CLICK_CARD' && onGetDirections && (
+      {onGetDirections && (
         <div className="place-detail-actions">
           <button className="get-directions-btn" onClick={onGetDirections}>
             <svg viewBox="0 0 24 24" className="action-icon">

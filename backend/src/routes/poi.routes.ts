@@ -24,6 +24,35 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * Endpoint: GET /api/pois/tile/:x/:y/:zoom
+ * Retrieves real POIs inside a Web Mercator tile from the database.
+ */
+router.get('/tile/:x/:y/:zoom', async (req: Request, res: Response) => {
+  try {
+    const x = parseInt(req.params.x as string, 10);
+    const y = parseInt(req.params.y as string, 10);
+    const zoom = parseInt(req.params.zoom as string, 10);
+
+    if (isNaN(x) || isNaN(y) || isNaN(zoom)) {
+      return res.status(400).json({
+        status: 'INVALID_REQUEST',
+        message: 'Parameters x, y, and zoom must be integers.',
+      });
+    }
+
+    const pois = await PoiService.getPoisByTile(x, y, zoom);
+    return res.status(200).json(pois);
+  } catch (error: any) {
+    console.error(`Failed to get POIs for tile ${req.params.x}/${req.params.y}/${req.params.zoom}:`, error);
+    return res.status(500).json({
+      status: 'ERROR',
+      message: error.message || 'Error occurred while retrieving tile POIs.',
+    });
+  }
+});
+
+
+/**
  * Endpoint: GET /api/pois/:id
  * Retrieves comprehensive details for a single POI by ID.
  */

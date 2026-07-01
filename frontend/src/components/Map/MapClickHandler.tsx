@@ -17,6 +17,10 @@ export const MapClickHandler: React.FC<MapClickHandlerProps> = ({
 
     // Register click event on Map4D instance
     const listener = mapInstance.addListener('click', async (args: any) => {
+      // Avoid processing click if a POI, Marker, Place, or Mappoi was clicked to prevent event conflicts
+      if (args && (args.poi || args.mappoi || args.place || args.marker)) {
+        return;
+      }
       if (args && args.location) {
         const lat = args.location.lat;
         const lng = args.location.lng;
