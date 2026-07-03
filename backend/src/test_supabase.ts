@@ -29,12 +29,12 @@ async function testConnection() {
     console.log(`- Timestamp: ${timestamp}`);
     console.log('============================================================');
 
-    // 2. Query POIs: Execute SELECT * FROM poi.pois LIMIT 10
-    console.log('QUERYING POIS FROM DATABASE...');
-    const pois = await sql`SELECT * FROM poi.pois LIMIT 10`;
+    // 2. Query POIs: Execute SELECT * FROM poi.poi_categories
+    console.log('QUERYING CATEGORIES FROM DATABASE...');
+    const categories = await sql`SELECT * FROM poi.poi_categories`;
 
-    console.log('REAL DATA FROM SUPABASE DATABASE (First 10 records):');
-    console.log(JSON.stringify(pois, null, 2));
+    console.log('REAL DATA FROM SUPABASE DATABASE (Categories):');
+    console.log(JSON.stringify(categories, null, 2));
     console.log('============================================================');
 
   } catch (error: any) {

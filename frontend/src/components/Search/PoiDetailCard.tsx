@@ -59,7 +59,7 @@ const translateTimeValue = (value: string): string => {
 };
 
 const getOpenClosedStatus = (hours: Record<string, string> | null): { isOpen: boolean; label: string; color: string } | null => {
-  if (!hours || Object.keys(hours).length === 0) return null;
+  if (!hours || typeof hours !== 'object' || Array.isArray(hours) || Object.keys(hours).length === 0) return null;
 
   // 1. Check if it is open 24/7
   const values = Object.values(hours);
@@ -213,13 +213,13 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
   }
 
   // Helper to split whitespace/newline separated media URLs
-  const getMediaUrls = (urlStr: string): string[] => {
-    if (!urlStr) return [];
+  const getMediaUrls = (urlStr: any): string[] => {
+    if (typeof urlStr !== 'string') return [];
     return urlStr.split(/[\s\n\r]+/).map(u => u.trim()).filter(Boolean);
   };
 
   // Process and separate images and videos (Max 4 images, Max 2 videos)
-  const rawMedia = poi.media || [];
+  const rawMedia = Array.isArray(poi.media) ? poi.media : [];
   const images: { url: string; caption?: string }[] = [];
   const videos: { url: string; caption?: string }[] = [];
 
@@ -371,28 +371,34 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
 
 
           {/* Website Links */}
-          {poi.website && poi.website.length > 0 && (
-            <div className="poi-info-row">
-              <span className="poi-info-icon">🌐</span>
-              <span className="poi-info-label">Website:</span>
-              <div className="poi-info-value website-links">
-                {poi.website.map((url, idx) => {
-                  let label = 'Visit Website';
-                  try {
-                    const parsed = new URL(url);
-                    label = parsed.hostname.replace('www.', '');
-                  } catch {
-                    // fallback
-                  }
-                  return (
-                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="poi-link">
-                      {label}
-                    </a>
-                  );
-                })}
+          {poi.website && (Array.isArray(poi.website) || typeof poi.website === 'string') && (() => {
+            const websiteList = Array.isArray(poi.website)
+              ? poi.website
+              : (typeof poi.website === 'string' && poi.website.trim() !== '' ? [poi.website] : []);
+            if (websiteList.length === 0) return null;
+            return (
+              <div className="poi-info-row">
+                <span className="poi-info-icon">🌐</span>
+                <span className="poi-info-label">Website:</span>
+                <div className="poi-info-value website-links">
+                  {websiteList.map((url, idx) => {
+                    let label = 'Visit Website';
+                    try {
+                      const parsed = new URL(url);
+                      label = parsed.hostname.replace('www.', '');
+                    } catch {
+                      // fallback
+                    }
+                    return (
+                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="poi-link">
+                        {label}
+                      </a>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Giờ mở cửa Section */}

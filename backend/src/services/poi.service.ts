@@ -8,6 +8,12 @@ export interface POIRecord {
   dia_chi: string | null;
   lat: number;
   lng: number;
+  iconUrl?: string | null;
+  icon?: string | null;
+  iconSource?: 'database' | 'category' | 'default';
+  category_name?: string | null;
+  category_name_en?: string | null;
+  category_icon_url?: string | null;
 }
 
 export class PoiService {
@@ -16,12 +22,55 @@ export class PoiService {
    */
   static async getAllPois(): Promise<POIRecord[]> {
     try {
-      const result = await sql<POIRecord[]>`
-        SELECT p.id, p.name, p.name_en, p.poi_type, p.dia_chi, g.lat, g.lng
+      const result = await sql`
+        SELECT 
+          p.id, 
+          p.name, 
+          p.name_en, 
+          p.poi_type, 
+          p.dia_chi, 
+          g.lat, 
+          g.lng,
+          c.name AS category_name,
+          c.name_en AS category_name_en,
+          c.icon_url AS category_icon_url
         FROM poi.pois p
         JOIN poi.poi_geometries g ON g.poi_id = p.id
+        LEFT JOIN poi.poi_categories c ON c.id = p.category_id
       `;
-      return result;
+      return result.map((raw: any) => {
+        const categoryName = raw.category_name || '';
+        const categoryNameEn = raw.category_name_en || '';
+        const isOcop = categoryName === 'Sản phẩm OCOP' || categoryNameEn === 'OCOP Products';
+
+        let iconUrl: string | null = null;
+        let icon: string | null = null;
+        let iconSource: 'database' | 'category' | 'default' = 'default';
+
+        if (isOcop) {
+          iconUrl = raw.category_icon_url || null;
+          iconSource = 'category';
+        } else if (raw.category_icon_url) {
+          iconUrl = raw.category_icon_url;
+          iconSource = 'category';
+        }
+
+        return {
+          id: raw.id,
+          name: raw.name,
+          name_en: raw.name_en || null,
+          poi_type: raw.poi_type,
+          dia_chi: raw.dia_chi || null,
+          lat: Number(raw.lat),
+          lng: Number(raw.lng),
+          iconUrl,
+          icon,
+          iconSource,
+          category_name: raw.category_name || null,
+          category_name_en: raw.category_name_en || null,
+          category_icon_url: raw.category_icon_url || null
+        };
+      });
     } catch (err: any) {
       console.error('Error fetching POIs from Supabase database:', err);
       throw new Error(`Database Query Failure: ${err.message || err}`);
@@ -48,14 +97,57 @@ export class PoiService {
     const lngMaxBound = Math.max(lngMin, lngMax);
 
     try {
-      const result = await sql<POIRecord[]>`
-        SELECT p.id, p.name, p.name_en, p.poi_type, p.dia_chi, g.lat, g.lng
+      const result = await sql`
+        SELECT 
+          p.id, 
+          p.name, 
+          p.name_en, 
+          p.poi_type, 
+          p.dia_chi, 
+          g.lat, 
+          g.lng,
+          c.name AS category_name,
+          c.name_en AS category_name_en,
+          c.icon_url AS category_icon_url
         FROM poi.pois p
         JOIN poi.poi_geometries g ON g.poi_id = p.id
+        LEFT JOIN poi.poi_categories c ON c.id = p.category_id
         WHERE g.lat >= ${latMinBound} AND g.lat <= ${latMaxBound}
           AND g.lng >= ${lngMinBound} AND g.lng <= ${lngMaxBound}
       `;
-      return result;
+      return result.map((raw: any) => {
+        const categoryName = raw.category_name || '';
+        const categoryNameEn = raw.category_name_en || '';
+        const isOcop = categoryName === 'Sản phẩm OCOP' || categoryNameEn === 'OCOP Products';
+
+        let iconUrl: string | null = null;
+        let icon: string | null = null;
+        let iconSource: 'database' | 'category' | 'default' = 'default';
+
+        if (isOcop) {
+          iconUrl = raw.category_icon_url || null;
+          iconSource = 'category';
+        } else if (raw.category_icon_url) {
+          iconUrl = raw.category_icon_url;
+          iconSource = 'category';
+        }
+
+        return {
+          id: raw.id,
+          name: raw.name,
+          name_en: raw.name_en || null,
+          poi_type: raw.poi_type,
+          dia_chi: raw.dia_chi || null,
+          lat: Number(raw.lat),
+          lng: Number(raw.lng),
+          iconUrl,
+          icon,
+          iconSource,
+          category_name: raw.category_name || null,
+          category_name_en: raw.category_name_en || null,
+          category_icon_url: raw.category_icon_url || null
+        };
+      });
     } catch (err: any) {
       console.error(`Error fetching POIs for tile ${x}/${y}/${zoom} from Supabase:`, err);
       throw new Error(`Database Query Failure: ${err.message || err}`);
@@ -91,6 +183,8 @@ export class PoiService {
           g.lat,
           g.lng,
           c.name AS category_name,
+          c.name_en AS category_name_en,
+          c.icon_url AS category_icon_url,
           c.color_hex AS category_color_hex,
           b.nganh_hang,
           b.tam_gia,
@@ -140,6 +234,22 @@ export class PoiService {
         url: m.url || null
       }));
 
+      const categoryName = raw.category_name || '';
+      const categoryNameEn = raw.category_name_en || '';
+      const isOcop = categoryName === 'Sản phẩm OCOP' || categoryNameEn === 'OCOP Products';
+
+      let iconUrl: string | null = null;
+      let icon: string | null = null;
+      let iconSource: 'database' | 'category' | 'default' = 'default';
+
+      if (isOcop) {
+        iconUrl = raw.category_icon_url || null;
+        iconSource = 'category';
+      } else if (raw.category_icon_url) {
+        iconUrl = raw.category_icon_url;
+        iconSource = 'category';
+      }
+
       return {
         id: raw.id,
         name: raw.name || null,
@@ -154,7 +264,10 @@ export class PoiService {
         category,
         tourism,
         business,
-        media
+        media,
+        iconUrl,
+        icon,
+        iconSource
       };
     } catch (err: any) {
       console.error(`Error querying POI details for ${id} from Supabase:`, err);

@@ -8,6 +8,12 @@ export interface POIData {
   dia_chi: string | null;
   lat: number;
   lng: number;
+  iconUrl?: string | null;
+  icon?: string | null;
+  iconSource?: 'database' | 'category' | 'default';
+  category_name?: string | null;
+  category_name_en?: string | null;
+  category_icon_url?: string | null;
 }
 
 export interface POIMediaItem {
@@ -113,7 +119,10 @@ export class PoiClientService {
           nam_xay_dung: p.tourism?.nam_xay_dung || null,
           don_vi_quan_ly: p.tourism?.don_vi_quan_ly || null,
           gia_ve: p.tourism?.gia_ve || null,
-          media: p.media || null
+          media: p.media || null,
+          iconUrl: p.iconUrl || null,
+          icon: p.icon || null,
+          iconSource: p.iconSource || 'default'
         } as POIDetailData;
       }
       throw new Error(data.message || 'Malformed POI details response from server');

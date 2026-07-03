@@ -1297,6 +1297,33 @@ TEST RESULT:
 
 STATUS: COMPLETE
 
+## 2026-07-03 20:50:00
 
+TIME: 2026-07-03 20:50:00
 
+TASK: RESOLVE OCOP CUSTOM POI ICON RENDERING FROM SUPABASE DATABASE
 
+PROBLEM:
+- OCOP POIs did not display their custom icons from the database, falling back to default grey pins instead.
+- Map4D SDK's `POIOverlay` tile renderer does not support custom HTTPS image URLs as vector tile symbols.
+- Clicking standard built-in map POIs with numeric IDs threw a `TypeError` due to `.startsWith()` being called on non-string values inside the map click handler.
+
+SOLUTION:
+1. Checked backend tile response payloads to verify that `iconUrl` is returned correctly without raw base64 conversions (retaining raw HTTPS bucket links).
+2. Intercepted rendering inside the frontend `POIOverlay` `parserData` function:
+   - Extracted POIs with custom HTTP icon URLs.
+   - Initialized standalone `window.map4d.POI` objects dynamically for these OCOP database POIs. Standalone POIs fully support rendering custom image URLs directly on the map.
+   - Omitted custom POIs from the array returned to `POIOverlay` to prevent duplicate default pins from drawing underneath the custom icons.
+   - Maintained active standalone POI references in a `customPoiObjectsRef` Map to prevent duplicates and cleanup objects correctly on component unmount.
+3. Restored `resolvePoiIcon` to correctly return the absolute URL from `poi.iconUrl` without the debug override.
+4. Added type check safety to the map `click` event listener, ensuring `.startsWith('database-poi-')` is only invoked if `clickedPoi.id` is a string.
+
+FILES CHANGED:
+- `frontend/src/components/Map/MapContainer.tsx`
+- `docs/process_project.md`
+
+TEST RESULT:
+- Verified complete linter and compile success on the frontend.
+- Ran automated verification script via Playwright to ensure that custom OCOP logos (like "Bắc Đẩu Seafood") load directly from Supabase, render onto the map, and successfully trigger primary details panel overlays on user clicks.
+
+STATUS: COMPLETE

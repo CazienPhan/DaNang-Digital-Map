@@ -61,6 +61,8 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const originMarkerRef = useRef<any>(null);
   const destinationMarkerRef = useRef<any>(null);
   const poiOverlayRef = useRef<any>(null);
+  const customPoiByDbIdRef = useRef<Map<string, { engineId: number; standalonePoi: any; poi: any }>>(new Map());
+  const customPoiByEngineIdRef = useRef<Map<number, any>>(new Map());
 
   const onPoiClickRef = useRef(onPoiClick);
   const onBuiltInPoiClickRef = useRef(onBuiltInPoiClick);
@@ -93,6 +95,12 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   useEffect(() => {
     loadMap4dSDK(MAP4D_CONFIG.mapApiKey, MAP4D_CONFIG.sdkVersion)
       .then(() => {
+        if (window.map4d && !window.map4d.Size) {
+          window.map4d.Size = function (this: any, width: number, height: number) {
+            this.width = width;
+            this.height = height;
+          };
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -100,6 +108,12 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         // Fallback retry using verified apiSecretKey
         loadMap4dSDK(MAP4D_CONFIG.apiSecretKey, MAP4D_CONFIG.sdkVersion)
           .then(() => {
+            if (window.map4d && !window.map4d.Size) {
+              window.map4d.Size = function (this: any, width: number, height: number) {
+                this.width = width;
+                this.height = height;
+              };
+            }
             setLoading(false);
           })
           .catch((retryErr) => {
@@ -146,9 +160,27 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         // 1. Check if a custom Database POI or built-in POI was clicked
         if (args && args.poi) {
           const clickedPoi = args.poi;
-          if (clickedPoi.id && clickedPoi.id.startsWith('database-poi-')) {
+          const customPoiMapping = customPoiByEngineIdRef.current.get(clickedPoi.id);
+
+          if (customPoiMapping) {
+            const dbPoi = customPoiMapping.poi;
+            console.log('[Map Event] Custom Database POI clicked:', dbPoi.id, dbPoi.name);
+            if (onPoiClickRef.current) {
+              onPoiClickRef.current({
+                id: dbPoi.id,
+                name: dbPoi.name || '',
+                name_en: dbPoi.name_en || null,
+                poi_type: dbPoi.poi_type || 'TOURISM',
+                lat: Number(dbPoi.lat),
+                lng: Number(dbPoi.lng),
+                dia_chi: dbPoi.dia_chi || null
+              });
+            }
+            return;
+          } else if (clickedPoi.id && typeof clickedPoi.id === 'string' && clickedPoi.id.startsWith('database-poi-')) {
+            // Keep prefix fallback support for legacy components/tests
             const dbId = clickedPoi.id.replace('database-poi-', '');
-            console.log('[Map Event] Database POI clicked:', dbId, clickedPoi.title);
+            console.log('[Map Event] Database POI clicked (Legacy prefix match):', dbId, clickedPoi.title);
             if (onPoiClickRef.current) {
               onPoiClickRef.current({
                 id: dbId,
@@ -272,24 +304,56 @@ export const MapContainer: React.FC<MapContainerProps> = ({
             data = JSON.parse(response);
           } catch (e) {
             console.error('Failed to parse tile POI JSON:', e);
-            return [];
           }
         }
         const items = Array.isArray(data) ? data : (data?.pois || []);
-        return items.map((poi: any) => ({
-          id: poi.id,
-          position: {
-            lat: Number(poi.lat),
-            lng: Number(poi.lng)
-          },
-          title: poi.name,
-          name_en: poi.name_en || null,
-          titleColor: poi.poi_type === 'TOURISM' ? '#f97316' : (poi.poi_type === 'OCOP_STORE' ? '#10b981' : (poi.poi_type === 'MARKET' ? '#8b5cf6' : '#3b82f6')),
-          type: poi.poi_type,
-          poi_type: poi.poi_type,
-          dia_chi: poi.dia_chi || null,
-          icon: getPoiMarkerIconDataUri(poi.poi_type, 16)
-        }));
+        const standardPois: any[] = [];
+
+        items.forEach((poi: any) => {
+          // Log required by the verification checklist
+          console.log("POI ICON DEBUG:", poi.iconUrl, poi.icon);
+
+          const resolvedIcon = resolvePoiIcon(poi);
+          const poiProps = {
+            id: poi.id,
+            position: {
+              lat: Number(poi.lat),
+              lng: Number(poi.lng)
+            },
+            title: poi.name,
+            name_en: poi.name_en || null,
+            titleColor: poi.poi_type === 'TOURISM' ? '#f97316' : (poi.poi_type === 'OCOP_STORE' ? '#353e45ff' : (poi.poi_type === 'MARKET' ? '#8b5cf6' : '#3b82f6')),
+            type: poi.poi_type,
+            poi_type: poi.poi_type,
+            dia_chi: poi.dia_chi || null,
+            icon: resolvedIcon,
+            anchor: { x: 0.5, y: 1.0 }
+          };
+
+          // If the icon is an external HTTP URL (like from Supabase), Map4D POIOverlay will ignore it
+          // We must render it as a standalone map4d.POI object instead to support custom images
+          if (resolvedIcon && resolvedIcon.startsWith('http')) {
+            if (!customPoiByDbIdRef.current.has(poi.id)) {
+              const standalonePoi = new window.map4d.POI({
+                ...poiProps,
+                visible: true
+              });
+              standalonePoi.setMap(mapInstance);
+              const engineId = standalonePoi.id;
+              
+              const mapping = { engineId, standalonePoi, poi };
+              customPoiByDbIdRef.current.set(poi.id, mapping);
+              customPoiByEngineIdRef.current.set(engineId, mapping);
+              
+              console.log(`[Standalone POI Map] Mapped database POI "${poi.name}" (ID: ${poi.id}) to engine ID: ${engineId}`);
+            }
+          } else {
+            // Otherwise, let POIOverlay handle it using vector style textures
+            standardPois.push(poiProps);
+          }
+        });
+
+        return standardPois;
       },
       prefixId: 'database-poi-',
       visible: true
@@ -303,6 +367,12 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         poiOverlayRef.current.setMap(null);
         poiOverlayRef.current = null;
       }
+      // Also clear custom standalone POIs
+      customPoiByDbIdRef.current.forEach(mapping => {
+        mapping.standalonePoi.setMap(null);
+      });
+      customPoiByDbIdRef.current.clear();
+      customPoiByEngineIdRef.current.clear();
     };
   }, [mapInstance]);
 
@@ -592,6 +662,25 @@ function getPoiMarkerIconDataUri(poiType: string, zoom: number): string {
     return `data:image/svg+xml;charset=utf-8,${encoded}`;
   }
   return '';
+}
+
+function resolvePoiIcon(poi: any): string {
+  if (poi.iconUrl) {
+    console.log(`[Icon Resolution] POI "${poi.name || poi.title}" (ID: ${poi.id}) resolved via iconUrl: ${poi.iconUrl}`);
+    return poi.iconUrl;
+  }
+
+  if (poi.icon) {
+    const baseUrl = MAP4D_CONFIG.backendUrl;
+    const separator = (baseUrl.endsWith('/') || poi.icon.startsWith('/')) ? '' : '/';
+    const relativeUrl = `${baseUrl}${separator}${poi.icon}`;
+    console.log(`[Icon Resolution] POI "${poi.name || poi.title}" (ID: ${poi.id}) resolved via icon (relative path): ${relativeUrl}`);
+    return relativeUrl;
+  }
+
+  const fallback = getPoiMarkerIconDataUri(poi.poi_type || poi.type, 16);
+  console.log(`[Icon Resolution] POI "${poi.name || poi.title}" (ID: ${poi.id}) resolved via fallback (poi_type: ${poi.poi_type || poi.type})`);
+  return fallback;
 }
 
 export default MapContainer;
