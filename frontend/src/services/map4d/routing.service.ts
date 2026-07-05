@@ -1,5 +1,5 @@
-import { MAP4D_CONFIG } from '../../config/map.config';
-import { type MapCoordinate } from '../../components/Map/MapContainer';
+import { MAP4D_CONFIG } from '@/config/map.config';
+import { type MapCoordinate } from '@/features/map/components/MapContainer';
 
 export interface RouteResult {
   path: MapCoordinate[];

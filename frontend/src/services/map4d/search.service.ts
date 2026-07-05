@@ -1,4 +1,4 @@
-import { MAP4D_CONFIG } from '../../config/map.config';
+import { MAP4D_CONFIG } from '@/config/map.config';
 
 export interface PlaceSuggestion {
   id: string;

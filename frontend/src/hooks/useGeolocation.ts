@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { type MapCoordinate } from '../components/Map/MapContainer';
+import { type MapCoordinate } from '@/features/map';
 
 export interface GeolocationState {
   getPosition: (
