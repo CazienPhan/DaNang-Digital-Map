@@ -68,7 +68,7 @@ export const PlaceDetailCard: React.FC<PlaceDetailCardProps> = ({
     <div className="place-detail-click-card">
       <div className="place-detail-header">
         <span className="location-tag">
-          📍 {place.category || 'Location'}
+          📍 {place.category || 'LocationVV'}
         </span>
         {onClose && (
           <button className="close-card-btn" onClick={onClose} title="Close detail card">

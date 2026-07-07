@@ -180,26 +180,41 @@ export const MapContainer: React.FC<MapContainerProps> = ({
           } else if (clickedPoi.id && typeof clickedPoi.id === 'string' && clickedPoi.id.startsWith('database-poi-')) {
             // Keep prefix fallback support for legacy components/tests
             const dbId = clickedPoi.id.replace('database-poi-', '');
-            console.log('[Map Event] Database POI clicked (Legacy prefix match):', dbId, clickedPoi.title);
+            
+            const poiName = clickedPoi.title || (typeof clickedPoi.getTitle === 'function' ? clickedPoi.getTitle() : '') || clickedPoi.name || '';
+            const rawLat = clickedPoi.position?.lat ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lat === 'function' ? clickedPoi.getPosition().lat() : clickedPoi.getPosition().lat) : args.location?.lat);
+            const rawLng = clickedPoi.position?.lng ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lng === 'function' ? clickedPoi.getPosition().lng() : clickedPoi.getPosition().lng) : args.location?.lng);
+            
+            const poiLat = rawLat ?? 0;
+            const poiLng = rawLng ?? 0;
+
+            console.log('[Map Event] Database POI clicked (Legacy prefix match):', dbId, poiName);
             if (onPoiClickRef.current) {
               onPoiClickRef.current({
                 id: dbId,
-                name: clickedPoi.title || '',
+                name: poiName,
                 name_en: clickedPoi.name_en || null,
                 poi_type: clickedPoi.type || clickedPoi.poi_type || 'TOURISM',
-                lat: clickedPoi.location ? clickedPoi.location.lat : (clickedPoi.position ? clickedPoi.position.lat : 0),
-                lng: clickedPoi.location ? clickedPoi.location.lng : (clickedPoi.position ? clickedPoi.position.lng : 0),
+                lat: Number(poiLat),
+                lng: Number(poiLng),
                 dia_chi: clickedPoi.dia_chi || null
               });
             }
             return;
           } else {
-            console.log('[Map Event] Built-in base POI clicked:', clickedPoi.name || clickedPoi.title);
+            const poiName = clickedPoi.name || clickedPoi.title || (typeof clickedPoi.getTitle === 'function' ? clickedPoi.getTitle() : '') || '';
+            const rawLat = clickedPoi.location?.lat ?? clickedPoi.position?.lat ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lat === 'function' ? clickedPoi.getPosition().lat() : clickedPoi.getPosition().lat) : args.location?.lat);
+            const rawLng = clickedPoi.location?.lng ?? clickedPoi.position?.lng ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lng === 'function' ? clickedPoi.getPosition().lng() : clickedPoi.getPosition().lng) : args.location?.lng);
+            
+            const poiLat = rawLat ?? 0;
+            const poiLng = rawLng ?? 0;
+
+            console.log('[Map Event] Built-in base POI clicked:', poiName);
             if (onBuiltInPoiClickRef.current) {
               const projection = typeof map.getProjection === 'function' ? map.getProjection() : (map.projection || null);
               let pixel = { x: 0, y: 0 };
-              if (projection && clickedPoi.location) {
-                const screenPt = projection.fromLatLngToScreen(clickedPoi.location);
+              if (projection && args.location) {
+                const screenPt = projection.fromLatLngToScreen(args.location);
                 if (screenPt) {
                   pixel = { x: screenPt.x, y: screenPt.y };
                 }
@@ -208,10 +223,10 @@ export const MapContainer: React.FC<MapContainerProps> = ({
               }
               onBuiltInPoiClickRef.current({
                 id: clickedPoi.id || '',
-                name: clickedPoi.name || clickedPoi.title || '',
+                name: poiName,
                 type: clickedPoi.type || 'POI',
-                lat: clickedPoi.location ? clickedPoi.location.lat : (clickedPoi.position ? clickedPoi.position.lat : 0),
-                lng: clickedPoi.location ? clickedPoi.location.lng : (clickedPoi.position ? clickedPoi.position.lng : 0),
+                lat: Number(poiLat),
+                lng: Number(poiLng),
                 pixel,
                 metadata: clickedPoi
               });
@@ -286,6 +301,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     return () => {
       // Map4D listeners do not require explicit cleanup if the container DOM is deleted
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, error, mapInstance]);
 
   // Synchronize POIOverlay lifecycle with mapInstance
@@ -361,6 +377,9 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
     overlay.setMap(mapInstance);
     poiOverlayRef.current = overlay;
+    
+    const customPoiByDbId = customPoiByDbIdRef.current;
+    const customPoiByEngineId = customPoiByEngineIdRef.current;
 
     return () => {
       if (poiOverlayRef.current) {
@@ -368,11 +387,11 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         poiOverlayRef.current = null;
       }
       // Also clear custom standalone POIs
-      customPoiByDbIdRef.current.forEach(mapping => {
+      customPoiByDbId.forEach(mapping => {
         mapping.standalonePoi.setMap(null);
       });
-      customPoiByDbIdRef.current.clear();
-      customPoiByEngineIdRef.current.clear();
+      customPoiByDbId.clear();
+      customPoiByEngineId.clear();
     };
   }, [mapInstance]);
 
