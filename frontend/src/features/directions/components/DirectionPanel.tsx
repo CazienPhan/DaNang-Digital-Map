@@ -1,55 +1,14 @@
 import React from "react";
-
-import { useDirectionRoute }
-  from "@/features/directions/hooks/useDirectionRoute";
-
-
-import type { PlaceSuggestion }
-  from "@/services/map4d/search.service";
-
-
-import { type LocationState }
-  from "@/features/directions/hooks/useDirection";
-
-
-import { type RouteResult }
-  from "@/services/map4d/routing.service";
-
-
-import DirectionLocationInput
-  from "@/features/directions/components/DirectionLocationInput";
-
-
-import TransportModeSelector
-  from "@/features/directions/components/TransportModeSelector";
-
-
-import RouteSummaryCard
-  from "@/features/directions/components/RouteSummaryCard";
-
-
-import { useDirectionSearch }
-  from "@/features/directions/hooks/useDirectionSearch";
-
-
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardTitle,
-  Button,
-  Alert,
-  AlertDescription
-}
-  from "@/components/ui";
-
-
-import {
-  X,
-  ArrowUpDown,
-  Loader2
-}
-  from "lucide-react";
+import { useDirectionRoute } from "@/features/directions/hooks/useDirectionRoute";
+import type { PlaceSuggestion } from "@/services/map4d/search.service";
+import { type LocationState } from "@/features/directions/hooks/useDirection";
+import { type RouteResult } from "@/services/map4d/routing.service";
+import DirectionLocationInput from "@/features/directions/components/DirectionLocationInput";
+import TransportModeSelector from "@/features/directions/components/TransportModeSelector";
+import RouteSummaryCard from "@/features/directions/components/RouteSummaryCard";
+import { useDirectionSearch } from "@/features/directions/hooks/useDirectionSearch";
+import { Card, CardHeader, CardContent, CardTitle, Button, Alert, AlertDescription } from "@/components/ui";
+import { X, ArrowUpDown, Loader2 } from "lucide-react";
 
 interface DirectionPanelProps {
   currentCenter?: { lat: number; lng: number };
@@ -72,91 +31,35 @@ interface DirectionPanelProps {
 }
 
 export const DirectionPanel: React.FC<DirectionPanelProps> = ({
-  currentCenter,
-  origin,
-  setOrigin,
-  destination,
-  setDestination,
-  routeData,
-  onCalculateRoute,
-  onClear,
-  loading,
-  error,
-  onClose,
-  cachedGps,
-  selectedTransportMode,
-  setSelectedTransportMode,
-  onCalculateMatrix,
+  currentCenter, origin, setOrigin, destination, setDestination, routeData,
+  onCalculateRoute, onClear, loading, error, onClose, cachedGps,
+  selectedTransportMode, setSelectedTransportMode, onCalculateMatrix,
 }) => {
 
   const {
-
-    originText,
-    setOriginText,
-
-    destText,
-    setDestText,
-
-
-    originSuggestions,
-    setOriginSuggestions,
-
-
-    destSuggestions,
-    setDestSuggestions,
-
-
-    activeInput,
-    setActiveInput,
-
-
-    focusedIndex,
-    setFocusedIndex,
-
-
-  }
-    =
-    useDirectionSearch({
-
-      currentCenter,
-
-      origin,
-
-      destination,
-
-    });
+    originText, setOriginText,
+    destText, setDestText,
+    originSuggestions, setOriginSuggestions,
+    destSuggestions, setDestSuggestions,
+    activeInput, setActiveInput,
+    focusedIndex, setFocusedIndex,
+  } = useDirectionSearch({ currentCenter, origin, destination });
 
   useDirectionRoute({
-
-    origin,
-
-    destination,
-
-    selectedTransportMode,
-
-    onCalculateRoute,
-
-    onClear,
-
-    onCalculateMatrix,
-
+    origin, destination, selectedTransportMode,
+    onCalculateRoute, onClear, onCalculateMatrix,
   });
-
-  // NOTE: giữ nguyên cấu trúc dữ liệu transportModes, chỉ đổi icon sang Lucide (STEP: Import icon)
 
   const handleSelectCurrentLocation = () => {
     if (cachedGps) {
       setOrigin({
-        lat: cachedGps.lat,
-        lng: cachedGps.lng,
-        address: cachedGps.address,
-        name: 'Current Location',
+        lat: cachedGps.lat, lng: cachedGps.lng,
+        address: cachedGps.address, name: 'Current Location',
       });
       setOriginText(cachedGps.address);
       setOriginSuggestions([]);
     }
   };
-
 
   const handleSwap = () => {
     const temp = origin;
@@ -166,8 +69,7 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
 
   const handleSelectOrigin = (suggestion: PlaceSuggestion) => {
     setOrigin({
-      lat: suggestion.location.lat,
-      lng: suggestion.location.lng,
+      lat: suggestion.location.lat, lng: suggestion.location.lng,
       address: suggestion.name,
     });
     setOriginSuggestions([]);
@@ -175,8 +77,7 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
 
   const handleSelectDest = (suggestion: PlaceSuggestion) => {
     setDestination({
-      lat: suggestion.location.lat,
-      lng: suggestion.location.lng,
+      lat: suggestion.location.lat, lng: suggestion.location.lng,
       address: suggestion.name,
     });
     setDestSuggestions([]);
@@ -195,11 +96,8 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
       e.preventDefault();
       if (focusedIndex >= 0 && focusedIndex < totalItems) {
         if (cachedGps) {
-          if (focusedIndex === 0) {
-            handleSelectCurrentLocation();
-          } else {
-            handleSelectOrigin(originSuggestions[focusedIndex - 1]);
-          }
+          if (focusedIndex === 0) handleSelectCurrentLocation();
+          else handleSelectOrigin(originSuggestions[focusedIndex - 1]);
         } else {
           handleSelectOrigin(originSuggestions[focusedIndex]);
         }
@@ -232,222 +130,86 @@ export const DirectionPanel: React.FC<DirectionPanelProps> = ({
   };
 
   return (
-    <>
-      {/* STEP 1: Card thay cho direction-panel */}
-      <Card
-        className="
-        w-[420px]
-        max-w-[90vw]
-        shadow-lg
-        rounded-xl
-        "
-      >
-        {/* STEP 2: Header */}
-        <CardHeader>
-          <div
-            className="
-            flex
-            items-center
-            justify-between
-            "
-          >
-            <CardTitle>
-              Directions
-            </CardTitle>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onClose}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="flex flex-col gap-4 w-[calc(100vw-24px)] md:w-[400px]">
+      <Card className="w-full shadow-lg rounded-xl overflow-visible bg-white border border-gray-100 z-10 relative">
+        <CardHeader className="h-14 px-4 py-0 flex flex-row items-center justify-between border-b border-gray-100">
+          <CardTitle className="text-lg font-medium text-gray-800">
+            Directions
+          </CardTitle>
+          <Button size="icon" variant="ghost" onClick={onClose} className="rounded-full hover:bg-gray-100 text-gray-500">
+            <X className="h-5 w-5" />
+          </Button>
         </CardHeader>
-
-        {/* STEP 3: Body */}
-        <CardContent
-          className="space-y-4"
-        >
-          {/* Transport Mode Selection Tabs (STEP 8) */}
-          <TransportModeSelector
-
-            selectedMode={selectedTransportMode}
-
-            onChange={setSelectedTransportMode}
-
-          />
-
-          <div className="direction-inputs-container">
-            {/* Google Maps style Origin/Destination left indicators */}
-            <div className="route-indicator">
-              <span className="indicator-dot origin-indicator-dot"></span>
-              <span className="indicator-line"></span>
-              <span className="indicator-dot dest-indicator-dot"></span>
+        
+        <CardContent className="p-4 space-y-4">
+          <TransportModeSelector selectedMode={selectedTransportMode} onChange={setSelectedTransportMode} />
+          
+          <div className="flex items-center w-full relative">
+            <div className="flex flex-col items-center justify-center mr-3 h-full pb-1">
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+              <div className="w-0.5 h-12 bg-gray-300 my-1 flex-shrink-0" />
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0" />
             </div>
-            <div className="inputs-wrapper">
-              {/* Origin Search (STEP 4) */}
-              <DirectionLocationInput
 
+            <div className="flex-1 flex flex-col gap-3 relative min-w-0">
+              <DirectionLocationInput
                 placeholder="Choose starting point..."
-
                 value={originText}
-
-
-                onChange={(value: string) => {
-
-                  setOriginText(value);
-
-                  if (origin) {
-                    setOrigin(null);
-                  }
-
-                }}
-
-
+                onChange={(value: string) => { setOriginText(value); if (origin) setOrigin(null); }}
                 suggestions={originSuggestions}
-
-
-                active={
-                  activeInput === "origin"
-                }
-
-
-                onFocus={() =>
-                  setActiveInput("origin")
-                }
-
-
-                onBlur={() =>
-                  setTimeout(
-                    () => setActiveInput(null),
-                    250
-                  )
-                }
-
-
+                active={activeInput === "origin"}
+                onFocus={() => setActiveInput("origin")}
+                onBlur={() => setTimeout(() => setActiveInput(null), 250)}
                 onKeyDown={handleOriginKeyDown}
-
-
                 onSelect={handleSelectOrigin}
-
-
                 focusedIndex={focusedIndex}
-
-
                 cachedGps={cachedGps}
-
-
-                onSelectCurrent={
-                  handleSelectCurrentLocation
-                }
-
-
-                onClearLocation={() => {
-                  setOrigin(null)
-                }}
-
+                onSelectCurrent={handleSelectCurrentLocation}
+                onClearLocation={() => setOrigin(null)}
               />
-
-              {/* Destination Search (STEP 4) */}
               <DirectionLocationInput
-
-                placeholder="Choose end point..."
-
+                placeholder="Choose destination..."
                 value={destText}
-
-
-                onChange={(value: string) => {
-
-                  setDestText(value);
-
-                  if (destination) {
-                    setDestination(null);
-                  }
-
-                }}
-
-
+                onChange={(value: string) => { setDestText(value); if (destination) setDestination(null); }}
                 suggestions={destSuggestions}
-
-
-                active={
-                  activeInput === "dest"
-                }
-
-
-                onFocus={() =>
-                  setActiveInput("dest")
-                }
-
-
-                onBlur={() =>
-                  setTimeout(
-                    () => setActiveInput(null),
-                    250
-                  )
-                }
-
-
+                active={activeInput === "dest"}
+                onFocus={() => setActiveInput("dest")}
+                onBlur={() => setTimeout(() => setActiveInput(null), 250)}
                 onKeyDown={handleDestKeyDown}
-
-
                 onSelect={handleSelectDest}
-
-
                 focusedIndex={focusedIndex}
-
                 cachedGps={cachedGps}
-
-                onClearLocation={() => {
-                  setDestination(null)
-                }}
-
+                onClearLocation={() => setDestination(null)}
               />
-              {/* Swap Button on the right (STEP 5) */}
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={handleSwap}
-                title="Swap start and destination"
-              >
+            </div>
+            
+            <div className="ml-3 flex items-center justify-center">
+              <Button size="icon" variant="outline" className="rounded-full h-8 w-8 text-gray-500" onClick={handleSwap} title="Swap locations">
                 <ArrowUpDown className="h-4 w-4" />
               </Button>
             </div>
-
-            {/* Info panel results (STEP 6) */}
-            {loading && (
-              <Alert>
-                <Loader2 className="animate-spin h-4 w-4" />
-                <AlertDescription>
-                  Finding Route...
-                </AlertDescription>
-              </Alert>
-            )}
-            {error && (
-              <Alert
-                variant="destructive"
-              >
-                <AlertDescription>
-                  {error}
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
+
+          {loading && (
+            <Alert className="bg-gray-50 border-gray-100">
+              <Loader2 className="animate-spin h-4 w-4 text-blue-500" />
+              <AlertDescription className="text-gray-600">Finding Route...</AlertDescription>
+            </Alert>
+          )}
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
-
-      {/* STEP 7: Route Summary */}
-      {
-        routeData &&
-        !loading &&
-        !error &&
-
-        <RouteSummaryCard
-          routeData={routeData}
-        />
-
-      }
-    </>
+      
+      {routeData && !loading && !error && (
+        <div className="w-full relative z-0">
+          <RouteSummaryCard routeData={routeData} />
+        </div>
+      )}
+    </div>
   );
 };
 
