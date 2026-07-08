@@ -10,6 +10,7 @@ import PlaceInfoCard from './PlaceInfoCard';
 import { PoiDetailCard } from '@/features/poi';
 import { type POIDetailData } from '@/services/supabase/poi.service';
 import { Button, Input, Alert, AlertDescription } from "@/components/ui";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Search, X, LocateFixed, Loader2, } from "lucide-react";
 
 interface SearchBarProps {
@@ -239,102 +240,105 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   }
 
   return (
-    <div className="search-container">
-      <div className=" relative w-[420px] max-w-[90vw]"
+    <Sheet open={true} modal={false} disablePointerDismissal={true}>
+      <SheetContent
+        side="left"
+        withOverlay={false}
+        className="w-[480px] sm:w-[520px] p-0 h-screen bg-background flex flex-col shadow-lg border-r"
+        showCloseButton={false}
       >
-        {/* Search status/indicator icon */}
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-          <Search size={18} />
-        </div>
-        {/* Search Input field */}
-        <Input
-          type="text"
-          className="pl-10 pr-20"
-          placeholder="Bạn muốn đến đâu"
-          value={query}
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Search Header */}
+          <div className="p-4 shrink-0 relative z-10">
+            <div className="relative w-full">
+              {/* Search status/indicator icon */}
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                <Search size={18} />
+              </div>
+              {/* Search Input field */}
+              <Input
+                type="text"
+                className="pl-10 pr-20"
+                placeholder="Bạn muốn đến đâu"
+                value={query}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setQuery(val);
 
-          onChange={(e) => {
-            const val = e.target.value;
-            setQuery(val);
-
-            if (val === "") {
-              onCloseInfoCard();
-            }
-          }}
-
-        />
-        {/* Clear Search button (X) */}
-        {query && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute right-12 top-1/2 -translate-y-1/2"
-            onClick={() => {
-              setQuery("");
-              onCloseInfoCard();
-            }}
-          >
-            <X size={18} />
-          </Button>
-        )}
-
-        {/* GPS location fetch trigger with multi-state support */}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="absolute right-2 top-1/2 -translate-y-1/2"
-          onClick={handleGPSClick}
-          disabled={gpsState === "loading"}
-        >
-          {
-            gpsState === "loading"
-              ?
-              <Loader2 className="animate-spin" />
-              :
-              <LocateFixed
-                className="
- h-5
- w-5
- "
+                  if (val === "") {
+                    onCloseInfoCard();
+                  }
+                }}
               />
-          }
-        </Button>
-      </div>
+              {/* Clear Search button (X) */}
+              {query && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute right-12 top-1/2 -translate-y-1/2"
+                  onClick={() => {
+                    setQuery("");
+                    onCloseInfoCard();
+                  }}
+                >
+                  <X size={18} />
+                </Button>
+              )}
+              {/* GPS location fetch trigger with multi-state support */}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="absolute right-2 top-1/2 -translate-y-1/2"
+                onClick={handleGPSClick}
+                disabled={gpsState === "loading"}
+              >
+                {gpsState === "loading" ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <LocateFixed className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
 
-      {/* Autocomplete suggestion dropdown results list overlay */}
-      {suggestions.length > 0 && (
-        <SearchResult
-          suggestions={suggestions}
-          onSelectSuggestion={handleSuggestionSelect}
-        />
-      )}
+            {/* Autocomplete suggestion dropdown results list overlay */}
+            {suggestions.length > 0 && (
+              <SearchResult
+                suggestions={suggestions}
+                onSelectSuggestion={handleSuggestionSelect}
+              />
+            )}
+          </div>
 
-      {/* Primary Card View (Loader, POI Card, or standard click card) */}
-      {!directionActive && (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
-        <PoiDetailCard
-          poi={selectedPoiDetails}
-          loading={poiDetailLoading}
-          error={poiDetailError}
-          isSecondary={false}
-          onClose={onCloseInfoCard}
-          onGetDirections={onDirectionClick}
-        />
-      )}
+          {/* Primary Card View (Loader, POI Card, or standard click card) */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {!directionActive && (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
+              <PoiDetailCard
+                poi={selectedPoiDetails}
+                loading={poiDetailLoading}
+                error={poiDetailError}
+                isSecondary={false}
+                onClose={onCloseInfoCard}
+                onGetDirections={onDirectionClick}
+              />
+            )}
 
-      {!poiDetailLoading && !selectedPoiDetails && !poiDetailError && selectedPlace && !directionActive && !hasClickCard && (
-        <PlaceInfoCard
-          place={selectedPlace}
-          onGetDirections={onDirectionClick}
-        />
-      )}
+            {!poiDetailLoading && !selectedPoiDetails && !poiDetailError && selectedPlace && !directionActive && !hasClickCard && (
+              <PlaceInfoCard
+                place={selectedPlace}
+                onGetDirections={onDirectionClick}
+              />
+            )}
+          </div>
 
-      {/* Inline lightweight toast warnings */}
-      {toastMessage && (
-        <div className="toast-notification">
-          {toastMessage}
+          {/* Inline lightweight toast warnings */}
+          {toastMessage && (
+            <div className="toast-notification absolute bottom-4 left-4 z-50">
+              {toastMessage}
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 };
 export default SearchBar;

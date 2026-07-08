@@ -12,9 +12,9 @@ export const ErrorState: React.FC<ErrorStateProps> = React.memo(({
     onClose,
 }) => {
 
-    return (
-      <div className={isSecondary ? "poi-detail-card secondary-card" : "poi-detail-card primary-card"}>
-        <div className="poi-header">
+    const content = (
+      <>
+        <div className="poi-header shrink-0">
           <span className="poi-tag" style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
             ⚠️ Lỗi Truy Vấn
           </span>
@@ -24,12 +24,28 @@ export const ErrorState: React.FC<ErrorStateProps> = React.memo(({
             </button>
           )}
         </div>
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', color: '#f8fafc', fontSize: '0.82rem' }}>
-          <div style={{ fontWeight: 700, color: '#f87171' }}>Không thể truy xuất thông tin địa điểm.</div>
-          <div style={{ lineHeight: 1.4 }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>Thành phần bị ảnh hưởng:</span> POI Detail Card</div>
-          <div style={{ lineHeight: 1.4 }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>Nguyên nhân:</span> {error || 'No POI data returned from database.'}</div>
-          <div style={{ lineHeight: 1.4 }}><span style={{ color: '#10b981', fontWeight: 600 }}>Giải pháp:</span> Kiểm tra kết nối cơ sở dữ liệu, đảm bảo bảng "poi.pois" đang hoạt động và xem log terminal backend.</div>
+        <div className="poi-scroll-content flex-1 overflow-y-auto">
+          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', color: '#f8fafc', fontSize: '0.82rem' }}>
+            <div style={{ fontWeight: 700, color: '#f87171' }}>Không thể truy xuất thông tin địa điểm.</div>
+            <div style={{ lineHeight: 1.4 }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>Thành phần bị ảnh hưởng:</span> POI Detail Card</div>
+            <div style={{ lineHeight: 1.4 }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>Nguyên nhân:</span> {error || 'No POI data returned from database.'}</div>
+            <div style={{ lineHeight: 1.4 }}><span style={{ color: '#10b981', fontWeight: 600 }}>Giải pháp:</span> Kiểm tra kết nối cơ sở dữ liệu, đảm bảo bảng "poi.pois" đang hoạt động và xem log terminal backend.</div>
+          </div>
         </div>
+      </>
+    );
+
+    if (isSecondary) {
+      return (
+        <div className="poi-detail-card secondary-card">
+          {content}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden h-full bg-background text-foreground">
+        {content}
       </div>
     );
 

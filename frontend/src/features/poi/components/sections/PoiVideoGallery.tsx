@@ -9,7 +9,7 @@ export const PoiVideoGallery: React.FC<PoiVideoGalleryProps> = React.memo(({ vid
 
   return (
     <div className="poi-media-section">
-      <h3 className="section-title text-sm font-semibold uppercase tracking-wide text-muted-foreground">Video</h3>
+      <h3 className="section-title !normal-case !text-xs !font-semibold !tracking-normal !text-foreground">New Feed</h3>
       <div className="poi-videos-grid">
         {videos.map((vid, idx) => (
           <div key={idx} className="poi-video-container">

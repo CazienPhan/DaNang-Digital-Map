@@ -1,4 +1,6 @@
 import React from 'react';
+import { X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface PoiHeaderProps {
   tagColor: string;
@@ -9,25 +11,37 @@ interface PoiHeaderProps {
 
 export const PoiHeader: React.FC<PoiHeaderProps> = React.memo(({ tagColor, categoryName, poiType, onClose }) => {
   return (
-    <div className="poi-header">
-      <span 
-        className="poi-tag" 
-        style={{ 
-          color: tagColor, 
-          background: `${tagColor}15`, 
-          borderColor: `${tagColor}35`,
-          border: `1px solid ${tagColor}35`
-        }}
-      >
-        {categoryName || poiType}
-      </span>
-      {onClose && (
-        <button className="poi-close-btn" onClick={onClose} title="Close details">
-          <svg viewBox="0 0 24 24">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-          </svg>
-        </button>
-      )}
+    <div className="shrink-0">
+      {/* Nav row: close button aligned to the right */}
+      <div className="flex items-center justify-end px-4 pt-5 pb-2">
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+            title="Đóng chi tiết"
+          >
+            <X size={18} />
+          </Button>
+        )}
+      </div>
+
+      {/* Category pill tag
+      {(categoryName || poiType) && (
+        <div className="px-4 pb-1">
+          <span
+            className="inline-flex items-center text-[0.68rem] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
+            style={{
+              color: tagColor,
+              background: `${tagColor}18`,
+              border: `1px solid ${tagColor}30`,
+            }}
+          >
+            {categoryName || poiType}
+          </span>
+        </div> */}
+      {/* )} */}
     </div>
   );
 });

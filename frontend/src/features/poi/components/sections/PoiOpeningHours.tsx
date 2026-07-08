@@ -1,8 +1,8 @@
 import React from 'react';
 import {
-    translateDay,
-    translateTimeValue,
-    getOpenClosedStatus,
+  translateDay,
+  translateTimeValue,
+  getOpenClosedStatus,
 } from "../../utils/openingHours";
 
 interface PoiOpeningHoursProps {
@@ -12,7 +12,7 @@ interface PoiOpeningHoursProps {
 export const PoiOpeningHours: React.FC<PoiOpeningHoursProps> = React.memo(({ hours }) => {
   if (!hours) return null;
   const status = getOpenClosedStatus(hours);
-  
+
   return (
     <div className="poi-opening-hours-section">
       <h3 className="section-title text-sm font-semibold uppercase tracking-wide text-muted-foreground">Giờ mở cửa</h3>
