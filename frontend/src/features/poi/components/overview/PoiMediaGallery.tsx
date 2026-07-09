@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PoiMediaGalleryProps {
   images: { url: string; caption?: string }[];
@@ -10,17 +10,12 @@ export const PoiMediaGallery: React.FC<PoiMediaGalleryProps> = React.memo(({ ima
 
   if (images.length === 0) return null;
 
-  const scrollRight = () => {
-    scrollRef.current?.scrollBy({ left: 200, behavior: 'smooth' });
+  const scroll = (direction: 'left' | 'right') => {
+    scrollRef.current?.scrollBy({ left: direction === 'right' ? 200 : -200, behavior: 'smooth' });
   };
 
   return (
     <div className="relative">
-      {/* Section label */}
-      {/* <p className="text-sm font-bold tracking-normal text-stone-800 mb-2">
-        Hình ảnh
-      </p> */}
-
       {/* Horizontal scroll strip */}
       <div
         ref={scrollRef}
@@ -35,7 +30,7 @@ export const PoiMediaGallery: React.FC<PoiMediaGalleryProps> = React.memo(({ ima
           >
             <img
               src={img.url}
-              alt={img.caption || `Ảnh ${idx + 1}`}
+              alt={img.caption || `Anh ${idx + 1}`}
               className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
             />
             {img.caption && (
@@ -49,19 +44,24 @@ export const PoiMediaGallery: React.FC<PoiMediaGalleryProps> = React.memo(({ ima
         ))}
       </div>
 
-      {/* Floating scroll-right button — only shown when there are multiple images */}
+      {/* Navigation buttons - only shown when there are multiple images */}
       {images.length > 1 && (
-        <button
-          onClick={scrollRight}
-          className="absolute right-0 top-1/2 -translate-y-1/2 mt-2 z-10
-            w-8 h-8 flex items-center justify-center
-            rounded-full bg-white/90 shadow-md backdrop-blur-sm
-            text-foreground/70 hover:text-foreground hover:bg-white
-            transition-all duration-200 hover:scale-105 active:scale-95"
-          aria-label="Xem thêm ảnh"
-        >
-          <ChevronRight size={16} strokeWidth={2.5} />
-        </button>
+        <>
+          <button
+            onClick={() => scroll('left')}
+            className="absolute left-0 top-1/2 -translate-y-1/2 mt-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm text-foreground/70 hover:text-foreground hover:bg-white transition-all duration-200 hover:scale-105 active:scale-95"
+            aria-label="Xem anh truoc"
+          >
+            <ChevronLeft size={16} strokeWidth={2.5} />
+          </button>
+          <button
+            onClick={() => scroll('right')}
+            className="absolute right-0 top-1/2 -translate-y-1/2 mt-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm text-foreground/70 hover:text-foreground hover:bg-white transition-all duration-200 hover:scale-105 active:scale-95"
+            aria-label="Xem them anh"
+          >
+            <ChevronRight size={16} strokeWidth={2.5} />
+          </button>
+        </>
       )}
     </div>
   );

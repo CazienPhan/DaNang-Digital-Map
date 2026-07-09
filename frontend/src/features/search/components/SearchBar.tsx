@@ -239,8 +239,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     );
   }
 
+  // Sidebar is visible only when there is something to show
+  const isSidebarOpen = !!(
+    selectedPoiDetails ||
+    poiDetailLoading ||
+    poiDetailError ||
+    selectedPlace ||
+    hasClickCard
+  );
+
   return (
-    <Sheet open={true} modal={false} disablePointerDismissal={true}>
+    <Sheet open={isSidebarOpen} modal={false} disablePointerDismissal={true}>
       <SheetContent
         side="left"
         withOverlay={false}

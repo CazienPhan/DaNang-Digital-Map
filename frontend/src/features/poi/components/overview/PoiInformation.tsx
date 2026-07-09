@@ -128,4 +128,3 @@ export const PoiInformation: React.FC<PoiInformationProps> = React.memo(({ poi }
     </div>
   );
 });
-

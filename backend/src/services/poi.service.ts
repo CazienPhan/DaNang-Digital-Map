@@ -252,6 +252,7 @@ export class PoiService {
 
       return {
         id: raw.id,
+        business_id: raw.business_id || null,
         name: raw.name || null,
         poi_type: raw.poi_type || null,
         dia_chi: raw.dia_chi || null,

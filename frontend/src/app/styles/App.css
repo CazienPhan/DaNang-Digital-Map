@@ -1223,34 +1223,9 @@ body,
    removed — now handled by Tailwind in PoiMediaGallery.tsx (horizontal scroll layout) */
 
 
-/* Media: Videos Grid (2 columns) */
-.poi-videos-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-top: 4px;
-  width: 100%;
-}
+/* poi-videos-grid, poi-video-container, poi-detail-video, poi-video-caption:
+   removed — now handled by Tailwind in PoiVideoGallery.tsx (horizontal scroll layout) */
 
-.poi-video-container {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.poi-detail-video {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #000;
-}
-
-.poi-video-caption {
-  font-size: 0.68rem;
-  color: #94a3b8;
-  text-align: center;
-}
 
 /* Pinned Bottom action buttons */
 .poi-actions-section {

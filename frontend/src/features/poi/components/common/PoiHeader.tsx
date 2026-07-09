@@ -13,7 +13,7 @@ export const PoiHeader: React.FC<PoiHeaderProps> = React.memo(({ tagColor, categ
   return (
     <div className="shrink-0">
       {/* Nav row: close button aligned to the right */}
-      <div className="flex items-center justify-end px-4 pt-5 pb-2">
+      <div className="flex items-center justify-end px-2 pt-0 pb-2">
         {onClose && (
           <Button
             variant="ghost"

@@ -1,15 +1,9 @@
 import React, { useState } from 'react';
 import { type POIDetailData } from '@/services/supabase/poi.service';
-import LoadingState from "../states/LoadingState";
-import ErrorState from "../states/ErrorState";
-import { PoiHeader } from './sections/PoiHeader';
-import { PoiTitleSection } from './sections/PoiTitleSection';
-import { PoiInformation } from './sections/PoiInformation';
-
-import { PoiDescription } from './sections/PoiDescription';
-import { PoiMediaGallery } from './sections/PoiMediaGallery';
-import { PoiVideoGallery } from './sections/PoiVideoGallery';
-import { PoiActions } from './sections/PoiActions';
+import { LoadingState, ErrorState } from '../states';
+import { PoiHeader, PoiTitleSection, PoiActions } from './common';
+import { PoiOverviewSection } from './overview';
+import { PoiProductSection } from './product';
 import { cn } from '@/lib/utils';
 
 interface PoiDetailCardProps {
@@ -48,7 +42,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
     return urlStr.split(/[\s\n\r]+/).map(u => u.trim()).filter(Boolean);
   };
 
-  // Process and separate images and videos (Max 4 images, Max 2 videos)
+  // Process and separate images and videos (Max 4 images, no cap on videos)
   const rawMedia = Array.isArray(poi.media) ? poi.media : [];
   const images: { url: string; caption?: string }[] = [];
   const videos: { url: string; caption?: string }[] = [];
@@ -61,15 +55,24 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
           images.push({ url, caption: m.caption || undefined });
         }
       } else if (m.media_type === 'VIDEO' || url.toLowerCase().match(/\.(mp4|webm|ogg|mov)/)) {
-        if (videos.length < 2) {
-          videos.push({ url, caption: m.caption || undefined });
-        }
+        // No cap on videos — gallery scrolls horizontally
+        videos.push({ url, caption: m.caption || undefined });
       }
     });
   });
 
   const isTourism = poi.poi_type === 'TOURISM';
   const tagColor = poi.category_color_hex || '#3b82f6';
+  /**
+   * isTourismPoi: true  → portrait (9:16) video cards  — POI exists in poi_details_tourism
+   * isTourismPoi: false → landscape (16:9) video cards — POI exists in poi_details_business
+   *
+   * Detection: poi.poi_type === 'TOURISM' is the canonical, reliable indicator.
+   * The pois.business_id column is NOT guaranteed to be populated for business POIs
+   * (the backend joins poi_details_business via b.poi_id = p.id, not via p.business_id),
+   * so business_id === null would incorrectly classify ALL POIs as tourism.
+   */
+  const isTourismPoi = poi.poi_type === 'TOURISM';
 
   // --- Secondary card: preserve existing floating card behavior ---
   if (isSecondary) {
@@ -80,11 +83,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
           <PoiTitleSection name={poi.name ?? undefined} rating={poi.so_sao} reviewCount={poi.luot_danh_gia} tagColor={tagColor} categoryName={poi.category_name ?? undefined} />
         </div>
         <div className="poi-scroll-content flex-1 overflow-y-auto">
-          <PoiInformation poi={poi} />
-
-          <PoiMediaGallery images={images} />
-          {isTourism && <PoiDescription description={poi.gioi_thieu ?? undefined} name={poi.name ?? undefined} />}
-          <PoiVideoGallery videos={videos} />
+          <PoiOverviewSection poi={poi} images={images} videos={videos} isTourismPoi={isTourismPoi} />
         </div>
         <div className="shrink-0">
           <PoiActions onGetDirections={onGetDirections} />
@@ -125,7 +124,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
                   : 'text-muted-foreground hover:bg-muted'
               )}
             >
-              {tab === 'overview' ? 'Tổng quan' : 'Thực đơn'}
+              {tab === 'overview' ? 'Tổng quan' : 'Sản phẩm'}
             </button>
           ))}
         </div>
@@ -134,38 +133,9 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
       {/* Scrollable content */}
       <div className="poi-scroll-content flex-1 overflow-y-auto">
         {activeTab === 'overview' ? (
-          <div className="flex flex-col gap-4">
-            {/* 1. Photo Gallery */}
-            <PoiMediaGallery images={images} />
-
-            {/* 2. Description card (Tourism only) */}
-            {isTourism && (
-              <PoiDescription
-                description={poi.gioi_thieu ?? undefined}
-                name={poi.name ?? undefined}
-              />
-            )}
-
-            {/* 3. Contact Information */}
-            <PoiInformation poi={poi} />
-
-            {/* 4. Opening Hours — now rendered as InfoRow inside PoiInformation */}
-
-            {/* 5. Videos */}
-            <PoiVideoGallery videos={videos} />
-
-            {/* 6. News placeholder — reserved for future development */}
-            {/* <NewsFeed /> — not yet implemented */}
-          </div>
+          <PoiOverviewSection poi={poi} images={images} videos={videos} isTourismPoi={isTourismPoi} />
         ) : (
-          /* Menu tab — empty state, no fake data */
-          <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4">
-              <span className="text-2xl">🍽️</span>
-            </div>
-            <p className="text-sm font-semibold text-foreground mb-1">Chưa có thực đơn</p>
-            <p className="text-xs text-muted-foreground">Thông tin thực đơn sẽ được cập nhật trong thời gian tới.</p>
-          </div>
+          <PoiProductSection poiId={poi.id} />
         )}
       </div>
 
