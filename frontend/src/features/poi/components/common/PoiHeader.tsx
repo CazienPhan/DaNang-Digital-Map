@@ -9,7 +9,7 @@ interface PoiHeaderProps {
   onClose?: () => void;
 }
 
-export const PoiHeader: React.FC<PoiHeaderProps> = React.memo(({ tagColor, categoryName, poiType, onClose }) => {
+export const PoiHeader: React.FC<PoiHeaderProps> = React.memo(({ tagColor: _tagColor, categoryName: _categoryName, poiType: _poiType, onClose }) => {
   return (
     <div className="shrink-0">
       {/* Nav row: close button aligned to the right */}

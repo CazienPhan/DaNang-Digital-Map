@@ -70,7 +70,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ item }) => 
         {/* Price — hidden when null (price unknown / not set) */}
         {item.price != null && (
           <p className="text-xs font-bold text-foreground mt-auto">
-            {item.price.toLocaleString('vi-VN')}
+            {item.price}
           </p>
         )}
       </div>
