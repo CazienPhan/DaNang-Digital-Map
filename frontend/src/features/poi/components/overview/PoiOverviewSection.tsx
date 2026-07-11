@@ -19,27 +19,24 @@ interface PoiOverviewSectionProps {
  */
 export const PoiOverviewSection: React.FC<PoiOverviewSectionProps> = React.memo(
   ({ poi, images, videos, isTourismPoi }) => {
-    const isTourism = poi.poi_type === 'TOURISM';
 
     return (
       <div className="flex flex-col gap-4">
         {/* 1. Photo Gallery */}
         <PoiMediaGallery images={images} />
 
-        {/* 2. Description card (Tourism only) */}
-        {isTourism && (
+        {/* 2. Description card — rendered when gioi_thieu is available (Tourism and Business) */}
+        {poi.gioi_thieu && (
           <PoiDescription
             description={poi.gioi_thieu ?? undefined}
             name={poi.name ?? undefined}
           />
         )}
 
-        {/* 3. Contact Information */}
-        <PoiInformation poi={poi} />
+        {/* 3. Contact Information — includes Opening Hours as final row */}
+        <PoiInformation poi={poi} openingHours={poi.gio_mo_cua} />
 
-        {/* 4. Opening Hours — rendered as InfoRow inside PoiInformation */}
-
-        {/* 5. Videos */}
+        {/* 4. Videos */}
         <PoiVideoGallery videos={videos} isTourismPoi={isTourismPoi} />
 
         {/* 6. News placeholder — reserved for future development */}

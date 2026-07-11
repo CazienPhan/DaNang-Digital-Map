@@ -59,7 +59,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ item }) => 
             {item.tags.map((tag, i) => (
               <span
                 key={i}
-                className="text-[10px] leading-snug text-muted-foreground bg-muted px-0 py-0.5 rounded-full leading-none"
+                className="text-[10px] text-justify tracking-normal whitespace-pre-line leading-snug text-muted-foreground bg-muted px-0 py-0.5 rounded-full leading-none"
               >
                 {tag}
               </span>
