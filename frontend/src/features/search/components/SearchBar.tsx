@@ -205,7 +205,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
   <>
     {/* SEARCH BAR - luôn hiện, tách khỏi Sheet và directionActive */}
-    <div className="absolute top-6 left-3.5 z-[100] w-[354  px] max-w-[85vw] p-3">
+    <div className="absolute top-6 left-2.5 z-[100] w-[360px] max-w-[85vw] p-3">
       <div className="relative w-full">
         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
           <Search size={18} />
@@ -292,7 +292,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <div className="h-[90px] shrink-0" />
 
           {/* Primary Card View (Loader, POI Card, or standard click card) */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-2.5">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {!directionActive && (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
               <PoiDetailCard
                 poi={selectedPoiDetails}
