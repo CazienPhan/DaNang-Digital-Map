@@ -61,7 +61,6 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
     });
   });
 
-  const isTourism = poi.poi_type === 'TOURISM';
   const tagColor = poi.category_color_hex || '#3b82f6';
   /**
    * isTourismPoi: true  → portrait (9:16) video cards  — POI exists in poi_details_tourism

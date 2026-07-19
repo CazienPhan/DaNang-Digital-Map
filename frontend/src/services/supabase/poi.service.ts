@@ -114,7 +114,7 @@ export class PoiClientService {
           nganh_hang: p.business?.nganh_hang || null,
           tam_gia: p.business?.tam_gia || null,
           sdt: p.business?.sdt || null,
-          gioi_thieu: p.tourism?.gioi_thieu || null,
+          gioi_thieu: p.tourism?.gioi_thieu || p.business?.gioi_thieu || null,
           gioi_thieu_en: p.tourism?.gioi_thieu_en || null,
           nam_xay_dung: p.tourism?.nam_xay_dung || null,
           don_vi_quan_ly: p.tourism?.don_vi_quan_ly || null,

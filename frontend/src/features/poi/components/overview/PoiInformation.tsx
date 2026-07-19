@@ -1,14 +1,18 @@
 import React from 'react';
 import { MapPin, Phone, Globe, Briefcase, CalendarDays, Ticket, Clock } from 'lucide-react';
 import { type POIDetailData } from '@/services/supabase/poi.service';
+import { PoiOpeningHours } from './PoiOpeningHours';
+import { parseSchedule } from '../../utils/openingHoursParser';
 
 interface PoiInformationProps {
   poi: POIDetailData;
+  /** Raw gio_mo_cua from POIDetailData — rendered as the final row */
+  openingHours?: Record<string, string> | null;
 }
 
 interface InfoRowProps {
   icon: React.ReactNode;
-  label: string;
+  label?: string;
   children: React.ReactNode;
 }
 
@@ -18,13 +22,13 @@ const InfoRow: React.FC<InfoRowProps> = ({ icon, label, children }) => (
       {icon}
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-xs font-semibold tracking-wider text-muted-foreground/70 mb-0.5">{label}</p>
+      {label && <p className="text-xs font-semibold tracking-wider text-muted-foreground/70 mb-0.5">{label}</p>}
       <div className="text-xs text-foreground">{children}</div>
     </div>
   </div>
 );
 
-export const PoiInformation: React.FC<PoiInformationProps> = React.memo(({ poi }) => {
+export const PoiInformation: React.FC<PoiInformationProps> = React.memo(({ poi, openingHours }) => {
   const isTourism = poi.poi_type === 'TOURISM';
 
   // Parse phone number list
@@ -48,13 +52,17 @@ export const PoiInformation: React.FC<PoiInformationProps> = React.memo(({ poi }
     }
   }
 
+  // Determine whether the raw opening hours object contains at least one
+  // meaningful (non-empty, non-whitespace) value — mirrors what the hook does.
+  const hasValidOpeningHours = parseSchedule(openingHours) !== null;
+
   const hasAnyInfo =
     poi.dia_chi ||
     displayPhone ||
-    poi.gio_mo_cua ||
     websiteList.length > 0 ||
     (!isTourism && poi.nganh_hang) ||
-    (isTourism && (poi.nam_xay_dung || poi.gia_ve));
+    (isTourism && (poi.nam_xay_dung || poi.gia_ve)) ||
+    hasValidOpeningHours;
 
   if (!hasAnyInfo) return null;
 
@@ -95,17 +103,6 @@ export const PoiInformation: React.FC<PoiInformationProps> = React.memo(({ poi }
         </InfoRow>
       )}
 
-      {/* Opening Hours — raw value from pois.gio_mo_cua, no parsing */}
-      {poi.gio_mo_cua && (
-        <InfoRow icon={<Clock size={16} />} label="Giờ mở cửa">
-          {typeof poi.gio_mo_cua === 'string'
-            ? poi.gio_mo_cua
-            : Object.entries(poi.gio_mo_cua)
-                .map(([day, time]) => `${day}: ${time}`)
-                .join(', ')}
-        </InfoRow>
-      )}
-
       {/* Website */}
       {websiteList.length > 0 && (
         <InfoRow icon={<Globe size={16} />} label="Website">
@@ -123,6 +120,13 @@ export const PoiInformation: React.FC<PoiInformationProps> = React.memo(({ poi }
               );
             })}
           </div>
+        </InfoRow>
+      )}
+
+      {/* Opening Hours — only rendered when at least one valid schedule entry exists */}
+      {hasValidOpeningHours && (
+        <InfoRow icon={<Clock size={16} />}>
+          <PoiOpeningHours hours={openingHours} />
         </InfoRow>
       )}
     </div>
