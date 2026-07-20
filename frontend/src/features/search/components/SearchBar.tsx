@@ -9,7 +9,7 @@ import { type RouteResult } from '@/services/map4d/routing.service';
 import PlaceInfoCard from './PlaceInfoCard';
 import { PoiDetailCard } from '@/features/poi';
 import { type POIDetailData } from '@/services/supabase/poi.service';
-import { Button, Input, Alert, AlertDescription } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Search, X, LocateFixed, Loader2, } from "lucide-react";
 
@@ -191,18 +191,75 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   };
 
 
-  if (directionActive) {
-    return (
-      <div
-        className="
-        absolute
-        top-5
-        left-5
-        z-50
-        w-[420px]
-        max-w-[90vw]
-        "
-      >
+  
+
+  // Sidebar is visible only when there is something to show
+  const isSidebarOpen = !!(
+    selectedPoiDetails ||
+    poiDetailLoading ||
+    poiDetailError ||
+    selectedPlace ||
+    hasClickCard
+  );
+
+  return (
+  <>
+    {/* SEARCH BAR - luôn hiện, tách khỏi Sheet và directionActive */}
+    <div className="absolute top-6 left-2.5 z-[100] w-[360px] max-w-[85vw] p-3">
+      <div className="relative w-full">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+          <Search size={18} />
+        </div>
+        <Input
+          type="text"
+          className="pl-10 pr-20 bg-background rounded-lg shadow-md border-0 h-10 text-base"
+          placeholder="Argentina vo dich"
+          value={query}
+          onChange={(e) => {
+            const val = e.target.value;
+            setQuery(val);
+            if (val === "") {
+              onCloseInfoCard();
+            }
+          }}
+        />
+        {query && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="absolute right-12 top-1/2 -translate-y-1/2"
+            onClick={() => {
+              setQuery("");
+              onCloseInfoCard();
+            }}
+          >
+            <X size={18} />
+          </Button>
+        )}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="absolute right-2 top-1/2 -translate-y-1/2"
+          onClick={handleGPSClick}
+          disabled={gpsState === "loading"}
+        >
+          {gpsState === "loading" ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <LocateFixed className="h-5 w-5" />
+          )}
+        </Button>
+      </div>
+      {suggestions.length > 0 && (
+        <SearchResult
+          suggestions={suggestions}
+          onSelectSuggestion={handleSuggestionSelect}
+        />
+      )}
+    </div>
+
+    {directionActive ? (
+      <div className="absolute top-[120px] left-0 z-20 w-3/4 sm:max-w-sm">
         <DirectionPanel
           currentCenter={currentCenter}
           origin={origin}
@@ -222,101 +279,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           matrixLoading={matrixLoading}
           onCalculateMatrix={onCalculateMatrix}
         />
-        {/* Inline lightweight toast warnings */}
-        {toastMessage && (
-          <Alert
-            className="
-          mt-3
-          "
-          >
-            <AlertDescription>
-              {toastMessage}
-            </AlertDescription>
-
-          </Alert>
-        )}
       </div>
-    );
-  }
-
-  // Sidebar is visible only when there is something to show
-  const isSidebarOpen = !!(
-    selectedPoiDetails ||
-    poiDetailLoading ||
-    poiDetailError ||
-    selectedPlace ||
-    hasClickCard
-  );
-
-  return (
-    <Sheet open={isSidebarOpen} modal={false} disablePointerDismissal={true}>
+    ) : (
+      <Sheet open={isSidebarOpen} modal={false} disablePointerDismissal={true}>
       <SheetContent
         side="left"
         withOverlay={false}
-        className="w-[480px] sm:w-[520px] p-0 h-screen bg-background flex flex-col shadow-lg border-r"
+        className="w-[480px] sm:w-[520px] sm:max-w-[520px] p-0 h-screen bg-background flex flex-col shadow-lg border-r"
         showCloseButton={false}
       >
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Search Header */}
-          <div className="p-4 shrink-0 relative z-10">
-            <div className="relative w-full">
-              {/* Search status/indicator icon */}
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                <Search size={18} />
-              </div>
-              {/* Search Input field */}
-              <Input
-                type="text"
-                className="pl-10 pr-20"
-                placeholder="Bạn muốn đến đâu"
-                value={query}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setQuery(val);
-
-                  if (val === "") {
-                    onCloseInfoCard();
-                  }
-                }}
-              />
-              {/* Clear Search button (X) */}
-              {query && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-12 top-1/2 -translate-y-1/2"
-                  onClick={() => {
-                    setQuery("");
-                    onCloseInfoCard();
-                  }}
-                >
-                  <X size={18} />
-                </Button>
-              )}
-              {/* GPS location fetch trigger with multi-state support */}
-              <Button
-                size="icon"
-                variant="ghost"
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-                onClick={handleGPSClick}
-                disabled={gpsState === "loading"}
-              >
-                {gpsState === "loading" ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <LocateFixed className="h-5 w-5" />
-                )}
-              </Button>
-            </div>
-
-            {/* Autocomplete suggestion dropdown results list overlay */}
-            {suggestions.length > 0 && (
-              <SearchResult
-                suggestions={suggestions}
-                onSelectSuggestion={handleSuggestionSelect}
-              />
-            )}
-          </div>
+          <div className="h-[90px] shrink-0" />
 
           {/* Primary Card View (Loader, POI Card, or standard click card) */}
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -347,7 +320,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           )}
         </div>
       </SheetContent>
-    </Sheet>
+      </Sheet>
+    )}
+  </>
   );
 };
 export default SearchBar;
