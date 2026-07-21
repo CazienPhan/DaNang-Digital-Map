@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { type POIDetailData } from '@/services/supabase/poi.service';
 import { LoadingState, ErrorState } from '../states';
 import { PoiHeader, PoiTitleSection, PoiActions } from './common';
@@ -12,6 +12,7 @@ interface PoiDetailCardProps {
   error?: string | null;
   onGetDirections?: () => void;
   onClose?: () => void;
+  onBack?: () => void;
   isSecondary?: boolean;
 }
 
@@ -21,6 +22,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
   error = null,
   onGetDirections,
   onClose,
+  onBack,
   isSecondary = false,
 }) => {
   // Local tab state — only affects UI, no business logic
@@ -61,6 +63,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
     });
   });
 
+  // const isTourism = poi.poi_type === 'TOURISM';
   const tagColor = poi.category_color_hex || '#3b82f6';
   /**
    * isTourismPoi: true  → portrait (9:16) video cards  — POI exists in poi_details_tourism
@@ -78,7 +81,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
     return (
       <div className="poi-detail-card secondary-card">
         <div className="shrink-0 flex flex-col">
-          <PoiHeader tagColor={tagColor} categoryName={poi.category_name ?? undefined} poiType={poi.poi_type ?? undefined} onClose={onClose} />
+          <PoiHeader tagColor={tagColor} categoryName={poi.category_name ?? undefined} poiType={poi.poi_type ?? undefined} onClose={onClose} onBack={onBack} />
           <PoiTitleSection name={poi.name ?? undefined} rating={poi.so_sao} reviewCount={poi.luot_danh_gia} tagColor={tagColor} categoryName={poi.category_name ?? undefined} />
         </div>
         <div className="poi-scroll-content flex-1 overflow-y-auto">
@@ -101,6 +104,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
           categoryName={poi.category_name ?? undefined}
           poiType={poi.poi_type ?? undefined}
           onClose={onClose}
+          onBack={onBack}
         />
         <PoiTitleSection
           name={poi.name ?? undefined}

@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SearchService, type PlaceSuggestion } from '@/services/map4d/search.service';
 import { type MapCoordinate } from '@/features/map';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useGeolocation } from '@/hooks/useGeolocation';
 import SearchResult from './SearchResult';
+import { SearchListing } from './SearchListing';
 import { DirectionPanel, type LocationState } from '@/features/directions';
 import { type RouteResult } from '@/services/map4d/routing.service';
-import PlaceInfoCard from './PlaceInfoCard';
+
 import { PoiDetailCard } from '@/features/poi';
 import { type POIDetailData } from '@/services/supabase/poi.service';
 import { Button, Input } from "@/components/ui";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Search, X, LocateFixed, Loader2, } from "lucide-react";
+import { Search, X, Navigation } from "lucide-react";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface SearchBarProps {
   currentCenter?: MapCoordinate;
@@ -44,12 +48,23 @@ interface SearchBarProps {
   poiDetailError?: string | null;
 }
 
-type GpsState = 'default' | 'loading' | 'success' | 'error';
+// ---------------------------------------------------------------------------
+// UI-only state — controls which panel the sidebar renders.
+// Does NOT duplicate business logic or existing state.
+// ---------------------------------------------------------------------------
+// 'refining' = user is typing a new query while a previous Search Listing is still visible.
+// The listing stays mounted; only a new Enter press replaces it.
+type SearchView = 'idle' | 'autocomplete' | 'listing' | 'refining' | 'detail';
+
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export const SearchBar: React.FC<SearchBarProps> = ({
   currentCenter,
   onSelectPlace,
-  onGPSClickSuccess,
+  onGPSClickSuccess: _onGPSClickSuccess,
   onSelectPlaceSuccess,
   directionActive,
   onDirectionClick,
@@ -76,14 +91,29 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   poiDetailLoading = false,
   poiDetailError = null,
 }) => {
+  // ---- Existing state (untouched) ----
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 350);
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const { getPosition } = useGeolocation();
-  const [gpsState, setGpsState] = useState<GpsState>('default');
 
-  // Helper to trigger and clear visual feedback toasts
+  // ---- New UI-only state ----
+  const [searchView, setSearchView] = useState<SearchView>('idle');
+  // Ref always holds the current searchView so the autocomplete effect can
+  // read the live value without needing searchView in its dependency array
+  // (avoids extra API calls on every view-state transition).
+  const searchViewRef = useRef<SearchView>(searchView);
+  useEffect(() => { searchViewRef.current = searchView; }, [searchView]);
+  const [listingResults, setListingResults] = useState<PlaceSuggestion[]>([]);
+  const [listingLoading, setListingLoading] = useState(false);
+  const [listingQuery, setListingQuery] = useState('');
+
+  // Ref to the current in-flight autocomplete AbortController.
+  // Lets handleEnterSearch cancel any pending autocomplete fetch so it
+  // cannot repopulate suggestions after the user commits a search.
+  const autocompleteAbortRef = useRef<AbortController | null>(null);
+
+  // ---- Helper: toast ----
   const showToast = (message: string) => {
     setToastMessage(message);
     const toastTimer = setTimeout(() => {
@@ -92,10 +122,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     return toastTimer;
   };
 
-  // Trigger search requests with debouncing and query cancellation (AbortController)
+  // ---- Autocomplete: debounced query → suggestions ----
   useEffect(() => {
     if (debouncedQuery.trim().length < 1) {
       setSuggestions([]);
+      // If user cleared the input while refining, go back to listing
+      if (searchViewRef.current === 'autocomplete') {
+        setSearchView('idle');
+      } else if (searchViewRef.current === 'refining') {
+        setSearchView('listing');
+      }
       return;
     }
 
@@ -104,7 +140,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       return;
     }
 
+    // Mark autocomplete view while typing — but don't clobber 'listing',
+    // 'refining', or 'detail'. Use the ref so we always read the CURRENT value
+    // without adding searchView to the deps (which would cause extra API calls).
+    const currentView = searchViewRef.current;
+    if (currentView !== 'listing' && currentView !== 'refining' && currentView !== 'detail') {
+      setSearchView('autocomplete');
+    }
+
     const abortController = new AbortController();
+    autocompleteAbortRef.current = abortController;  // expose to handleEnterSearch
     const locationBias = currentCenter ? `${currentCenter.lat},${currentCenter.lng}` : undefined;
 
     SearchService.searchPlaces(debouncedQuery, locationBias, abortController.signal)
@@ -119,82 +164,116 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       });
 
     return () => {
-      // Cancel previous pending API request as the user continues to keystroke
       abortController.abort();
+      autocompleteAbortRef.current = null;
     };
   }, [debouncedQuery, currentCenter]);
 
-  // Synchronize query text with selectedPlace details
+  // ---- Sync query text with selectedPlace ----
   useEffect(() => {
     if (selectedPlace) {
       setQuery(selectedPlace.name || selectedPlace.address || '');
-    } else {
+    } else if (searchView === 'idle') {
       setQuery('');
     }
   }, [selectedPlace]);
 
-  // Request user positioning coordinates using HTML5 Geolocation hook
-  const handleGPSClick = () => {
-    setGpsState('loading');
-    getPosition(
-      async (coords) => {
-        try {
-          // Resolve coordinates using Map4D Reverse Geocoding API proxy
-          const resolvedAddress = await SearchService.reverseGeocode(coords.lat, coords.lng);
-          const finalAddress = resolvedAddress || `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`;
-
-          setQuery(finalAddress);
-
-          setGpsState('success');
-          // Focus view on location and insert marker
-          onSelectPlace(coords);
-          setSuggestions([]);
-
-          // Callback to parent GPS success handler
-          if (onGPSClickSuccess) {
-            onGPSClickSuccess(coords, finalAddress);
-          }
-        } catch (error) {
-          console.error('GPS Reverse Geocoding failed:', error);
-          const fallbackAddress = `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`;
-          setQuery(fallbackAddress);
-          setGpsState('success');
-          onSelectPlace(coords);
-          if (onGPSClickSuccess) {
-            onGPSClickSuccess(coords, fallbackAddress);
-          }
-          showToast('Failed to resolve coordinates to physical address.');
-        } finally {
-          // Return GPS icon state back to default after 2 seconds
-          setTimeout(() => setGpsState('default'), 2000);
-        }
-      },
-      (errorMsg) => {
-        setGpsState('error');
-        showToast(errorMsg);
-        // Return GPS icon state back to default after 4 seconds
-        setTimeout(() => setGpsState('default'), 4000);
-      }
-    );
-  };
 
   const handleSuggestionSelect = (place: PlaceSuggestion) => {
     onSelectPlace(place.location);
-    // Populate the input with the selected suggestion's name
     setQuery(place.name);
     setSuggestions([]);
+    // Jump straight to detail — no listing shown
+    setSearchView('detail');
 
-    // Callback to parent Search selection handler
     if (onSelectPlaceSuccess) {
       onSelectPlaceSuccess(place);
     }
   };
 
+  // ---- Enter key → full search listing ----
+  const handleEnterSearch = useCallback(async () => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
 
-  
+    // Cancel any in-flight autocomplete fetch so its .then() callback cannot
+    // repopulate suggestions after we clear them below.
+    autocompleteAbortRef.current?.abort();
+    autocompleteAbortRef.current = null;
 
-  // Sidebar is visible only when there is something to show
+    // Clear autocomplete dropdown and transition to listing view.
+    setSuggestions([]);
+    setListingQuery(trimmed);
+    setListingResults([]);
+    setListingLoading(true);
+    setSearchView('listing');
+
+    try {
+      const locationBias = currentCenter ? `${currentCenter.lat},${currentCenter.lng}` : undefined;
+      const results = await SearchService.searchPlaces(trimmed, locationBias);
+      // Cap at 20 results per spec
+      setListingResults(results.slice(0, 20));
+    } catch (err: any) {
+      console.error('Search listing fetch failed:', err);
+      setListingResults([]);
+      showToast('Failed to fetch search results. Please try again.');
+    } finally {
+      setListingLoading(false);
+    }
+  }, [query, currentCenter]);
+
+  // ---- Listing item clicked (Flow 1, Step 4 - Case 3) ----
+  const handleListingSelect = (place: PlaceSuggestion) => {
+    onSelectPlace(place.location);
+    setQuery(place.name);
+    setSuggestions([]);
+    setSearchView('detail');
+
+    if (onSelectPlaceSuccess) {
+      onSelectPlaceSuccess(place);
+    }
+  };
+
+  // ---- Back arrow: listing → detail → listing (no re-fetch) ----
+  const handleBack = () => {
+    // Clear the detail state without touching listing results
+    setSearchView('listing');
+  };
+
+  // ---- Clear button: clears everything and returns to idle ----
+  const handleClearAll = () => {
+    setQuery('');
+    setSuggestions([]);
+    setListingResults([]);
+    setListingQuery('');
+    setSearchView('idle');
+    onCloseInfoCard();
+  };
+
+  // ---- When user starts typing, handle view state transitions ----
+  const handleQueryChange = (val: string) => {
+    setQuery(val);
+    if (val === '') {
+      handleClearAll();
+      return;
+    }
+    // When the user types while a Search Listing is visible, switch to
+    // 'refining' — the previous listing stays mounted as background context.
+    // Do NOT clear listingResults; only a new Enter press replaces them.
+    if (searchView === 'listing') {
+      setSearchView('refining');
+    } else if (searchView === 'refining') {
+      // Already refining — no state change needed, listing stays mounted.
+    } else if (searchView === 'detail') {
+      // Typing while in detail — go to autocomplete (no listing to preserve)
+      setSearchView('autocomplete');
+    }
+  };
+
+  // ---- Sidebar open condition ----
   const isSidebarOpen = !!(
+    searchView === 'listing' ||   // showing search listing
+    searchView === 'refining' ||  // previous listing still visible while typing new query
     selectedPoiDetails ||
     poiDetailLoading ||
     poiDetailError ||
@@ -202,127 +281,150 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     hasClickCard
   );
 
+  // ---- Right button logic ----
+  // - Searching/listing/refining: show X (clear all)
+  // - Idle/detail: show Navigation (directions)
+  const isSearching = searchView === 'autocomplete' || searchView === 'listing' || searchView === 'refining';
+
+  // ---- Back arrow prop for PoiDetailCard ----
+  // Only pass onBack when user came from listing (not from autocomplete select)
+  const poiOnBack = searchView === 'detail' && listingResults.length > 0
+    ? handleBack
+    : undefined;
+
   return (
-  <>
-    {/* SEARCH BAR - luôn hiện, tách khỏi Sheet và directionActive */}
-    <div className="absolute top-6 left-2.5 z-[100] w-[360px] max-w-[85vw] p-3">
-      <div className="relative w-full">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-          <Search size={18} />
-        </div>
-        <Input
-          type="text"
-          className="pl-10 pr-20 bg-background rounded-lg shadow-md border-0 h-10 text-base"
-          placeholder="Argentina vo dich"
-          value={query}
-          onChange={(e) => {
-            const val = e.target.value;
-            setQuery(val);
-            if (val === "") {
-              onCloseInfoCard();
-            }
-          }}
-        />
-        {query && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute right-12 top-1/2 -translate-y-1/2"
-            onClick={() => {
-              setQuery("");
-              onCloseInfoCard();
-            }}
-          >
-            <X size={18} />
-          </Button>
-        )}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="absolute right-2 top-1/2 -translate-y-1/2"
-          onClick={handleGPSClick}
-          disabled={gpsState === "loading"}
-        >
-          {gpsState === "loading" ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <LocateFixed className="h-5 w-5" />
-          )}
-        </Button>
-      </div>
-      {suggestions.length > 0 && (
-        <SearchResult
-          suggestions={suggestions}
-          onSelectSuggestion={handleSuggestionSelect}
-        />
-      )}
-    </div>
-
-    {directionActive ? (
-      <div className="absolute top-[120px] left-0 z-20 w-3/4 sm:max-w-sm">
-        <DirectionPanel
-          currentCenter={currentCenter}
-          origin={origin}
-          setOrigin={setOrigin}
-          destination={destination}
-          setDestination={setDestination}
-          routeData={routeData}
-          onCalculateRoute={onCalculateRoute}
-          onClear={onClearRoute}
-          loading={routeLoading}
-          error={routeError}
-          onClose={onCloseDirection}
-          cachedGps={cachedGps}
-          selectedTransportMode={selectedTransportMode}
-          setSelectedTransportMode={setSelectedTransportMode}
-          matrixData={matrixData}
-          matrixLoading={matrixLoading}
-          onCalculateMatrix={onCalculateMatrix}
-        />
-      </div>
-    ) : (
-      <Sheet open={isSidebarOpen} modal={false} disablePointerDismissal={true}>
-      <SheetContent
-        side="left"
-        withOverlay={false}
-        className="w-[480px] sm:w-[520px] sm:max-w-[520px] p-0 h-screen bg-background flex flex-col shadow-lg border-r"
-        showCloseButton={false}
-      >
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="h-[90px] shrink-0" />
-
-          {/* Primary Card View (Loader, POI Card, or standard click card) */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            {!directionActive && (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
-              <PoiDetailCard
-                poi={selectedPoiDetails}
-                loading={poiDetailLoading}
-                error={poiDetailError}
-                isSecondary={false}
-                onClose={onCloseInfoCard}
-                onGetDirections={onDirectionClick}
-              />
-            )}
-
-            {!poiDetailLoading && !selectedPoiDetails && !poiDetailError && selectedPlace && !directionActive && !hasClickCard && (
-              <PlaceInfoCard
-                place={selectedPlace}
-                onGetDirections={onDirectionClick}
-              />
-            )}
+    <>
+      {/* SEARCH BAR — always visible, independent of direction/sidebar state */}
+      <div className="absolute top-6 left-2.5 z-[100] w-[360px] max-w-[85vw] p-3">
+        <div className="relative w-full">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            <Search size={18} />
           </div>
+          <Input
+            type="text"
+            className="pl-10 pr-10 bg-background rounded-lg shadow-md border-0 h-10 text-base"
+            placeholder="Search..."
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleEnterSearch();
+              }
+            }}
+          />
 
-          {/* Inline lightweight toast warnings */}
-          {toastMessage && (
-            <div className="toast-notification absolute bottom-4 left-4 z-50">
-              {toastMessage}
-            </div>
+          {/* Rightmost button: X (clear all) while searching, Navigation otherwise */}
+          {isSearching ? (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+              onClick={handleClearAll}
+              aria-label="Clear search"
+            >
+              <X size={18} />
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+              onClick={onDirectionClick}
+              aria-label="Directions"
+            >
+              <Navigation className="h-5 w-5" />
+            </Button>
           )}
         </div>
-      </SheetContent>
-      </Sheet>
-    )}
-  </>
+
+        {/* Autocomplete dropdown — shown whenever there are suggestions,
+            including while the previous listing is still visible ('refining') */}
+        {suggestions.length > 0 && (
+          <SearchResult
+            suggestions={suggestions}
+            onSelectSuggestion={handleSuggestionSelect}
+          />
+        )}
+      </div>
+
+      {/* Direction Panel or Sidebar */}
+      {directionActive ? (
+        <div className="absolute top-[120px] left-0 z-20 w-3/4 sm:max-w-sm">
+          <DirectionPanel
+            currentCenter={currentCenter}
+            origin={origin}
+            setOrigin={setOrigin}
+            destination={destination}
+            setDestination={setDestination}
+            routeData={routeData}
+            onCalculateRoute={onCalculateRoute}
+            onClear={onClearRoute}
+            loading={routeLoading}
+            error={routeError}
+            onClose={onCloseDirection}
+            cachedGps={cachedGps}
+            selectedTransportMode={selectedTransportMode}
+            setSelectedTransportMode={setSelectedTransportMode}
+            matrixData={matrixData}
+            matrixLoading={matrixLoading}
+            onCalculateMatrix={onCalculateMatrix}
+          />
+        </div>
+      ) : (
+        <Sheet open={isSidebarOpen} modal={false} disablePointerDismissal={true}>
+          <SheetContent
+            side="left"
+            withOverlay={false}
+            className="w-[480px] sm:w-[520px] sm:max-w-[520px] p-0 h-screen bg-background flex flex-col shadow-lg border-r"
+            showCloseButton={false}
+          >
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <div className="h-[90px] shrink-0" />
+
+              {/* Sidebar content — switches based on searchView */}
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+
+                {/* LISTING VIEW — shown during 'listing' and also during 'refining'
+                    (user is typing a new query; previous results remain as context) */}
+                {(searchView === 'listing' || searchView === 'refining') && (
+                  <SearchListing
+                    results={listingResults}
+                    loading={listingLoading}
+                    query={listingQuery}
+                    onSelectItem={handleListingSelect}
+                  />
+                )}
+
+                {/* DETAIL VIEW — only rendered when the user is explicitly in the detail
+                    view. Using a positive 'detail' check (instead of !== 'listing')
+                    ensures the card stays hidden during 'refining', even if
+                    selectedPoiDetails still holds the previously viewed POI. */}
+                {searchView === 'detail' && !directionActive && (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
+                  <PoiDetailCard
+                    poi={selectedPoiDetails}
+                    loading={poiDetailLoading}
+                    error={poiDetailError}
+                    isSecondary={false}
+                    onClose={onCloseInfoCard}
+                    onGetDirections={onDirectionClick}
+                    onBack={poiOnBack}
+                  />
+                )}
+
+              </div>
+
+              {/* Inline lightweight toast warnings */}
+              {toastMessage && (
+                <div className="toast-notification absolute bottom-4 left-4 z-50">
+                  {toastMessage}
+                </div>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+    </>
   );
 };
 export default SearchBar;

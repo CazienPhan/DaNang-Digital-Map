@@ -176,7 +176,7 @@ function App() {
         nganh_hang: null,
         tam_gia: null,
         sdt: null,
-        gioi_thieu: `Tọa độ pixel: x=${builtInPoi.pixel.x.toFixed(1)}, y=${builtInPoi.pixel.y.toFixed(1)}`,
+        gioi_thieu: null,
         gioi_thieu_en: null,
         nam_xay_dung: null,
         don_vi_quan_ly: null,
@@ -315,14 +315,63 @@ function App() {
     }
   };
 
-  const handleSelectPlaceSuccess = (place: PlaceSuggestion) => {
-    // Case 2: Save selectedPlace
+  const handleSelectPlaceSuccess = async (place: PlaceSuggestion) => {
+    // Immediately update selectedPlace for map movement + search input sync
     setSelectedPlace({
       lat: place.location.lat,
       lng: place.location.lng,
       address: place.address || place.name || '',
       name: place.name,
     });
+
+    // Always attempt to load full POI details so PoiDetailCard is rendered
+    // (same pipeline as map click flow)
+    setPoiDetailLoading(true);
+    setPoiDetailError(null);
+    setSelectedPoiDetails(null);
+
+    try {
+      const details = await PoiClientService.getPOIDetails(place.id);
+      setSelectedPoiDetails(details);
+    } catch {
+      // POI not found in our database — build a minimal POIDetailData from the
+      // search result fields so PoiDetailCard still renders (not PlaceInfoCard)
+      const minimalPoi: POIDetailData = {
+        id: place.id,
+        name: place.name,
+        name_en: null,
+        poi_type: 'TOURISM',
+        dia_chi: place.address || null,
+        lat: place.location.lat,
+        lng: place.location.lng,
+        business_id: null,
+        category_id: 0,
+        address_type: null,
+        dia_chi_en: null,
+        source_name: 'Map4D Search',
+        source_url: null,
+        is_active: true,
+        is_verified: false,
+        gio_mo_cua: null,
+        website: null,
+        so_sao: null,
+        luot_danh_gia: null,
+        category_name: null,
+        category_color_hex: null,
+        nganh_hang: null,
+        tam_gia: null,
+        sdt: null,
+        gioi_thieu: null,
+        gioi_thieu_en: null,
+        nam_xay_dung: null,
+        don_vi_quan_ly: null,
+        gia_ve: null,
+        media: null,
+      };
+      setSelectedPoiDetails(minimalPoi);
+    } finally {
+      setPoiDetailLoading(false);
+    }
   };
 
   const enterRouteMode = (newDestination: LocationState | null) => {
@@ -508,6 +557,7 @@ function App() {
           setSecondarySelectedPlace(null);
           setClickedLocation(null);
           setSelectedPoiDetails(null);
+          setPoiDetailLoading(false);
           setPoiDetailError(null);
           setBackupState(null);
           clearRoute();
