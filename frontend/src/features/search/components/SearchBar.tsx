@@ -46,6 +46,12 @@ interface SearchBarProps {
   selectedPoiDetails?: POIDetailData | null;
   poiDetailLoading?: boolean;
   poiDetailError?: string | null;
+  /**
+   * Increment this value from App.tsx each time a map POI is clicked.
+   * SearchBar reacts by switching to 'detail' view — the same view used
+   * by Workflow A (listing select) and Workflow B (suggestion select).
+   */
+  externalPoiSelectSignal?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +96,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   selectedPoiDetails = null,
   poiDetailLoading = false,
   poiDetailError = null,
+  externalPoiSelectSignal = 0,
 }) => {
   // ---- Existing state (untouched) ----
   const [query, setQuery] = useState('');
@@ -177,6 +184,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       setQuery('');
     }
   }, [selectedPlace]);
+
+  // ---- Map POI click → open detail view (Workflow C) ----
+  // App.tsx increments externalPoiSelectSignal each time a map POI is clicked.
+  // We react by switching to 'detail' — the same view used by Workflows A and B.
+  // The signal is ignored on mount (value 0) to avoid opening the sidebar on load.
+  useEffect(() => {
+    if (!externalPoiSelectSignal) return;
+    setSearchView('detail');
+  }, [externalPoiSelectSignal]);
 
 
   const handleSuggestionSelect = (place: PlaceSuggestion) => {

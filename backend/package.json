@@ -6,13 +6,17 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "nodemon --watch src --ext ts --exec \"ts-node src/index.ts\""
+    "dev": "nodemon --watch src --ext ts --exec \"ts-node src/index.ts\"",
+    "meili:settings": "ts-node src/scripts/u-apply-settings.ts",
+    "sync:product-types": "ts-node src/meilisearch/scripts/sync-product-types.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
     "axios": "^1.7.9",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "meilisearch": "^0.60.0",
     "postgres": "^3.4.9"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import map4dRouter from './routes/map4d.routes';
 import poiRouter from './routes/poi.routes';
 import productRouter from './routes/product.routes';
+import productSearchRouter from './routes/productSearch.routes';
 
 // Load environment configurations from .env file
 dotenv.config();
@@ -19,6 +20,9 @@ app.use(express.json());
 app.use('/api/map4d', map4dRouter);
 app.use('/api/pois', poiRouter);
 app.use('/api/products', productRouter);
+
+// Product search route — GET /api/products/search?query=...
+app.use('/api/products', productSearchRouter);
 
 // Base sanity check / health route
 app.get('/health', (req, res) => {

@@ -40,6 +40,10 @@ function App() {
   // Cache resolved GPS location coordinates and geocoded physical address
   const [cachedGps, setCachedGps] = useState<LocationState | null>(null);
 
+  // Signal counter: incremented each time a map POI is clicked so SearchBar
+  // can react by switching to 'detail' view (Workflow C).
+  const [poiSelectSignal, setPoiSelectSignal] = useState(0);
+
   const [mapInstance, setMapInstance] = useState<any>(null);
 
 
@@ -85,6 +89,8 @@ function App() {
     setZoom(16);
     setClickedLocation(null);
     setSecondarySelectedPlace(null);
+    // Signal SearchBar to open the sidebar in detail view (Workflow C)
+    setPoiSelectSignal((s) => s + 1);
 
     setPoiDetailLoading(true);
     setPoiDetailError(null);
@@ -135,6 +141,8 @@ function App() {
     });
     setZoom(16);
     setSecondarySelectedPlace(null);
+    // Signal SearchBar to open the sidebar in detail view (Workflow C)
+    setPoiSelectSignal((s) => s + 1);
 
     setPoiDetailLoading(true);
     setPoiDetailError(null);
@@ -572,6 +580,7 @@ function App() {
         selectedPoiDetails={selectedPoiDetails}
         poiDetailLoading={poiDetailLoading}
         poiDetailError={poiDetailError}
+        externalPoiSelectSignal={poiSelectSignal}
       />
       <MapContainer
         center={center}
