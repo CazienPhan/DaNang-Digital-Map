@@ -5,6 +5,12 @@ const productSearchService = new ProductSearchService();
 
 export class ProductSearchController {
 
+    /**
+     * GET /api/products/search?query=<term>&limit=<n>&offset=<n>
+     *
+     * Returns a ProductListingResponse — never a raw Meilisearch document.
+     * The service layer is responsible for the Meilisearch → DTO mapping.
+     */
     async search(req: Request, res: Response): Promise<void> {
 
         try {
@@ -13,7 +19,7 @@ export class ProductSearchController {
                 String(req.query.query ?? "").trim();
 
             const limit =
-                Number(req.query.limit ?? 10);
+                Number(req.query.limit ?? 20);
 
             const offset =
                 Number(req.query.offset ?? 0);
@@ -22,7 +28,7 @@ export class ProductSearchController {
 
                 res.status(400).json({
                     success: false,
-                    message: "Query is required."
+                    message: "Query is required.",
                 });
 
                 return;
@@ -37,25 +43,19 @@ export class ProductSearchController {
                 );
 
             res.status(200).json({
-
                 success: true,
-
-                data: result
-
+                data: result,
             });
 
         }
 
         catch (error) {
 
-            console.error(error);
+            console.error("[ProductSearchController] search error:", error);
 
             res.status(500).json({
-
                 success: false,
-
-                message: "Search failed."
-
+                message: "Search failed.",
             });
 
         }

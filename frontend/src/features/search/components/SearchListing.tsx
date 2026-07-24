@@ -1,16 +1,31 @@
 import React from 'react';
 import { Loader2, SearchX } from 'lucide-react';
-import { type PlaceSuggestion } from '@/services/map4d/search.service';
+import type { SearchSuggestion } from '../types/SearchSuggestion';
 import { SearchListingCard } from './SearchListingCard';
 import { Separator } from '@/components/ui/separator';
 
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+
 interface SearchListingProps {
-  results: PlaceSuggestion[];
+  results: SearchSuggestion[];
   loading: boolean;
   query: string;
-  onSelectItem: (result: PlaceSuggestion) => void;
+  onSelectItem: (result: SearchSuggestion) => void;
 }
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+/**
+ * SearchListing — pure UI component.
+ *
+ * Depends only on SearchSuggestion (the unified DTO).
+ * Never imports PlaceSuggestion or any provider-specific type.
+ * Renders identically for both Destination Search and Product Search results.
+ */
 export const SearchListing: React.FC<SearchListingProps> = ({
   results,
   loading,

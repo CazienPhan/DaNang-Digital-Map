@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { MapContainer, MapClickHandler, type MapCoordinate } from '@/features/map';
 import { SearchBar, PlaceDetailCard } from '@/features/search';
 import { useDirection, type LocationState } from '@/features/directions';
-import { SearchService, type PlaceSuggestion } from '@/services/map4d/search.service';
+import { SearchService } from '@/services/map4d/search.service';
+import type { SearchSuggestion } from '@/features/search/types/SearchSuggestion';
 import { type PlaceDetail } from '@/services/map4d/placeDetail.service';
 import PoiClientService, { type POIData, type POIDetailData } from '@/services/supabase/poi.service';
 import { PoiDetailCard } from '@/features/poi';
@@ -323,35 +324,38 @@ function App() {
     }
   };
 
-  const handleSelectPlaceSuccess = async (place: PlaceSuggestion) => {
-    // Immediately update selectedPlace for map movement + search input sync
+  const handleSelectPlaceSuccess = async (suggestion: SearchSuggestion) => {
+    // Product suggestions have no coordinates — skip the place detail flow.
+    if (!suggestion.location) return;
+
+    // Immediately update selectedPlace for map movement + search input sync.
     setSelectedPlace({
-      lat: place.location.lat,
-      lng: place.location.lng,
-      address: place.address || place.name || '',
-      name: place.name,
+      lat: suggestion.location.lat,
+      lng: suggestion.location.lng,
+      address: suggestion.description || suggestion.title || '',
+      name: suggestion.title,
     });
 
     // Always attempt to load full POI details so PoiDetailCard is rendered
-    // (same pipeline as map click flow)
+    // (same pipeline as map click flow).
     setPoiDetailLoading(true);
     setPoiDetailError(null);
     setSelectedPoiDetails(null);
 
     try {
-      const details = await PoiClientService.getPOIDetails(place.id);
+      const details = await PoiClientService.getPOIDetails(suggestion.id);
       setSelectedPoiDetails(details);
     } catch {
       // POI not found in our database — build a minimal POIDetailData from the
-      // search result fields so PoiDetailCard still renders (not PlaceInfoCard)
+      // search result fields so PoiDetailCard still renders.
       const minimalPoi: POIDetailData = {
-        id: place.id,
-        name: place.name,
+        id: suggestion.id,
+        name: suggestion.title,
         name_en: null,
         poi_type: 'TOURISM',
-        dia_chi: place.address || null,
-        lat: place.location.lat,
-        lng: place.location.lng,
+        dia_chi: suggestion.description || null,
+        lat: suggestion.location.lat,
+        lng: suggestion.location.lng,
         business_id: null,
         category_id: 0,
         address_type: null,

@@ -1,27 +1,33 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { SearchService, type PlaceSuggestion } from '@/services/map4d/search.service';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { type MapCoordinate } from '@/features/map';
 import { useDebounce } from '@/hooks/useDebounce';
 import SearchResult from './SearchResult';
 import { SearchListing } from './SearchListing';
 import { DirectionPanel, type LocationState } from '@/features/directions';
 import { type RouteResult } from '@/services/map4d/routing.service';
-
 import { PoiDetailCard } from '@/features/poi';
 import { type POIDetailData } from '@/services/supabase/poi.service';
-import { Button, Input } from "@/components/ui";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Search, X, Navigation } from "lucide-react";
+import { Button, Input } from '@/components/ui';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Search, X, Navigation } from 'lucide-react';
+import SearchModeSwitcher from './SearchModeSwitcher';
+import type { SearchMode } from '../types/SearchMode';
+import type { SearchSuggestion } from '../types/SearchSuggestion';
+import { SearchEngineAdapter } from '../services/SearchEngineAdapter';
 
 // ---------------------------------------------------------------------------
-// Types
+// Props
 // ---------------------------------------------------------------------------
 
 interface SearchBarProps {
   currentCenter?: MapCoordinate;
   onSelectPlace: (latLng: MapCoordinate) => void;
   onGPSClickSuccess?: (coords: MapCoordinate, address: string) => void;
-  onSelectPlaceSuccess?: (place: PlaceSuggestion) => void;
+  /**
+   * Called when the user selects an autocomplete suggestion or a listing item.
+   * Receives the frozen SearchSuggestion DTO — never a provider-specific type.
+   */
+  onSelectPlaceSuccess?: (suggestion: SearchSuggestion) => void;
   directionActive: boolean;
   onDirectionClick: () => void;
   origin: LocationState | null;
@@ -48,20 +54,16 @@ interface SearchBarProps {
   poiDetailError?: string | null;
   /**
    * Increment this value from App.tsx each time a map POI is clicked.
-   * SearchBar reacts by switching to 'detail' view — the same view used
-   * by Workflow A (listing select) and Workflow B (suggestion select).
+   * SearchBar reacts by switching to 'detail' view.
    */
   externalPoiSelectSignal?: number;
 }
 
 // ---------------------------------------------------------------------------
-// UI-only state — controls which panel the sidebar renders.
-// Does NOT duplicate business logic or existing state.
+// View state — controls which panel the sidebar renders.
+// 'refining' = user is typing while a previous listing is still visible.
 // ---------------------------------------------------------------------------
-// 'refining' = user is typing a new query while a previous Search Listing is still visible.
-// The listing stays mounted; only a new Enter press replaces it.
 type SearchView = 'idle' | 'autocomplete' | 'listing' | 'refining' | 'detail';
-
 
 // ---------------------------------------------------------------------------
 // Component
@@ -98,73 +100,78 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   poiDetailError = null,
   externalPoiSelectSignal = 0,
 }) => {
-  // ---- Existing state (untouched) ----
+  // ---- Query ----
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 350);
-  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // ---- New UI-only state ----
+  // ---- Search mode ----
+  const [searchMode, setSearchMode] = useState<SearchMode>('place');
+
+  // ---- View state ----
   const [searchView, setSearchView] = useState<SearchView>('idle');
-  // Ref always holds the current searchView so the autocomplete effect can
-  // read the live value without needing searchView in its dependency array
-  // (avoids extra API calls on every view-state transition).
   const searchViewRef = useRef<SearchView>(searchView);
   useEffect(() => { searchViewRef.current = searchView; }, [searchView]);
-  const [listingResults, setListingResults] = useState<PlaceSuggestion[]>([]);
+
+  // ---- Listing state ----
+  const [listingResults, setListingResults] = useState<SearchSuggestion[]>([]);
   const [listingLoading, setListingLoading] = useState(false);
   const [listingQuery, setListingQuery] = useState('');
 
-  // Ref to the current in-flight autocomplete AbortController.
-  // Lets handleEnterSearch cancel any pending autocomplete fetch so it
-  // cannot repopulate suggestions after the user commits a search.
+  // ---- AbortController ref ----
   const autocompleteAbortRef = useRef<AbortController | null>(null);
 
-  // ---- Helper: toast ----
+  // ---- Adapter — stable per mode; locationBias is passed per-call ----
+  // The adapter is only recreated when searchMode changes. locationBias is
+  // forwarded directly to each call, so the map center can change freely
+  // without triggering a new adapter instance.
+  const adapter = useMemo(
+    () => new SearchEngineAdapter(searchMode),
+    [searchMode],
+  );
+
+  // ---- locationBias — derived from currentCenter ----
+  const locationBias = currentCenter
+    ? `${currentCenter.lat},${currentCenter.lng}`
+    : undefined;
+
+  // ---- Toast helper ----
   const showToast = (message: string) => {
     setToastMessage(message);
-    const toastTimer = setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
-    return toastTimer;
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // ---- Autocomplete: debounced query → suggestions ----
+  // ---- Autocomplete effect ----
   useEffect(() => {
     if (debouncedQuery.trim().length < 1) {
       setSuggestions([]);
-      // If user cleared the input while refining, go back to listing
-      if (searchViewRef.current === 'autocomplete') {
-        setSearchView('idle');
-      } else if (searchViewRef.current === 'refining') {
-        setSearchView('listing');
-      }
+      if (searchViewRef.current === 'autocomplete') setSearchView('idle');
+      else if (searchViewRef.current === 'refining') setSearchView('listing');
       return;
     }
 
-    if (selectedPlace && (selectedPlace.name === debouncedQuery || selectedPlace.address === debouncedQuery)) {
+    if (
+      selectedPlace &&
+      (selectedPlace.name === debouncedQuery || selectedPlace.address === debouncedQuery)
+    ) {
       setSuggestions([]);
       return;
     }
 
-    // Mark autocomplete view while typing — but don't clobber 'listing',
-    // 'refining', or 'detail'. Use the ref so we always read the CURRENT value
-    // without adding searchView to the deps (which would cause extra API calls).
     const currentView = searchViewRef.current;
     if (currentView !== 'listing' && currentView !== 'refining' && currentView !== 'detail') {
       setSearchView('autocomplete');
     }
 
     const abortController = new AbortController();
-    autocompleteAbortRef.current = abortController;  // expose to handleEnterSearch
-    const locationBias = currentCenter ? `${currentCenter.lat},${currentCenter.lng}` : undefined;
+    autocompleteAbortRef.current = abortController;
 
-    SearchService.searchPlaces(debouncedQuery, locationBias, abortController.signal)
-      .then((results) => {
-        setSuggestions(results);
-      })
-      .catch((err) => {
-        if (err.name !== 'AbortError') {
+    adapter
+      .autocomplete(debouncedQuery, locationBias, abortController.signal)
+      .then((results) => setSuggestions(results))
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name !== 'AbortError') {
           setSuggestions([]);
           showToast('Failed to fetch autocomplete suggestions.');
         }
@@ -174,9 +181,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       abortController.abort();
       autocompleteAbortRef.current = null;
     };
-  }, [debouncedQuery, currentCenter]);
+  }, [debouncedQuery, adapter, locationBias, selectedPlace]);
 
-  // ---- Sync query text with selectedPlace ----
+  // ---- Sync query with selectedPlace ----
   useEffect(() => {
     if (selectedPlace) {
       setQuery(selectedPlace.name || selectedPlace.address || '');
@@ -185,39 +192,51 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     }
   }, [selectedPlace]);
 
-  // ---- Map POI click → open detail view (Workflow C) ----
-  // App.tsx increments externalPoiSelectSignal each time a map POI is clicked.
-  // We react by switching to 'detail' — the same view used by Workflows A and B.
-  // The signal is ignored on mount (value 0) to avoid opening the sidebar on load.
+  // ---- Map POI click → detail view (Workflow C) ----
   useEffect(() => {
     if (!externalPoiSelectSignal) return;
     setSearchView('detail');
   }, [externalPoiSelectSignal]);
 
-
-  const handleSuggestionSelect = (place: PlaceSuggestion) => {
-    onSelectPlace(place.location);
-    setQuery(place.name);
+  // ---- Mode switch → clear stale results, preserve query text ----
+  useEffect(() => {
     setSuggestions([]);
-    // Jump straight to detail — no listing shown
-    setSearchView('detail');
-
-    if (onSelectPlaceSuccess) {
-      onSelectPlaceSuccess(place);
+    setListingResults([]);
+    setListingQuery('');
+    if (searchView === 'listing' || searchView === 'refining') {
+      setSearchView('idle');
     }
+  }, [searchMode]);
+
+  // ---- Suggestion selected ----
+  const handleSuggestionSelect = (suggestion: SearchSuggestion) => {
+    setSuggestions([]);
+
+    if (suggestion.type === 'product') {
+      // Phase 7.5.5 — Product Detail is built in Phase 8.
+      // For now, acknowledge the selection and stay in current view.
+      console.log('[SearchBar] Product selected:', suggestion);
+      setQuery(suggestion.title);
+      return;
+    }
+
+    // Place suggestion: move the map and open POI detail.
+    if (suggestion.location) {
+      onSelectPlace(suggestion.location);
+    }
+    setQuery(suggestion.title);
+    setSearchView('detail');
+    onSelectPlaceSuccess?.(suggestion);
   };
 
-  // ---- Enter key → full search listing ----
+  // ---- Enter key → full search ----
   const handleEnterSearch = useCallback(async () => {
     const trimmed = query.trim();
     if (!trimmed) return;
 
-    // Cancel any in-flight autocomplete fetch so its .then() callback cannot
-    // repopulate suggestions after we clear them below.
     autocompleteAbortRef.current?.abort();
     autocompleteAbortRef.current = null;
 
-    // Clear autocomplete dropdown and transition to listing view.
     setSuggestions([]);
     setListingQuery(trimmed);
     setListingResults([]);
@@ -225,38 +244,42 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setSearchView('listing');
 
     try {
-      const locationBias = currentCenter ? `${currentCenter.lat},${currentCenter.lng}` : undefined;
-      const results = await SearchService.searchPlaces(trimmed, locationBias);
-      // Cap at 20 results per spec
+      const results = await adapter.search(trimmed, locationBias);
       setListingResults(results.slice(0, 20));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Search listing fetch failed:', err);
       setListingResults([]);
       showToast('Failed to fetch search results. Please try again.');
     } finally {
       setListingLoading(false);
     }
-  }, [query, currentCenter]);
+  }, [query, adapter, locationBias]);
 
-  // ---- Listing item clicked (Flow 1, Step 4 - Case 3) ----
-  const handleListingSelect = (place: PlaceSuggestion) => {
-    onSelectPlace(place.location);
-    setQuery(place.name);
+  // ---- Listing item selected ----
+  const handleListingSelect = (suggestion: SearchSuggestion) => {
     setSuggestions([]);
-    setSearchView('detail');
 
-    if (onSelectPlaceSuccess) {
-      onSelectPlaceSuccess(place);
+    if (suggestion.type === 'product') {
+      // Phase 7.5.5 — Product Detail is built in Phase 8.
+      // For now, acknowledge the selection and stay in the listing view.
+      console.log('[SearchBar] Product selected from listing:', suggestion);
+      setQuery(suggestion.title);
+      return;
     }
+
+    // Place suggestion: move the map and open POI detail.
+    if (suggestion.location) {
+      onSelectPlace(suggestion.location);
+    }
+    setQuery(suggestion.title);
+    setSearchView('detail');
+    onSelectPlaceSuccess?.(suggestion);
   };
 
-  // ---- Back arrow: listing → detail → listing (no re-fetch) ----
-  const handleBack = () => {
-    // Clear the detail state without touching listing results
-    setSearchView('listing');
-  };
+  // ---- Back arrow: detail → listing ----
+  const handleBack = () => setSearchView('listing');
 
-  // ---- Clear button: clears everything and returns to idle ----
+  // ---- Clear ----
   const handleClearAll = () => {
     setQuery('');
     setSuggestions([]);
@@ -266,30 +289,21 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     onCloseInfoCard();
   };
 
-  // ---- When user starts typing, handle view state transitions ----
+  // ---- Typing handler ----
   const handleQueryChange = (val: string) => {
     setQuery(val);
     if (val === '') {
       handleClearAll();
       return;
     }
-    // When the user types while a Search Listing is visible, switch to
-    // 'refining' — the previous listing stays mounted as background context.
-    // Do NOT clear listingResults; only a new Enter press replaces them.
-    if (searchView === 'listing') {
-      setSearchView('refining');
-    } else if (searchView === 'refining') {
-      // Already refining — no state change needed, listing stays mounted.
-    } else if (searchView === 'detail') {
-      // Typing while in detail — go to autocomplete (no listing to preserve)
-      setSearchView('autocomplete');
-    }
+    if (searchView === 'listing') setSearchView('refining');
+    else if (searchView === 'detail') setSearchView('autocomplete');
   };
 
-  // ---- Sidebar open condition ----
+  // ---- Derived flags ----
   const isSidebarOpen = !!(
-    searchView === 'listing' ||   // showing search listing
-    searchView === 'refining' ||  // previous listing still visible while typing new query
+    searchView === 'listing' ||
+    searchView === 'refining' ||
     selectedPoiDetails ||
     poiDetailLoading ||
     poiDetailError ||
@@ -297,20 +311,18 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     hasClickCard
   );
 
-  // ---- Right button logic ----
-  // - Searching/listing/refining: show X (clear all)
-  // - Idle/detail: show Navigation (directions)
-  const isSearching = searchView === 'autocomplete' || searchView === 'listing' || searchView === 'refining';
+  const isSearching =
+    searchView === 'autocomplete' ||
+    searchView === 'listing' ||
+    searchView === 'refining';
 
-  // ---- Back arrow prop for PoiDetailCard ----
-  // Only pass onBack when user came from listing (not from autocomplete select)
-  const poiOnBack = searchView === 'detail' && listingResults.length > 0
-    ? handleBack
-    : undefined;
+  const poiOnBack =
+    searchView === 'detail' && listingResults.length > 0 ? handleBack : undefined;
 
+  // ---- Render ----
   return (
     <>
-      {/* SEARCH BAR — always visible, independent of direction/sidebar state */}
+      {/* SEARCH BAR */}
       <div className="absolute top-6 left-2.5 z-[100] w-[360px] max-w-[85vw] p-3">
         <div className="relative w-full">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -330,7 +342,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             }}
           />
 
-          {/* Rightmost button: X (clear all) while searching, Navigation otherwise */}
           {isSearching ? (
             <Button
               size="icon"
@@ -354,8 +365,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           )}
         </div>
 
-        {/* Autocomplete dropdown — shown whenever there are suggestions,
-            including while the previous listing is still visible ('refining') */}
+        {/* Mode switcher */}
+        <SearchModeSwitcher value={searchMode} onChange={setSearchMode} />
+
+        {/* Autocomplete dropdown */}
         {suggestions.length > 0 && (
           <SearchResult
             suggestions={suggestions}
@@ -396,13 +409,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             showCloseButton={false}
           >
             <div className="flex flex-col flex-1 overflow-hidden">
-              <div className="h-[90px] shrink-0" />
+              <div className="h-[140px] shrink-0" />
 
-              {/* Sidebar content — switches based on searchView */}
               <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
-                {/* LISTING VIEW — shown during 'listing' and also during 'refining'
-                    (user is typing a new query; previous results remain as context) */}
+                {/* LISTING */}
                 {(searchView === 'listing' || searchView === 'refining') && (
                   <SearchListing
                     results={listingResults}
@@ -412,25 +423,23 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   />
                 )}
 
-                {/* DETAIL VIEW — only rendered when the user is explicitly in the detail
-                    view. Using a positive 'detail' check (instead of !== 'listing')
-                    ensures the card stays hidden during 'refining', even if
-                    selectedPoiDetails still holds the previously viewed POI. */}
-                {searchView === 'detail' && !directionActive && (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
-                  <PoiDetailCard
-                    poi={selectedPoiDetails}
-                    loading={poiDetailLoading}
-                    error={poiDetailError}
-                    isSecondary={false}
-                    onClose={onCloseInfoCard}
-                    onGetDirections={onDirectionClick}
-                    onBack={poiOnBack}
-                  />
-                )}
+                {/* DETAIL */}
+                {searchView === 'detail' &&
+                  !directionActive &&
+                  (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
+                    <PoiDetailCard
+                      poi={selectedPoiDetails}
+                      loading={poiDetailLoading}
+                      error={poiDetailError}
+                      isSecondary={false}
+                      onClose={onCloseInfoCard}
+                      onGetDirections={onDirectionClick}
+                      onBack={poiOnBack}
+                    />
+                  )}
 
               </div>
 
-              {/* Inline lightweight toast warnings */}
               {toastMessage && (
                 <div className="toast-notification absolute bottom-4 left-4 z-50">
                   {toastMessage}
@@ -443,4 +452,5 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     </>
   );
 };
+
 export default SearchBar;
