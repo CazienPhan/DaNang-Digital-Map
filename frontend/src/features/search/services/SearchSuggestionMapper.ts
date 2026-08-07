@@ -56,7 +56,7 @@ export class SearchSuggestionMapper {
    */
   static fromAutocompleteItem(item: AutocompleteItem): SearchSuggestion {
     return {
-      id: item.name,
+      id: item.id,
       type: 'product',
       title: item.name,
       description: '',

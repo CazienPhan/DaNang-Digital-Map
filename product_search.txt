@@ -1,0 +1,2476 @@
+================================================================================
+PRODUCT SEARCH — COMPLETE TECHNICAL DOCUMENTATION
+================================================================================
+Project  : MAP4D — Da Nang Digital Map Platform
+Document : product_search.txt
+Date     : 2026-07-25
+Scope    : End-to-end technical reference for the Product Search feature.
+           Covers every file, every layer, every DTO, every API call.
+================================================================================
+
+
+================================================================================
+1. FEATURE OVERVIEW
+================================================================================
+
+WHAT IS PRODUCT SEARCH?
+------------------------
+Product Search is a search mode inside the SearchBar component that allows
+users to search for local products (e.g. OCOP goods, regional specialties)
+indexed in a Meilisearch instance. It operates entirely independently from the
+existing Place (Destination) Search.
+
+The user activates Product Search by clicking the "Product Search" tab in the
+SearchModeSwitcher toggle beneath the search input. From that moment forward
+every keystroke and every Enter-key action is routed to the Product Search
+pipeline — never to Map4D.
+
+WHAT PROBLEM DOES IT SOLVE?
+-----------------------------
+Da Nang's digital map platform serves both navigation users (looking for places
+on the map) and consumers (looking for local products). Without Product Search,
+a user who types "OCOP honey" would receive map POI results, not product
+catalogue results. Product Search solves the discovery problem for commerce
+data that has no geographic pin on the map.
+
+DESTINATION SEARCH vs. PRODUCT SEARCH
+---------------------------------------
+
+  Destination Search (mode = "place")
+  ------------------------------------
+  Provider     : Map4D API (third-party mapping service)
+  Backend path : GET /api/map4d/autosuggest (backend proxy to Map4D API)
+  Index        : Map4D's own geographic POI database
+  Results      : Places with latitude/longitude — clicking moves the map
+  Icon         : MapPin (lucide-react)
+  Location bias: YES — biased toward the user's current map center
+  Engine class : Map4DSearchEngine
+
+  Product Search (mode = "product")
+  ----------------------------------
+  Provider     : Meilisearch (self-hosted search engine)
+  Backend path : GET /api/products/autocomplete and GET /api/products/search
+  Index        : "products" Meilisearch index (product_types from Supabase)
+  Results      : Product catalogue items with name, description, optional image
+  Icon         : ShoppingBag (lucide-react)
+  Location bias: NO — products are not geo-tagged; locationBias is ignored
+  Engine class : ProductSearchEngine
+
+WHY TWO DIFFERENT SEARCH PROVIDERS?
+-------------------------------------
+Map4D is the authoritative geographic data source for Da Nang. It has rich
+POI, road, and address data — but it knows nothing about local product
+catalogues. Meilisearch is a self-hosted, open-source search engine that
+the team controls directly. It holds the product_types table, supports
+Vietnamese typo-tolerance, Vietnamese stop-words, bilingual synonyms (café /
+cà phê / coffee), and the custom OCOP dictionary entry.
+
+Mixing both providers into a single endpoint would violate the Single
+Responsibility Principle and would make future product features (filtering,
+facets, category browsing) impossible to add cleanly. By separating them into
+two independent engines behind one unified interface (SearchEngine), the
+frontend SearchBar never needs to know which backend it is talking to.
+
+
+================================================================================
+2. COMPLETE ARCHITECTURE
+================================================================================
+
+FULL STACK ARCHITECTURE DIAGRAM
+---------------------------------
+
+  User
+    │
+    │  (types in the search input / presses Enter)
+    ▼
+  SearchBar.tsx
+    │  (reads searchMode, calls adapter.autocomplete() or adapter.search())
+    ▼
+  SearchEngineAdapter.ts  [Strategy Pattern gateway]
+    │  (selects the correct concrete engine based on searchMode)
+    ▼
+  ProductSearchEngine.ts  [concrete engine for product mode]
+    │  (calls ProductSearchService, maps results to SearchSuggestion[])
+    ▼
+  frontend/src/services/meilisearch/productSearch.service.ts
+    │  (HTTP fetch — hides all network details from the engine)
+    │
+    │  HTTP GET /api/products/autocomplete?query=...
+    │  HTTP GET /api/products/search?query=...&limit=...&offset=...
+    ▼
+  Express Backend — backend/src/index.ts
+    │  (routes /api/products/* to productSearch.routes.ts)
+    ▼
+  productSearch.routes.ts
+    │  (maps GET /search → ProductSearchController.search)
+    │  (maps GET /autocomplete → ProductAutocompleteController.autocomplete)
+    ▼
+  ProductSearchController.ts  /  ProductAutocompleteController.ts
+    │  (validates query param, delegates to ProductSearchService)
+    ▼
+  backend/src/meilisearch/services/ProductSearchService.ts
+    │  (queries Meilisearch index, maps hits to typed DTOs)
+    ▼
+  meiliClientPromise  [backend/src/meilisearch/client.ts]
+    │  (singleton Meilisearch JS client, ESM-loaded via dynamic import)
+    ▼
+  Meilisearch Engine
+    │  (queries the "products" index)
+    ▼
+  "products" Index
+    │  (contains ProductSearchDocument records)
+    ▼
+  Search Hits (raw ProductSearchDocument[])
+    │  (mapped inside ProductSearchService to ProductListingItem[])
+    ▼
+  ProductListingResponse  /  AutocompleteResponse  [backend DTOs]
+    │  (wrapped in { success: true, data: ... } HTTP envelope)
+    ▼
+  HTTP Response (JSON)
+    │
+    ▼
+  productSearch.service.ts  [frontend]
+    │  (unwraps envelope, returns AutocompleteItem[] or ProductListingItem[])
+    ▼
+  SearchSuggestionMapper.ts
+    │  (fromAutocompleteItems() or fromProducts() — converts to SearchSuggestion[])
+    ▼
+  SearchSuggestion[]  [frozen DTO — the ONLY shape the UI ever sees]
+    │
+    ├──▶ SearchResult.tsx  [autocomplete dropdown]
+    │      (renders suggestions while user is typing — above the input)
+    │
+    └──▶ SearchListing.tsx  [full search listing panel]
+           │  (renders after Enter key — inside the sidebar Sheet)
+           ▼
+         SearchListingCard.tsx
+           (renders each product card: thumbnail, title, description)
+
+LAYER EXPLANATIONS
+-------------------
+
+Layer 1 — User Input
+  The user's keyboard events in the browser.
+
+Layer 2 — SearchBar
+  Top-level orchestrator. Owns all state: query string, searchMode,
+  suggestions[], listingResults[], listingLoading, searchView.
+  Never touches any search provider directly.
+
+Layer 3 — SearchEngineAdapter
+  The Strategy Pattern gateway. Built once per searchMode via useMemo.
+  Exposes two methods: autocomplete() and search(). Both always return
+  SearchSuggestion[]. Selects ProductSearchEngine when mode = 'product'.
+
+Layer 4 — ProductSearchEngine
+  Implements the SearchEngine interface. Calls ProductSearchService and
+  passes results through SearchSuggestionMapper. The only class that
+  knows about both ProductSearchService and SearchSuggestionMapper.
+
+Layer 5 — ProductSearchService (frontend)
+  A plain TypeScript static class. No React. No state. Performs HTTP
+  fetch() calls to the backend. Unwraps the { success, data } envelope.
+  Reads VITE_BACKEND_URL from environment.
+
+Layer 6 — Backend HTTP Boundary
+  Express server at port 5000. Routes mounted at /api/products.
+
+Layer 7 — Controllers
+  ProductSearchController: validates query, limit, offset; calls backend
+  ProductSearchService; returns { success, data } envelope.
+  ProductAutocompleteController: validates query, limit; calls
+  productSearchService.autocomplete(); returns { success, data } envelope.
+
+Layer 8 — Backend ProductSearchService
+  Anti-corruption boundary. Queries Meilisearch via meiliClientPromise.
+  Maps raw ProductSearchDocument hits to typed ProductListingItem[] or
+  AutocompleteItem[]. Raw Meilisearch documents never escape this class.
+
+Layer 9 — Meilisearch Client
+  Singleton promise. Loads the meilisearch ESM package via dynamic import
+  from CommonJS. Reads MEILISEARCH_HOST and MEILISEARCH_ADMIN_KEY from env.
+
+Layer 10 — Meilisearch Index ("products")
+  Contains ProductSearchDocument records. Settings applied via
+  products.settings.ts: searchable attributes, filterable attributes,
+  ranking rules, synonyms, typo tolerance, stop words, custom dictionary.
+
+Layer 11 — SearchSuggestionMapper (frontend)
+  Pure static class. The ONLY place where provider types are converted to
+  SearchSuggestion. No side effects. No React.
+
+Layer 12 — SearchSuggestion (frozen DTO)
+  The ONLY type consumed by any UI component in the search feature.
+
+Layer 13 — SearchResult (dropdown)
+  Renders while user is typing. Fires onSelectSuggestion on click.
+
+Layer 14 — SearchListing + SearchListingCard
+  Renders after Enter key press. Shows loading spinner, empty state, and
+  each product as a card with thumbnail + title + description.
+
+
+================================================================================
+3. COMPLETE USER FLOW
+================================================================================
+
+Step 1 — User opens the application.
+  The SearchBar renders in 'idle' view. The SearchModeSwitcher shows
+  "Place Search" as the active tab (default searchMode = 'place').
+
+  ↓
+
+Step 2 — User clicks "Product Search" tab.
+  SearchModeSwitcher calls onChange('product').
+  SearchBar.setSearchMode('product') fires.
+  The useEffect([searchMode]) clears all stale suggestions, listingResults,
+  listingQuery. If view was 'listing' or 'refining', it resets to 'idle'.
+  useMemo([searchMode]) creates a new SearchEngineAdapter('product')
+  which internally creates a ProductSearchEngine instance.
+
+  ↓
+
+Step 3 — User types a keyword (e.g. "mật ong").
+  handleQueryChange fires on every keystroke.
+  setQuery updates the controlled input value.
+  The debouncedQuery (useDebounce, 350 ms) waits for the user to pause.
+  While debouncedQuery.trim().length < 1, suggestions stay empty.
+
+  ↓
+
+Step 4 — Debounce fires (350 ms after last keystroke).
+  The autocomplete useEffect triggers.
+  searchView transitions to 'autocomplete' (if not already in listing).
+  A new AbortController is created. The previous controller (if any)
+  is aborted first via the cleanup function of the previous useEffect run.
+  adapter.autocomplete(debouncedQuery, locationBias, signal) is called.
+  → SearchEngineAdapter.autocomplete() delegates to ProductSearchEngine.autocomplete().
+  → ProductSearchEngine calls ProductSearchService.autocomplete(query, signal).
+  → ProductSearchService fetches:
+      GET /api/products/autocomplete?query=m%E1%BA%ADt+ong
+  → Backend: ProductAutocompleteController receives the request.
+  → Backend validates query (non-empty), reads limit (default 5).
+  → Backend ProductSearchService queries Meilisearch index "products"
+    with attributesToRetrieve: ["name"], limit 5.
+  → Meilisearch returns up to 5 hits with { name } only.
+  → Backend maps hits to AutocompleteItem[] and wraps in AutocompleteResponse.
+  → HTTP response: { success: true, data: { query, processingTimeMs,
+    estimatedTotalHits, items: [{ name: "Mật ong rừng Sơn Trà" }, ...] } }
+  → Frontend productSearch.service.ts extracts envelope.data.items.
+  → ProductSearchEngine passes items[] to SearchSuggestionMapper.fromAutocompleteItems().
+  → Mapper converts each { name } to SearchSuggestion:
+      { id: name, type: 'product', title: name, description: '', original: item }
+  → SearchBar.setSuggestions(results) fires.
+
+  ↓
+
+Step 5 — Dropdown (SearchResult) appears.
+  SearchBar renders <SearchResult suggestions={suggestions} />.
+  Each suggestion shows a ShoppingBag icon (type = 'product') + title.
+  No description text (autocomplete items carry name only).
+
+  ↓
+
+Step 6a — User selects a dropdown item.
+  handleSuggestionSelect(suggestion) fires.
+  suggestion.type === 'product' → the code logs the selection and sets
+  query = suggestion.title. No map move. No detail view.
+  (Product Detail is deferred to Phase 8 — see comment in code.)
+  Suggestions are cleared. Dropdown closes.
+
+  ↓  (OR)
+
+Step 6b — User presses Enter instead of clicking a suggestion.
+  onKeyDown triggers handleEnterSearch().
+  The pending autocomplete request is aborted immediately.
+  suggestions are cleared.
+  listingQuery = trimmed query.
+  listingResults = [].
+  listingLoading = true.
+  searchView transitions to 'listing'.
+  The sidebar Sheet opens (isSidebarOpen becomes true).
+  SearchListing renders with loading spinner.
+
+  ↓
+
+Step 7 — Full search request is sent.
+  adapter.search(query, locationBias) is called.
+  → SearchEngineAdapter.search() delegates to ProductSearchEngine.search().
+  → ProductSearchEngine calls ProductSearchService.search(query, signal).
+  → ProductSearchService fetches:
+      GET /api/products/search?query=m%E1%BA%ADt+ong&limit=20&offset=0
+  → Backend: ProductSearchController receives the request.
+  → Controller reads query, limit (default 20), offset (default 0).
+  → Controller validates query non-empty (returns 400 if missing).
+  → Controller calls productSearchService.search(query, limit, offset).
+  → Backend ProductSearchService queries Meilisearch index "products":
+      attributesToRetrieve: ["id", "name", "short_description"]
+      limit, offset
+  → Meilisearch runs full-text search with ranking rules, typo tolerance,
+    synonyms, and stop words as defined in products.settings.ts.
+  → Meilisearch returns matching hits.
+  → Backend maps hits to ProductListingItem[]:
+      { id, name, short_description, image: null }
+  → Backend returns ProductListingResponse inside { success, data } envelope.
+
+  ↓
+
+Step 8 — Response received by frontend.
+  productSearch.service.ts extracts envelope.data.items (ProductListingItem[]).
+  ProductSearchEngine passes them to SearchSuggestionMapper.fromProducts().
+  Mapper converts each item to SearchSuggestion:
+      { id: product.id, type: 'product', title: product.name,
+        description: product.short_description, image: undefined, original: product }
+  SearchBar receives SearchSuggestion[].
+  SearchBar.setListingResults(results.slice(0, 20)).
+  listingLoading = false.
+
+  ↓
+
+Step 9 — Listing renders inside the sidebar.
+  SearchListing receives results[], loading=false, query=listingQuery.
+  Header shows count: "N found".
+  Subheader shows the query string in quotes.
+  Each SearchListingCard renders:
+    - 64x64 thumbnail area: if result.image is set → <img />;
+      if result.image is undefined → <ImageIcon /> placeholder.
+    - Title: result.title (product name), semibold, truncated.
+    - Description: result.description (short_description), 2-line clamp.
+  Clicking a card fires handleListingSelect(suggestion).
+  For product type: logs selection, updates query text. No navigation.
+  (Phase 8: will open Product Detail panel.)
+
+  ↓
+
+Step 10 — User types again while listing is visible.
+  handleQueryChange detects searchView === 'listing' and switches to 'refining'.
+  The listing stays visible behind the new autocomplete dropdown.
+  A new autocomplete request fires via the debounce effect.
+  When the user presses Enter again, a new listing request replaces the old one.
+
+
+================================================================================
+4. FILE BY FILE ANALYSIS
+================================================================================
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/types/SearchMode.ts
+------------------------------------------------------------------------
+Purpose:
+  Defines the SearchMode union type.
+
+Responsibility:
+  Single source of truth for the two supported search workflows.
+  Prevents magic strings throughout the codebase.
+
+Main Exports:
+  type SearchMode = "place" | "product"
+
+Interface:
+  None (type alias only).
+
+Communicates With:
+  SearchBar.tsx — holds searchMode state as SearchMode.
+  SearchModeSwitcher.tsx — receives SearchMode as value prop.
+  SearchEngineAdapter.ts — receives SearchMode in constructor.
+
+Why This File Exists:
+  Centralises the two valid modes so every consumer uses the same type.
+  If a third mode ("event", "venue") is added, only this file changes
+  plus the adapter constructor.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/types/SearchSuggestion.ts
+------------------------------------------------------------------------
+Purpose:
+  Defines the frozen SearchSuggestion DTO — the ONLY data shape
+  that any UI component in the search feature ever touches.
+
+Responsibility:
+  Acts as the anti-corruption boundary between search providers and UI.
+  Both place results and product results must be converted to this shape
+  before entering the presentation layer.
+
+Main Exports:
+  interface SearchSuggestion {
+    id: string;
+    type: 'place' | 'product';
+    title: string;
+    description: string;
+    image?: string;
+    location?: { lat: number; lng: number };
+    original: unknown;
+  }
+
+Field Explanations:
+  id          — stable React key; for products = product.id; for places = place.id
+  type        — determines icon: 'place' → MapPin, 'product' → ShoppingBag
+  title       — primary display text; for products = product.name
+  description — secondary display text; for products = short_description
+  image       — optional thumbnail URL; null becomes undefined at mapper level
+  location    — coordinates; present for places only; absent for products
+  original    — raw provider object (PlaceSuggestion or ProductListingItem);
+                stored for Phase 8 callbacks that need provider-specific data
+
+Why This File Exists:
+  The frozen DTO guarantee means SearchBar, SearchResult, SearchListing, and
+  SearchListingCard never need to import or know about Map4D or Meilisearch
+  types. Adding a new search provider only requires implementing SearchEngine
+  and writing one new mapper method.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/services/SearchEngine.ts
+------------------------------------------------------------------------
+Purpose:
+  Defines the SearchEngine interface — the Dependency Inversion boundary.
+
+Responsibility:
+  Establishes the contract that every concrete search engine must honour.
+  Labelled "ARCHITECTURE FREEZE (Phase 7.4)".
+
+Main Exports:
+  interface SearchEngine {
+    autocomplete(query, locationBias?, signal?): Promise<SearchSuggestion[]>;
+    search(query, locationBias?, signal?): Promise<SearchSuggestion[]>;
+  }
+
+Important Notes:
+  Both methods always return SearchSuggestion[] — never provider-native types.
+  locationBias is passed per-call (not in constructor) so the adapter remains
+  stateless and SearchBar does not need to recreate the adapter on map pan.
+
+Communicates With:
+  SearchEngineAdapter.ts — holds a private engine: SearchEngine.
+  Map4DSearchEngine.ts — implements this interface.
+  ProductSearchEngine.ts — implements this interface.
+
+Why This File Exists:
+  Without this interface the SearchBar would need to import
+  ProductSearchEngine and Map4DSearchEngine directly, coupling UI to
+  infrastructure. The interface enables the Open/Closed Principle: new
+  engines can be added without modifying SearchBar or SearchEngineAdapter.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/services/SearchEngineAdapter.ts
+------------------------------------------------------------------------
+Purpose:
+  Strategy Pattern gateway — the ONLY search class SearchBar imports.
+
+Responsibility:
+  1. Accept a SearchMode in the constructor.
+  2. Instantiate the correct concrete SearchEngine.
+  3. Expose autocomplete() and search() that delegate to the engine.
+  4. Forward locationBias per-call (adapter is stateless between calls).
+
+Main Exports:
+  class SearchEngineAdapter {
+    constructor(mode: SearchMode)
+    autocomplete(query, locationBias?, signal?): Promise<SearchSuggestion[]>
+    search(query, locationBias?, signal?): Promise<SearchSuggestion[]>
+  }
+
+Constructor Logic:
+  if (mode === 'place')   → this.engine = new Map4DSearchEngine()
+  else                    → this.engine = new ProductSearchEngine()
+
+Communicates With:
+  SearchBar.tsx — SearchBar creates the adapter via useMemo([searchMode]).
+  ProductSearchEngine.ts — instantiated when mode = 'product'.
+  Map4DSearchEngine.ts — instantiated when mode = 'place'.
+
+Why This File Exists:
+  If this file did not exist, SearchBar would contain:
+    if (mode === 'product') { ProductSearchService.autocomplete(...) }
+    else { SearchService.searchPlaces(...) }
+  That would couple the top-level UI to infrastructure. The adapter
+  prevents that coupling entirely.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/services/ProductSearchEngine.ts
+------------------------------------------------------------------------
+Purpose:
+  Concrete SearchEngine implementation for the product search workflow.
+
+Responsibility:
+  1. Implement SearchEngine interface.
+  2. Call ProductSearchService for HTTP communication.
+  3. Pass results through SearchSuggestionMapper.
+  4. Silently ignore locationBias (products have no geographic component).
+
+Main Exports:
+  class ProductSearchEngine implements SearchEngine {
+    async autocomplete(query, _locationBias?, signal?): Promise<SearchSuggestion[]>
+    async search(query, _locationBias?, signal?): Promise<SearchSuggestion[]>
+  }
+
+autocomplete() flow:
+  Guard: if (!query.trim()) return [].
+  Calls ProductSearchService.autocomplete(query, signal) → AutocompleteItem[].
+  Calls SearchSuggestionMapper.fromAutocompleteItems(items) → SearchSuggestion[].
+
+search() flow:
+  Guard: if (!query.trim()) return [].
+  Calls ProductSearchService.search(query, signal) → ProductListingItem[].
+  Calls SearchSuggestionMapper.fromProducts(items) → SearchSuggestion[].
+
+Communicates With:
+  ProductSearchService (frontend) — HTTP communication layer.
+  SearchSuggestionMapper — converts DTOs to SearchSuggestion.
+  SearchEngine interface — contract it implements.
+  SearchEngineAdapter — instantiated by the adapter.
+
+Why This File Exists:
+  Keeps the HTTP knowledge (ProductSearchService) and the mapping knowledge
+  (SearchSuggestionMapper) out of both SearchEngineAdapter and SearchBar.
+  This is the one class that coordinates the two lower-level classes.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/services/Map4DSearchEngine.ts
+------------------------------------------------------------------------
+Purpose:
+  Concrete SearchEngine implementation for destination (place) search.
+
+Responsibility:
+  Delegate to SearchService (Map4D backend proxy) and convert
+  PlaceSuggestion[] to SearchSuggestion[] via SearchSuggestionMapper.
+  locationBias IS used (map centre point improves place relevance).
+
+Main Exports:
+  class Map4DSearchEngine implements SearchEngine
+
+Communicates With:
+  SearchService (frontend/src/services/map4d/search.service.ts)
+  SearchSuggestionMapper.fromPlaces()
+  SearchEngine interface
+
+Why This File Exists:
+  Symmetrical counterpart to ProductSearchEngine. Both engines implement the
+  same interface so the adapter can swap between them transparently.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/services/SearchSuggestionMapper.ts
+------------------------------------------------------------------------
+Purpose:
+  The ONLY place where provider-specific types are converted to
+  SearchSuggestion. Labelled "ARCHITECTURE FREEZE (Phase 7.4)".
+
+Responsibility:
+  Pure static functions. No React. No state. No side effects. No network.
+  One direction only: provider DTO → SearchSuggestion.
+
+Main Exports:
+  class SearchSuggestionMapper {
+    static fromPlace(place: PlaceSuggestion): SearchSuggestion
+    static fromAutocompleteItem(item: AutocompleteItem): SearchSuggestion
+    static fromProduct(product: ProductListingItem): SearchSuggestion
+    static fromPlaces(places: PlaceSuggestion[]): SearchSuggestion[]
+    static fromAutocompleteItems(items: AutocompleteItem[]): SearchSuggestion[]
+    static fromProducts(products: ProductListingItem[]): SearchSuggestion[]
+  }
+
+Mapping: fromAutocompleteItem(item)
+  id          = item.name   (name is unique in dropdown)
+  type        = 'product'
+  title       = item.name
+  description = ''          (autocomplete endpoint has no description)
+  original    = item
+
+Mapping: fromProduct(product)
+  id          = product.id
+  type        = 'product'
+  title       = product.name
+  description = product.short_description ?? ''
+  image       = product.image ?? undefined  (null becomes undefined)
+  original    = product
+
+Communicates With:
+  ProductSearchEngine.ts — calls fromAutocompleteItems() and fromProducts().
+  Map4DSearchEngine.ts — calls fromPlaces().
+  SearchSuggestion type — the output shape.
+
+Why This File Exists:
+  Centralising the mapping logic means that if a backend DTO field is
+  renamed, only this file changes. UI components (SearchResult,
+  SearchListing, SearchListingCard) never need updating.
+
+------------------------------------------------------------------------
+FILE: frontend/src/services/meilisearch/productSearch.service.ts
+------------------------------------------------------------------------
+Purpose:
+  HTTP client for the Product Search backend endpoints.
+  Hides all network fetch logic from the engine layer.
+
+Responsibility:
+  - Build and execute fetch() calls.
+  - Unwrap the { success, data } response envelope.
+  - Support AbortSignal for request cancellation.
+  - Return typed arrays (AutocompleteItem[] or ProductListingItem[]).
+
+Main Exports:
+  interface AutocompleteItem { name: string }
+  interface ProductListingItem { id, name, short_description, image }
+  interface ProductListingResponse { query, processingTimeMs, estimatedTotalHits, items }
+  class ProductSearchService {
+    static async autocomplete(query, signal?): Promise<AutocompleteItem[]>
+    static async search(query, signal?, limit?, offset?): Promise<ProductListingItem[]>
+  }
+
+Environment:
+  const API_URL = import.meta.env.VITE_BACKEND_URL
+
+autocomplete() endpoint:
+  GET ${API_URL}/api/products/autocomplete?query=${encodeURIComponent(query)}
+
+search() endpoint:
+  GET ${API_URL}/api/products/search?query=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}
+
+Error handling:
+  If response.ok is false → throws Error.
+  If AbortSignal aborts → the fetch rejects with AbortError, propagated up.
+
+Why This File Exists:
+  Keeps the HTTP fetch concern separated from the engine and mapper.
+  If the backend URL or response envelope ever changes, only this file
+  changes — not the engine, not the mapper, not the UI.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/components/SearchBar.tsx
+------------------------------------------------------------------------
+Purpose:
+  The top-level orchestrator component for all search behavior in the app.
+  The only component that manages search state.
+
+Responsibility:
+  - Manage query string, debouncedQuery, suggestions, listingResults,
+    listingLoading, searchMode, searchView.
+  - Build SearchEngineAdapter via useMemo([searchMode]).
+  - Fire autocomplete requests on debouncedQuery change.
+  - Fire full search requests on Enter key.
+  - Render SearchModeSwitcher, SearchResult (dropdown), and SearchListing.
+  - Handle AbortController lifecycle for autocomplete requests.
+
+Key State:
+  query (string)             — controlled input value
+  debouncedQuery (string)    — debounced query (350 ms delay)
+  suggestions (SearchSuggestion[]) — autocomplete dropdown items
+  searchMode (SearchMode)    — 'place' | 'product'
+  searchView (SearchView)    — 'idle' | 'autocomplete' | 'listing' | 'refining' | 'detail'
+  listingResults (SearchSuggestion[]) — full search results
+  listingLoading (boolean)   — spinner flag
+  listingQuery (string)      — the query string used for current listing
+
+SearchView States:
+  'idle'        — no search active, no sidebar, no dropdown
+  'autocomplete'— user is typing, dropdown visible
+  'listing'     — Enter was pressed, sidebar shows full results
+  'refining'    — user types again while listing is visible
+  'detail'      — POI detail card is visible
+
+AbortController Usage (detailed in Section 11).
+
+Communicates With:
+  SearchEngineAdapter — created per searchMode; called for autocomplete and search.
+  SearchModeSwitcher — receives value={searchMode} onChange={setSearchMode}.
+  SearchResult — receives suggestions[], onSelectSuggestion.
+  SearchListing — receives results[], loading, query, onSelectItem.
+
+Exports:
+  export const SearchBar: React.FC<SearchBarProps>
+  export default SearchBar
+
+Why This File Exists:
+  Centralises all search state so child components remain pure/presentational.
+  SearchBar is the single point of truth for what the user has typed and what
+  results are available.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/components/SearchModeSwitcher.tsx
+------------------------------------------------------------------------
+Purpose:
+  Presentation-only toggle between Place Search and Product Search.
+
+Responsibility:
+  Render two mode buttons. Highlight active mode. Fire onChange prop.
+  No API calls. No state management. No business logic.
+
+Main Exports:
+  const SearchModeSwitcher: React.FC<SearchModeSwitcherProps>
+
+Props:
+  value: SearchMode       — the currently active mode
+  onChange: (mode) => void — called when user clicks a mode button
+
+Modes Defined:
+  MODES constant:
+    { mode: 'place',   label: 'Place Search',   Icon: MapPin      }
+    { mode: 'product', label: 'Product Search', Icon: ShoppingBag }
+
+Accessibility:
+  role="tablist", role="tab", aria-selected on each button.
+
+Why This File Exists:
+  Isolates the visual toggle into a pure UI component that knows only the
+  SearchMode type. SearchBar handles the mode state; this component only
+  renders and fires events.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/components/SearchResult.tsx
+------------------------------------------------------------------------
+Purpose:
+  The autocomplete dropdown — renders suggestions while the user types.
+
+Responsibility:
+  Display SearchSuggestion[] items in a Command (cmdk) palette.
+  Choose icon by suggestion.type: 'place' → MapPin, 'product' → ShoppingBag.
+  Fire onSelectSuggestion when user clicks or keyboard-selects an item.
+
+Main Exports:
+  export const SearchResult: React.FC<SearchResultProps>
+
+Props:
+  suggestions: SearchSuggestion[]
+  onSelectSuggestion: (suggestion: SearchSuggestion) => void
+
+Rendering:
+  Positioned absolute, top-full (below the input), z-50 (above map).
+  Uses shadcn/ui Command palette components: Command, CommandList,
+  CommandGroup, CommandItem, CommandEmpty.
+  shouldFilter={false} — filtering is handled by the backend/engine,
+  not by cmdk's built-in filter.
+  Each item shows: Icon | title (bold) | description (muted, conditional).
+
+Why This File Exists:
+  Pure UI — zero knowledge of Map4D or Meilisearch. Works for both modes
+  because it depends only on SearchSuggestion.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/components/SearchListing.tsx
+------------------------------------------------------------------------
+Purpose:
+  The full search results listing panel inside the sidebar Sheet.
+
+Responsibility:
+  Render three states: loading (spinner), empty (SearchX icon + message),
+  results (list of SearchListingCard). Show result count and query text
+  in the header.
+
+Main Exports:
+  export const SearchListing: React.FC<SearchListingProps>
+
+Props:
+  results: SearchSuggestion[]
+  loading: boolean
+  query: string
+  onSelectItem: (result: SearchSuggestion) => void
+
+Rendering:
+  Header: "Results" h2 + "{N} found" badge + query string in quotes.
+  Body (scrollable): Loader2 spinner | SearchX empty | list of cards.
+  Each card is rendered via SearchListingCard.
+
+Why This File Exists:
+  Works identically for both Place Search and Product Search because it
+  depends only on SearchSuggestion. The mode-specific differences are
+  handled upstream by the engine/mapper.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/components/SearchListingCard.tsx
+------------------------------------------------------------------------
+Purpose:
+  Individual card component for one search result in the listing panel.
+
+Responsibility:
+  Render thumbnail, title, description for one SearchSuggestion.
+  Handle image fallback: if result.image is undefined → ImageIcon placeholder.
+  Fire onSelect when the button is clicked.
+
+Main Exports:
+  export const SearchListingCard: React.FC<SearchListingCardProps>
+
+Props:
+  result: SearchSuggestion
+  onSelect: (result: SearchSuggestion) => void
+
+Rendering:
+  <button> (accessible, w-full, hover:bg-muted).
+  Left side: 64x64 rounded div:
+    If result.image → <img src={result.image} object-cover />.
+    Else → <ImageIcon className="h-6 w-6 text-muted-foreground/40" />.
+  Right side (text column):
+    <p> title — text-sm font-semibold truncate.
+    <p> description — text-xs text-muted-foreground line-clamp-2 (conditional).
+
+Why This File Exists:
+  Isolates the card rendering so SearchListing stays clean. The image
+  fallback pattern means Product Search works even before product images
+  are added to the Meilisearch index (image field is currently null).
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/hooks/useProductSearch.ts
+------------------------------------------------------------------------
+Purpose:
+  React hook wrapper around ProductSearchService.
+  Present for architectural completeness and backward compatibility.
+  NOTE: The current search flow does NOT use this hook directly —
+  SearchBar uses SearchEngineAdapter → ProductSearchEngine →
+  ProductSearchService. This hook exists for components that might
+  call ProductSearchService directly without going through the adapter.
+
+Main Exports:
+  interface UseProductSearch { autocomplete(), search() }
+  function useProductSearch(): UseProductSearch
+
+Why This File Exists:
+  Provides a React-hook API for ProductSearchService so future components
+  (e.g. a standalone product listing page) can use memoized callbacks
+  without importing a static class directly.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/hooks/usePlaceSearch.ts
+------------------------------------------------------------------------
+Purpose:
+  React hook wrapper around SearchService (Map4D place search).
+  Symmetric counterpart to useProductSearch.
+
+Main Exports:
+  interface UsePlaceSearch { autocomplete(), search() }
+  function usePlaceSearch(): UsePlaceSearch
+
+Why This File Exists:
+  Same rationale as useProductSearch — decouples React components from
+  the static SearchService class via useCallback-memoised functions.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/constants/layout.ts
+------------------------------------------------------------------------
+Purpose:
+  Single source of truth for Search UI layout measurements.
+
+Main Exports:
+  SEARCH_PANEL_WIDTH — Tailwind width classes
+  SEARCH_LAYOUT — topOffset, gap, searchBarHeight
+  SEARCH_BAR_TOP — Tailwind top class for the bar
+  SEARCH_SIDEBAR_TOP — Tailwind top class for the sidebar
+  SEARCH_LEFT — shared left offset class
+  SEARCH_BAR_Z / SEARCH_SIDEBAR_Z — z-index layer classes
+
+Why This File Exists:
+  Prevents hard-coded layout values scattered across component files.
+
+------------------------------------------------------------------------
+FILE: backend/src/routes/productSearch.routes.ts
+------------------------------------------------------------------------
+Purpose:
+  Express Router that wires product search HTTP routes to their controllers.
+
+Responsibility:
+  GET /search      → ProductSearchController.search
+  GET /autocomplete → ProductAutocompleteController.autocomplete
+
+The router is mounted at /api/products in backend/src/index.ts.
+Final effective paths:
+  GET /api/products/search?query=...
+  GET /api/products/autocomplete?query=...
+
+Communicates With:
+  ProductSearchController
+  ProductAutocompleteController
+  backend/src/index.ts — where app.use('/api/products', productSearchRouter)
+
+Why This File Exists:
+  Separates the product search routing concern from the general product
+  CRUD routes (product.routes.ts → /by-poi/:poiId). Both routers are
+  mounted at the same /api/products prefix.
+
+------------------------------------------------------------------------
+FILE: backend/src/controllers/ProductSearchController.ts
+------------------------------------------------------------------------
+Purpose:
+  HTTP handler for GET /api/products/search.
+
+Responsibility:
+  1. Extract query, limit, offset from req.query.
+  2. Validate query is non-empty → 400 if missing.
+  3. Delegate to productSearchService.search(query, limit, offset).
+  4. Return { success: true, data: result } on success.
+  5. Return { success: false, message } on error with 500.
+
+Main Exports:
+  class ProductSearchController { async search(req, res) }
+
+Validation:
+  if (!query) → res.status(400).json({ success: false, message: "Query is required." })
+
+Defaults:
+  limit  = 20
+  offset = 0
+
+Error Logging:
+  console.error("[ProductSearchController] search error:", error)
+
+Why This File Exists:
+  Separates HTTP concerns from search business logic. The controller
+  does not know how Meilisearch works — it only validates HTTP params
+  and delegates.
+
+------------------------------------------------------------------------
+FILE: backend/src/controllers/ProductAutocompleteController.ts
+------------------------------------------------------------------------
+Purpose:
+  HTTP handler for GET /api/products/autocomplete.
+
+Responsibility:
+  1. Extract query, limit from req.query.
+  2. Validate query is non-empty → 400 if missing.
+  3. Delegate to productSearchService.autocomplete(query, limit).
+  4. Return { success: true, data: result } on success.
+  5. Return { success: false, message } on error with 500.
+
+Main Exports:
+  class ProductAutocompleteController { async autocomplete(req, res) }
+
+Defaults:
+  limit = 5  (intentionally small — dropdown shows 5 items max)
+
+Why This File Exists:
+  Separate controller for the lighter autocomplete endpoint. Keeps the
+  autocomplete logic isolated from the heavier full search logic.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/services/ProductSearchService.ts
+------------------------------------------------------------------------
+Purpose:
+  Anti-corruption layer between Meilisearch and the REST API.
+
+Responsibility:
+  1. Resolve the shared Meilisearch client.
+  2. Query the "products" index with appropriate fields.
+  3. Map raw ProductSearchDocument hits to typed DTOs (ProductListingItem[],
+     AutocompleteItem[]).
+  4. Return typed response envelopes (ProductListingResponse, AutocompleteResponse).
+  Raw Meilisearch documents NEVER escape this class.
+
+Main Exports:
+  class ProductSearchService {
+    async search(query, limit, offset): Promise<ProductListingResponse>
+    async autocomplete(query, limit): Promise<AutocompleteResponse>
+    async getById(id): Promise<never>  // Not implemented (Phase 8)
+  }
+
+search() detail:
+  Queries index with attributesToRetrieve: ["id", "name", "short_description"].
+  image is hardcoded null until image URLs are added to the index.
+  Maps each hit to { id, name, short_description, image: null }.
+
+autocomplete() detail:
+  Queries index with attributesToRetrieve: ["name"]. Minimal payload.
+  Maps each hit to { name }.
+
+Communicates With:
+  meiliClientPromise — awaited to get the Meilisearch JS client.
+  INDEXES.PRODUCTS — index name constant ('products').
+  AutocompleteItem, AutocompleteResponse — output types.
+  ProductListingItem, ProductListingResponse — output types.
+  ProductSearchDocument — internal type for the raw hits.
+
+Why This File Exists:
+  If Meilisearch's response shape ever changes, only this file changes.
+  The controller and the frontend service remain unaffected.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/client.ts
+------------------------------------------------------------------------
+Purpose:
+  Creates and exports the singleton Meilisearch client promise.
+
+Responsibility:
+  Load MEILISEARCH_HOST and MEILISEARCH_ADMIN_KEY from env.
+  Throw at startup if either is missing.
+  Use dynamic import() to load the ESM meilisearch package from CJS.
+  Export meiliClientPromise — shared across all consumers.
+
+Main Exports:
+  export const meiliClientPromise: Promise<Meilisearch>
+
+Environment Variables:
+  MEILISEARCH_HOST        — e.g. http://localhost:7700
+  MEILISEARCH_ADMIN_KEY   — admin API key
+
+Why This File Exists:
+  Centralises the CJS→ESM interop for the meilisearch package.
+  The promise is created once at module load and reused.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/indexes.ts
+------------------------------------------------------------------------
+Purpose:
+  Single source of truth for Meilisearch index names.
+
+Main Exports:
+  export const INDEXES = { PRODUCTS: 'products' } as const
+  export type IndexName = (typeof INDEXES)[keyof typeof INDEXES]
+
+Why This File Exists:
+  Prevents the string literal 'products' from being scattered across
+  multiple files. If the index is renamed, only this file changes.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/documents/ProductTypeDocument.ts
+------------------------------------------------------------------------
+Purpose:
+  TypeScript interface representing the Meilisearch document schema.
+
+Main Exports:
+  interface ProductSearchDocument {
+    id: string;
+    slug: string;
+    name: string;
+    name_en: string;
+    danh_muc: string;
+    short_description: string;
+    overview: string;
+    cong_dung: string[];
+    huong_dan_su_dung: string[];
+    diem_noi_bat: unknown[];
+    lich_su_hinh_thanh: unknown[];
+  }
+
+Field Explanations:
+  id                  — Meilisearch primary key
+  slug                — URL-safe identifier
+  name                — Vietnamese product name
+  name_en             — English product name
+  danh_muc            — product category (filterable)
+  short_description   — one-line description (shown in listing)
+  overview            — full description (for Phase 8 product detail)
+  cong_dung           — uses / applications (array)
+  huong_dan_su_dung   — usage instructions (array)
+  diem_noi_bat        — highlights / notable points
+  lich_su_hinh_thanh  — formation / history
+
+Why This File Exists:
+  Provides a typed reference for the full Meilisearch document shape.
+  Only the backend service uses this — the frontend never sees it.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/models/AutocompleteItem.ts
+------------------------------------------------------------------------
+Purpose:
+  REST DTO for one item in the autocomplete response.
+
+Main Exports:
+  interface AutocompleteItem { name: string }
+
+Why This File Exists:
+  Intentionally minimal — the autocomplete endpoint returns only the name
+  for performance. The full product data is fetched separately on search.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/models/AutocompleteResponse.ts
+------------------------------------------------------------------------
+Purpose:
+  REST envelope for GET /api/products/autocomplete.
+
+Main Exports:
+  interface AutocompleteResponse {
+    query: string;
+    processingTimeMs: number;
+    estimatedTotalHits: number;
+    items: AutocompleteItem[];
+  }
+
+Why This File Exists:
+  Provides a typed response shape that matches the Meilisearch result
+  envelope but strips internal Meilisearch fields.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/models/ProductListingItem.ts
+------------------------------------------------------------------------
+Purpose:
+  REST DTO for one product in the full search response.
+
+Main Exports:
+  interface ProductListingItem {
+    id: string;
+    name: string;
+    short_description: string;
+    image: string | null;
+  }
+
+Marked as Anti-Corruption Layer:
+  Raw ProductSearchDocument must never be serialised directly.
+  This DTO is the ONLY shape the /api/products/search endpoint exposes.
+
+image field:
+  Currently always null. The DTO slot is reserved so adding images later
+  is a one-line change in ProductSearchService.search().
+
+Why This File Exists:
+  Decouples the REST API contract from the internal Meilisearch document
+  shape. If Meilisearch adds a new field, this DTO stays stable.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/models/ProductListingResponse.ts
+------------------------------------------------------------------------
+Purpose:
+  REST envelope for GET /api/products/search.
+
+Main Exports:
+  interface ProductListingResponse {
+    query: string;
+    processingTimeMs: number;
+    estimatedTotalHits: number;
+    items: ProductListingItem[];
+  }
+
+Shared Contract:
+  backend → ProductSearchController (returns this from service).
+  frontend → productSearch.service.ts (parses this from the envelope).
+
+Why This File Exists:
+  Defines the typed contract shared by both sides of the HTTP boundary.
+  Both the backend service and the frontend client know this shape.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/models/SearchRequest.ts
+------------------------------------------------------------------------
+Purpose:
+  TypeScript interface for the internal search parameters object.
+
+Main Exports:
+  interface SearchRequest {
+    query: string;
+    limit?: number;
+    offset?: number;
+    filter?: string;
+    sort?: string[];
+  }
+
+Note:
+  This model defines future-ready parameters (filter, sort) that are not
+  yet used by ProductSearchService but document the intended API surface.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/models/SearchHit.ts
+------------------------------------------------------------------------
+Purpose:
+  Lightweight interface for a raw search hit with only name and short_description.
+
+Main Exports:
+  interface SearchHit { name: string; short_description: string; }
+
+Note:
+  Used as a supplementary type reference. ProductSearchService uses
+  ProductSearchDocument as the generic parameter in the Meilisearch search call.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/types/SearchResult.ts
+------------------------------------------------------------------------
+Purpose:
+  Interface that wraps ProductSearchDocument hits in a typed structure.
+
+Main Exports:
+  interface SearchResult {
+    hits: ProductSearchDocument[];
+    estimatedTotalHits: number;
+    limit: number;
+    offset: number;
+    processingTimeMs: number;
+    query: string;
+  }
+
+Why This File Exists:
+  Internal type reference for the raw Meilisearch response shape before
+  mapping to DTOs.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/mappers/ProductTypeMapper.ts
+------------------------------------------------------------------------
+Purpose:
+  Maps raw Supabase product_types rows to Meilisearch ProductSearchDocument
+  objects for indexing.
+
+Responsibility:
+  Used only during the indexing pipeline (sync script), not during search.
+  Normalises and trims field values. Handles missing/null fields with defaults.
+
+Main Exports:
+  class ProductTypeMapper {
+    static toSearchDocument(product: any): ProductSearchDocument
+  }
+
+Field normalisation:
+  slug → trimmed, lowercased
+  huong_dan_su_dung / cong_dung → ensured arrays (default [])
+  all string fields → coalesced to '' if null
+
+Why This File Exists:
+  Separates the Supabase→Meilisearch transformation from the indexing
+  service (ProductIndexService). The mapper is pure data transformation.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/repositories/ProductTypeRepository.ts
+------------------------------------------------------------------------
+Purpose:
+  Data access layer for the Supabase "poi.product_types" table.
+
+Responsibility:
+  Used only by ProductIndexService during the indexing sync pipeline.
+  Not involved in live search — search queries go directly to Meilisearch.
+
+Main Exports:
+  class ProductTypeRepository {
+    async findAll(): Promise<any[]>
+    async findById(id: string): Promise<any>
+  }
+
+findAll():
+  Queries poi.product_types WHERE is_active = true.
+  Returns all active products for indexing.
+
+Why This File Exists:
+  Separates Supabase data access from the indexing service.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/services/ProductIndexService.ts
+------------------------------------------------------------------------
+Purpose:
+  Orchestrates the complete product indexing pipeline.
+
+Responsibility:
+  Used only by the sync script (sync-product-types.ts), not during live search.
+  1. createIndexIfNotExists(): checks if "products" index exists; creates it
+     with primaryKey: "id" if not.
+  2. applySettings(): applies PRODUCTS_SETTINGS to the index.
+  3. indexAllDocuments(): fetches all active products from Supabase via
+     ProductTypeRepository, maps them via ProductTypeMapper, bulk-adds them
+     to Meilisearch via addDocuments().
+
+Why This File Exists:
+  Separates the indexing concern from the search concern. Search and
+  indexing are entirely independent operations.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/scripts/sync-product-types.ts
+------------------------------------------------------------------------
+Purpose:
+  Standalone Node.js script for populating the Meilisearch index.
+
+Responsibility:
+  Runs once (or on demand) to sync all active product types from Supabase
+  into Meilisearch. Not invoked during the HTTP server lifecycle.
+
+Execution:
+  1. createIndexIfNotExists()
+  2. applySettings()
+  3. indexAllDocuments()
+  process.exit(0) on success; process.exit(1) on error.
+
+Why This File Exists:
+  Provides a CLI entry point for the admin team to refresh the search index
+  after product data changes in Supabase.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/settings/products.settings.ts
+------------------------------------------------------------------------
+Purpose:
+  Defines the Meilisearch index configuration for the "products" index.
+
+Main Exports:
+  interface ProductIndexSettings { ... }
+  export const PRODUCTS_SETTINGS: ProductIndexSettings
+
+Settings Applied:
+
+  searchableAttributes:
+    ["name", "name_en", "danh_muc", "short_description"]
+    Search hits in these fields. Name and name_en are checked first
+    (higher rank in Meilisearch attribute ranking).
+
+  displayedAttributes:
+    ["slug", "name", "danh_muc", "short_description", "overview",
+     "diem_noi_bat", "huong_dan_su_dung", "cong_dung", "lich_su_hinh_thanh"]
+    Fields that are returned in search hits.
+
+  filterableAttributes:
+    ["danh_muc"]
+    Enables filtering by category in future phases.
+
+  rankingRules:
+    ["words", "typo", "proximity", "sort", "attributeRank",
+     "wordPosition", "exactness"]
+
+  synonyms:
+    "cafe" ↔ "coffee" ↔ "cà phê"
+    "hotel" ↔ "khách sạn"
+    "bridge" ↔ "cầu"
+    "market" ↔ "chợ"
+
+  typoTolerance:
+    enabled: true
+    oneTypo: 4 chars minimum, twoTypos: 8 chars minimum
+    disableOnWords: ["OCOP"]  (exact-only for the OCOP certification term)
+
+  stopWords:
+    Vietnamese function words: là, và, ở, của, các, những, được, cho,
+    với, trong, trên, tại, đến, từ.
+
+  dictionary:
+    Custom tokenizer entries: "Đà Nẵng", "Hội An", "Huế", Da Nang district
+    names, landmark names, "OCOP".
+
+Why This File Exists:
+  Centralises all Meilisearch tuning parameters so they can be reviewed,
+  adjusted, and re-applied without touching service or controller code.
+
+------------------------------------------------------------------------
+FILE: backend/src/meilisearch/applySettings.ts
+------------------------------------------------------------------------
+Purpose:
+  Standalone function to apply PRODUCTS_SETTINGS to the Meilisearch index.
+
+Main Exports:
+  async function applyAllSettings(): Promise<void>
+
+Why This File Exists:
+  Provides a reusable function that can be called from startup scripts
+  or admin tooling to refresh index settings after updates.
+
+------------------------------------------------------------------------
+FILE: backend/src/index.ts
+------------------------------------------------------------------------
+Purpose:
+  Express application entry point.
+
+Route Registration:
+  app.use('/api/map4d', map4dRouter)
+  app.use('/api/pois', poiRouter)
+  app.use('/api/products', productRouter)        ← /by-poi/:poiId
+  app.use('/api/products', productSearchRouter)  ← /search, /autocomplete
+
+Both productRouter and productSearchRouter mount at /api/products.
+Express resolves routes by order and path — they do not conflict because
+productRouter handles /by-poi/:poiId and productSearchRouter handles
+/search and /autocomplete.
+
+
+================================================================================
+5. FRONTEND FLOW
+================================================================================
+
+LAYER 1 — SearchBar.tsx
+  Owns all search state. Debounces user input (350 ms). Creates
+  SearchEngineAdapter via useMemo. Fires autocomplete() on debouncedQuery
+  change. Fires search() on Enter key. Renders all child components.
+
+  ↓
+
+LAYER 2 — SearchMode ('product')
+  A simple string type: "place" | "product".
+  When searchMode = 'product', the adapter creates a ProductSearchEngine.
+  When searchMode = 'place', the adapter creates a Map4DSearchEngine.
+  Mode switch clears all stale results and resets to idle view.
+
+  ↓
+
+LAYER 3 — SearchEngineAdapter
+  Receives searchMode in constructor (via useMemo).
+  Exposes: autocomplete(query, locationBias?, signal?)
+           search(query, locationBias?, signal?)
+  Both methods return Promise<SearchSuggestion[]> regardless of mode.
+  This is the ONLY search class SearchBar imports.
+
+  ↓
+
+LAYER 4 — ProductSearchEngine
+  Implements SearchEngine interface.
+  autocomplete() → calls ProductSearchService.autocomplete() → mapper.
+  search()       → calls ProductSearchService.search() → mapper.
+  locationBias is accepted but intentionally ignored (products are not geo-tagged).
+
+  ↓
+
+LAYER 5 — ProductSearchService (frontend)
+  Static class. No React. No state.
+  autocomplete(): GET /api/products/autocomplete?query=...
+  search():       GET /api/products/search?query=...&limit=...&offset=...
+  Both methods accept AbortSignal for cancellation.
+  Returns AutocompleteItem[] or ProductListingItem[].
+
+  ↓
+
+LAYER 6 — SearchSuggestionMapper
+  Static class. Pure functions. No side effects.
+  fromAutocompleteItems(items) → SearchSuggestion[] (for dropdown)
+  fromProducts(products)       → SearchSuggestion[] (for listing)
+  This is the ONLY place where provider types become SearchSuggestion.
+
+  ↓
+
+LAYER 7 — SearchSuggestion DTO
+  The frozen universal type consumed by all UI layers.
+  { id, type:'product', title, description, image?, location:absent, original }
+
+  ↓  (two paths)
+
+LAYER 8A — SearchResult (Dropdown)
+  Receives SearchSuggestion[] from suggestions state.
+  Renders a Command palette below the input.
+  ShoppingBag icon for product suggestions.
+  Fires onSelectSuggestion when user selects.
+
+  ↓
+
+LAYER 8B — SearchListing (Full Listing Panel)
+  Receives SearchSuggestion[] from listingResults state.
+  Renders inside the sidebar Sheet (left side panel).
+  Shows loading spinner, empty state, or list of cards.
+
+  ↓
+
+LAYER 9 — SearchListingCard
+  Receives one SearchSuggestion.
+  Renders 64x64 thumbnail (image or placeholder) + title + description.
+  Fires onSelect when clicked.
+
+
+================================================================================
+6. BACKEND FLOW
+================================================================================
+
+CONTROLLER LAYER
+  GET /api/products/search?query=...&limit=20&offset=0
+  → ProductSearchController.search(req, res)
+
+  Validation:
+    query = String(req.query.query ?? "").trim()
+    if (!query) → 400 { success: false, message: "Query is required." }
+    limit  = Number(req.query.limit ?? 20)
+    offset = Number(req.query.offset ?? 0)
+
+  Delegates to:
+    productSearchService.search(query, limit, offset)
+
+  ↓
+
+  GET /api/products/autocomplete?query=...&limit=5
+  → ProductAutocompleteController.autocomplete(req, res)
+
+  Validation:
+    query = String(req.query.query ?? "").trim()
+    if (!query) → 400 { success: false, message: "Query is required." }
+    limit  = Number(req.query.limit ?? 5)
+
+  Delegates to:
+    productSearchService.autocomplete(query, limit)
+
+  ↓
+
+SERVICE LAYER (backend/src/meilisearch/services/ProductSearchService.ts)
+
+  search(query, limit, offset):
+    const client = await meiliClientPromise
+    const result = await client.index('products').search<ProductSearchDocument>(query, {
+      limit, offset,
+      attributesToRetrieve: ["id", "name", "short_description"]
+    })
+    Maps hits → ProductListingItem[] (image: null for all)
+    Returns ProductListingResponse { query, processingTimeMs, estimatedTotalHits, items }
+
+  autocomplete(query, limit):
+    const client = await meiliClientPromise
+    const result = await client.index('products').search(query, {
+      limit,
+      attributesToRetrieve: ["name"]
+    })
+    Maps hits → AutocompleteItem[] ({ name } only)
+    Returns AutocompleteResponse { query, processingTimeMs, estimatedTotalHits, items }
+
+  ↓
+
+MEILISEARCH CLIENT (meiliClientPromise)
+  Singleton Meilisearch JS client.
+  Loaded once via dynamic import() (CJS→ESM interop).
+  Host: MEILISEARCH_HOST env variable.
+  Key:  MEILISEARCH_ADMIN_KEY env variable.
+
+  ↓
+
+MEILISEARCH SEARCH ENGINE
+  Runs full-text search on the "products" index.
+  Applies: ranking rules, typo tolerance, synonyms, stop words, dictionary.
+
+  ↓
+
+SEARCH INDEX ("products")
+  Contains ProductSearchDocument records.
+  Primary key: "id".
+  Searchable: name, name_en, danh_muc, short_description.
+  Filterable: danh_muc.
+
+  ↓
+
+RAW HITS (ProductSearchDocument[])
+  Mapped to clean DTOs by ProductSearchService before leaving the method.
+
+  ↓
+
+RESPONSE DTO
+  ProductListingResponse or AutocompleteResponse.
+
+  ↓
+
+HTTP RESPONSE
+  Controller wraps in: { success: true, data: result }
+  Status: 200 OK.
+  On error: { success: false, message: "..." } with status 500.
+
+
+================================================================================
+7. COMPLETE API DOCUMENTATION
+================================================================================
+
+------------------------------------------------------------------------
+ENDPOINT 1: PRODUCT AUTOCOMPLETE
+------------------------------------------------------------------------
+Endpoint  : GET /api/products/autocomplete
+HTTP Method: GET
+
+Query Parameters:
+  query  (required) — Search keyword (string). Empty → 400.
+  limit  (optional) — Max results to return. Default: 5. (number)
+
+Request Example:
+  GET http://localhost:5000/api/products/autocomplete?query=mật+ong
+
+Response Example (200 OK):
+  {
+    "success": true,
+    "data": {
+      "query": "mật ong",
+      "processingTimeMs": 2,
+      "estimatedTotalHits": 3,
+      "items": [
+        { "name": "Mật ong rừng Sơn Trà" },
+        { "name": "Mật ong hoa nhãn" },
+        { "name": "Mật ong thiên nhiên OCOP" }
+      ]
+    }
+  }
+
+Error Response (400 Bad Request):
+  {
+    "success": false,
+    "message": "Query is required."
+  }
+
+Error Response (500 Internal Server Error):
+  {
+    "success": false,
+    "message": "Autocomplete failed."
+  }
+
+Who Calls This Endpoint:
+  frontend/src/services/meilisearch/productSearch.service.ts
+  → ProductSearchService.autocomplete()
+  → called by ProductSearchEngine.autocomplete()
+  → called by SearchEngineAdapter.autocomplete()
+  → triggered by SearchBar debounce effect when mode = 'product'
+
+------------------------------------------------------------------------
+ENDPOINT 2: PRODUCT FULL SEARCH
+------------------------------------------------------------------------
+Endpoint  : GET /api/products/search
+HTTP Method: GET
+
+Query Parameters:
+  query  (required) — Search keyword (string). Empty → 400.
+  limit  (optional) — Max results. Default: 20. (number)
+  offset (optional) — Pagination offset. Default: 0. (number)
+
+Request Example:
+  GET http://localhost:5000/api/products/search?query=cafe&limit=20&offset=0
+
+Response Example (200 OK):
+  {
+    "success": true,
+    "data": {
+      "query": "cafe",
+      "processingTimeMs": 5,
+      "estimatedTotalHits": 12,
+      "items": [
+        {
+          "id": "uuid-1234",
+          "name": "Cà phê Bà Nà",
+          "short_description": "Cà phê arabica trồng trên đỉnh Bà Nà Hills",
+          "image": null
+        },
+        {
+          "id": "uuid-5678",
+          "name": "Cà phê chồn OCOP",
+          "short_description": "Loại cà phê đặc sản được chứng nhận OCOP 4 sao",
+          "image": null
+        }
+      ]
+    }
+  }
+
+Error Response (400 Bad Request):
+  {
+    "success": false,
+    "message": "Query is required."
+  }
+
+Error Response (500 Internal Server Error):
+  {
+    "success": false,
+    "message": "Search failed."
+  }
+
+Who Calls This Endpoint:
+  frontend/src/services/meilisearch/productSearch.service.ts
+  → ProductSearchService.search()
+  → called by ProductSearchEngine.search()
+  → called by SearchEngineAdapter.search()
+  → triggered by SearchBar.handleEnterSearch() when mode = 'product'
+
+
+================================================================================
+8. DATA MODELS
+================================================================================
+
+FRONTEND TYPES
+--------------
+
+SearchMode (frontend/src/features/search/types/SearchMode.ts)
+  type SearchMode = "place" | "product"
+  Used to select the search engine and route API calls.
+
+SearchSuggestion (frontend/src/features/search/types/SearchSuggestion.ts)
+  interface SearchSuggestion {
+    id: string;          // React list key. product: product.id, autocomplete: name
+    type: 'place' | 'product'; // drives icon and callback behavior
+    title: string;       // primary text — product.name
+    description: string; // secondary text — product.short_description (empty for autocomplete)
+    image?: string;      // thumbnail URL — undefined if not available (currently always undefined)
+    location?: { lat: number; lng: number }; // absent for products
+    original: unknown;   // raw provider object for Phase 8 callbacks
+  }
+
+AutocompleteItem (frontend/src/services/meilisearch/productSearch.service.ts)
+  interface AutocompleteItem {
+    name: string; // the only field returned by autocomplete endpoint
+  }
+
+ProductListingItem (frontend/src/services/meilisearch/productSearch.service.ts)
+  interface ProductListingItem {
+    id: string;               // Meilisearch document primary key
+    name: string;             // product display name → SearchSuggestion.title
+    short_description: string;// one-line description → SearchSuggestion.description
+    image: string | null;     // thumbnail URL — currently always null
+  }
+
+ProductListingResponse (frontend/src/services/meilisearch/productSearch.service.ts)
+  interface ProductListingResponse {
+    query: string;              // echo of the search query
+    processingTimeMs: number;   // Meilisearch processing time
+    estimatedTotalHits: number; // total matching documents in index
+    items: ProductListingItem[];// the result page
+  }
+
+BACKEND TYPES
+-------------
+
+ProductSearchDocument (backend/src/meilisearch/documents/ProductTypeDocument.ts)
+  — Full Meilisearch document schema. Never exposed to frontend.
+  interface ProductSearchDocument {
+    id: string;
+    slug: string;
+    name: string;
+    name_en: string;
+    danh_muc: string;
+    short_description: string;
+    overview: string;
+    cong_dung: string[];
+    huong_dan_su_dung: string[];
+    diem_noi_bat: unknown[];
+    lich_su_hinh_thanh: unknown[];
+  }
+
+AutocompleteItem (backend/src/meilisearch/models/AutocompleteItem.ts)
+  interface AutocompleteItem { name: string }
+
+AutocompleteResponse (backend/src/meilisearch/models/AutocompleteResponse.ts)
+  interface AutocompleteResponse {
+    query: string;
+    processingTimeMs: number;
+    estimatedTotalHits: number;
+    items: AutocompleteItem[];
+  }
+
+ProductListingItem (backend/src/meilisearch/models/ProductListingItem.ts)
+  interface ProductListingItem {
+    id: string;
+    name: string;
+    short_description: string;
+    image: string | null;
+  }
+
+ProductListingResponse (backend/src/meilisearch/models/ProductListingResponse.ts)
+  interface ProductListingResponse {
+    query: string;
+    processingTimeMs: number;
+    estimatedTotalHits: number;
+    items: ProductListingItem[];
+  }
+
+SearchRequest (backend/src/meilisearch/models/SearchRequest.ts)
+  interface SearchRequest {
+    query: string;
+    limit?: number;
+    offset?: number;
+    filter?: string;
+    sort?: string[];
+  }
+
+SearchHit (backend/src/meilisearch/models/SearchHit.ts)
+  interface SearchHit { name: string; short_description: string; }
+
+SearchResult (backend/src/meilisearch/types/SearchResult.ts)
+  interface SearchResult {
+    hits: ProductSearchDocument[];
+    estimatedTotalHits: number;
+    limit: number; offset: number;
+    processingTimeMs: number; query: string;
+  }
+
+
+================================================================================
+9. MAPPERS
+================================================================================
+
+FRONTEND MAPPER — SearchSuggestionMapper
+-----------------------------------------
+
+Purpose:
+  The ONLY place where provider-specific types are converted to SearchSuggestion.
+  All three methods are pure functions with no side effects.
+
+Method 1: fromAutocompleteItem(item: AutocompleteItem) → SearchSuggestion
+  Input  : AutocompleteItem { name: string }
+  Output : SearchSuggestion {
+             id: item.name,         (name doubles as stable key in dropdown)
+             type: 'product',
+             title: item.name,
+             description: '',       (autocomplete has no description)
+             original: item
+           }
+  Why empty description: The autocomplete endpoint returns only { name }
+  for performance. No category, no short_description is fetched.
+
+Method 2: fromProduct(product: ProductListingItem) → SearchSuggestion
+  Input  : ProductListingItem { id, name, short_description, image }
+  Output : SearchSuggestion {
+             id: product.id,
+             type: 'product',
+             title: product.name,
+             description: product.short_description ?? '',
+             image: product.image ?? undefined,   (null → undefined)
+             original: product
+           }
+  Why image null→undefined: SearchListingCard checks if (result.image)
+  truthy to decide between <img> and placeholder. null is falsy but the
+  type says "string | undefined", so the mapper coerces null to undefined
+  for a clean type contract.
+
+Method 3: fromPlace(place: PlaceSuggestion) → SearchSuggestion
+  Used by Map4DSearchEngine. Not part of Product Search but lives in the
+  same mapper class for cohesion.
+
+Batch helpers:
+  fromPlaces()            → places.map(fromPlace)
+  fromAutocompleteItems() → items.map(fromAutocompleteItem)
+  fromProducts()          → products.map(fromProduct)
+
+BACKEND MAPPER — ProductTypeMapper
+------------------------------------
+
+Purpose:
+  Transforms a raw Supabase product_types row into a ProductSearchDocument
+  suitable for Meilisearch indexing.
+
+Method: toSearchDocument(product: any) → ProductSearchDocument
+  Input  : raw Supabase row (untyped — schema varies)
+  Output : ProductSearchDocument (typed, normalised)
+  - slug: trim + lowercase
+  - string fields: coalesced to '' if null
+  - array fields (cong_dung, huong_dan_su_dung): ensured arrays
+
+Used Only During Indexing:
+  This mapper runs at sync time (sync-product-types.ts script).
+  It does NOT run during live search requests.
+
+WHY MAPPERS EXIST
+------------------
+1. Anti-corruption: Backend Meilisearch documents and frontend HTTP DTOs
+   are internal shapes. If they change, only the mapper changes.
+2. Decoupling: UI components (SearchResult, SearchListing, SearchListingCard)
+   never import AutocompleteItem or ProductListingItem. They only import
+   SearchSuggestion. This means the entire backend can be changed or replaced
+   without touching a single UI component.
+3. Single responsibility: Mapping logic is not scattered across engines,
+   services, or UI components. It is in exactly one place per direction.
+4. Testability: Pure functions are trivially unit-testable with zero mocking.
+
+
+================================================================================
+10. SEARCH ENGINE
+================================================================================
+
+SearchEngine INTERFACE (frontend/src/features/search/services/SearchEngine.ts)
+  The Dependency Inversion boundary. Marked "ARCHITECTURE FREEZE (Phase 7.4)".
+  All consumers depend on this interface — never on a concrete class.
+
+  interface SearchEngine {
+    autocomplete(query, locationBias?, signal?): Promise<SearchSuggestion[]>;
+    search(query, locationBias?, signal?): Promise<SearchSuggestion[]>;
+  }
+
+  Rules:
+  - Both methods return SearchSuggestion[] — always. Never provider types.
+  - locationBias is per-call (stateless adapter).
+  - AbortSignal is optional for cancellation.
+  - The interface is permanently frozen. Future engines implement it.
+
+ProductSearchEngine (frontend/src/features/search/services/ProductSearchEngine.ts)
+  Concrete implementation for product mode.
+  Ignores locationBias (_locationBias) — products have no geo-component.
+  autocomplete() → ProductSearchService.autocomplete() → mapper.fromAutocompleteItems()
+  search()       → ProductSearchService.search()       → mapper.fromProducts()
+
+SearchEngineAdapter (frontend/src/features/search/services/SearchEngineAdapter.ts)
+  Strategy Pattern. Holds private engine: SearchEngine.
+  Constructor selects concrete engine based on SearchMode:
+    'place'   → new Map4DSearchEngine()
+    'product' → new ProductSearchEngine()
+  autocomplete() and search() simply delegate to this.engine.
+
+DEPENDENCY INVERSION PRINCIPLE
+  High-level module: SearchBar
+  Depends on: SearchEngineAdapter (which depends on SearchEngine interface)
+  Low-level modules: Map4DSearchEngine, ProductSearchEngine
+  SearchBar never imports any concrete engine or service.
+
+OPEN/CLOSED PRINCIPLE
+  Adding a third search mode (e.g. 'event') requires:
+  1. Add 'event' to SearchMode type.
+  2. Create EventSearchEngine implements SearchEngine.
+  3. Add one new branch in SearchEngineAdapter constructor.
+  SearchBar.tsx changes ZERO lines.
+
+WHY SEARCHBAR KNOWS NOTHING ABOUT ProductSearchService
+  SearchBar imports only:
+    SearchEngineAdapter — the adapter
+    SearchSuggestion — the frozen DTO
+    SearchMode — the mode type
+  SearchBar does NOT import:
+    ProductSearchService, ProductSearchEngine, Map4DSearchEngine,
+    SearchSuggestionMapper, AutocompleteItem, ProductListingItem,
+    PlaceSuggestion, SearchService.
+
+  This means SearchBar can be moved, reused, or replaced without
+  dragging any search-provider dependencies with it.
+
+
+================================================================================
+11. DROPDOWN
+================================================================================
+
+HOW THE DROPDOWN WORKS
+  The autocomplete dropdown (SearchResult) appears when:
+  1. suggestions.length > 0 (at least one item from adapter.autocomplete())
+  2. searchView is 'autocomplete' or 'refining'
+
+  The dropdown is rendered directly in SearchBar.tsx below the input:
+    {suggestions.length > 0 && (
+      <SearchResult suggestions={suggestions} onSelectSuggestion={handleSuggestionSelect} />
+    )}
+
+  It is positioned absolutely relative to the search input container:
+    className="absolute top-full left-0 right-0 mt-2 z-50"
+
+FILES THAT RENDER THE DROPDOWN
+  SearchBar.tsx — controls visibility (suggestions.length > 0).
+  SearchResult.tsx — renders the Command palette UI.
+
+FILES THAT PROVIDE DATA
+  SearchEngineAdapter.ts → ProductSearchEngine.ts →
+  ProductSearchService.ts → backend /api/products/autocomplete →
+  ProductSearchService (backend) → Meilisearch.
+
+HOW AUTOCOMPLETE REQUESTS ARE MADE
+  1. User types → query state updates via handleQueryChange.
+  2. useDebounce(query, 350) waits 350 ms after the last keystroke.
+  3. The autocomplete useEffect fires on debouncedQuery change.
+  4. An AbortController is created for this request.
+  5. adapter.autocomplete(debouncedQuery, locationBias, abortController.signal) is called.
+  6. Results arrive → setSuggestions(results).
+  7. SearchResult renders the dropdown.
+
+HOW AbortController WORKS
+  Every time the autocomplete useEffect fires, a new AbortController is created:
+    const abortController = new AbortController();
+    autocompleteAbortRef.current = abortController;
+
+  The previous request is cancelled by the useEffect cleanup function:
+    return () => {
+      abortController.abort();
+      autocompleteAbortRef.current = null;
+    };
+
+  When debouncedQuery changes (the user types more), React:
+  1. Runs the cleanup of the previous effect run → aborts the old request.
+  2. Runs the new effect → creates a new AbortController → makes a new request.
+
+  This means only the LATEST in-flight autocomplete request is ever live.
+  If the user types "m", then "ma", then "mật", three requests are fired
+  but only the last one ("mật") is allowed to complete. The previous two
+  are aborted via AbortSignal, causing their fetch() to reject with AbortError.
+
+HOW OLD REQUESTS ARE CANCELLED
+  In ProductSearchService.autocomplete():
+    const response = await fetch(url, { signal });
+  
+  When the AbortController fires signal.abort(), the fetch rejects with
+  an AbortError (DOMException with name 'AbortError').
+
+  In SearchBar's autocomplete effect catch handler:
+    .catch((err: unknown) => {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        setSuggestions([]);
+        showToast('Failed to fetch autocomplete suggestions.');
+      }
+    });
+  
+  AbortErrors are silently ignored. Only genuine network/server errors
+  show the toast.
+
+  Additionally, when the user presses Enter (handleEnterSearch):
+    autocompleteAbortRef.current?.abort();
+    autocompleteAbortRef.current = null;
+  
+  This aborts any pending autocomplete request immediately before the
+  full search request begins.
+
+
+================================================================================
+12. LISTING
+================================================================================
+
+HOW LISTING WORKS
+  After the user presses Enter, handleEnterSearch() fires:
+  1. Pending autocomplete request is aborted.
+  2. setSuggestions([]) — clears dropdown.
+  3. setListingQuery(trimmed) — stores the query for display.
+  4. setListingResults([]) — clears old results.
+  5. setListingLoading(true) — activates spinner.
+  6. setSearchView('listing') — opens the sidebar Sheet.
+  7. await adapter.search(trimmed, locationBias) — calls backend.
+  8. setListingResults(results.slice(0, 20)) — stores results (cap at 20).
+  9. setListingLoading(false) — removes spinner.
+
+WHICH COMPONENT RENDERS IT
+  SearchListing.tsx — receives results[], loading, query, onSelectItem.
+  SearchListingCard.tsx — renders each individual card.
+  Both are mounted inside the Sheet (sidebar) in SearchBar.tsx:
+    {(searchView === 'listing' || searchView === 'refining') && (
+      <SearchListing results={listingResults} loading={listingLoading}
+        query={listingQuery} onSelectItem={handleListingSelect} />
+    )}
+
+WHICH DTO IT RECEIVES
+  SearchListing receives SearchSuggestion[] (the frozen DTO).
+  It never receives ProductListingItem[] directly.
+
+WHICH MAPPER PROVIDES DATA
+  SearchSuggestionMapper.fromProducts(items) converts ProductListingItem[]
+  → SearchSuggestion[] inside ProductSearchEngine.search(). By the time
+  SearchListing receives the array, all products are already SearchSuggestion.
+
+HOW SearchListingCard RENDERS PRODUCT ITEMS
+
+  Image / Thumbnail Area:
+    if (result.image) → <img src={result.image} alt={result.title} className="w-full h-full object-cover" />
+    else              → <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+  
+  IMAGE PLACEHOLDER:
+    Currently, all products have image: null in the Meilisearch index.
+    The backend ProductSearchService.search() hardcodes image: null.
+    The frontend mapper converts null → undefined (falsy check passes).
+    Therefore ALL product cards currently render the <ImageIcon /> placeholder.
+    When product images are added to the Meilisearch index, only
+    ProductSearchService.search() needs one line change. No UI changes needed.
+
+  TITLE:
+    <p className="text-sm font-semibold leading-snug text-foreground truncate">
+      {result.title}
+    </p>
+    result.title = product.name (e.g. "Mật ong rừng Sơn Trà")
+    Single line, truncated with ellipsis.
+
+  DESCRIPTION:
+    {result.description && (
+      <p className="text-justify text-xs text-muted-foreground leading-snug line-clamp-2 ...">
+        <span>{result.description}</span>
+      </p>
+    )}
+    result.description = product.short_description
+    Shown only if non-empty. Clamped to 2 lines.
+    For autocomplete suggestions: description is '' → not shown.
+    For full search results: description is short_description → shown.
+
+  ON SELECT:
+    <button onClick={() => onSelect(result)}> ... </button>
+    → calls handleListingSelect(suggestion) in SearchBar.
+    → for product type: logs selection, sets query = title.
+      No map move. No navigation. (Phase 8: Product Detail.)
+
+
+================================================================================
+13. CURRENT LIMITATIONS
+================================================================================
+
+1. NO PRODUCT DETAIL PAGE
+   Selecting a product from the dropdown or listing only logs the selection
+   and updates the query input text. There is no product detail panel, no
+   product page, no route navigation. This is explicitly deferred to Phase 8.
+   Code comment: "Phase 7.5.5 — Product Detail is built in Phase 8."
+
+2. IMAGE PLACEHOLDER ONLY
+   All product cards display the <ImageIcon /> placeholder because image is
+   always null in the Meilisearch index. No product image URLs have been
+   indexed yet. The DTO slot (image: string | null) is reserved.
+
+3. NO PRODUCT NAVIGATION
+   Clicking a product does not navigate to any URL. There is no product
+   detail route registered in the frontend router.
+
+4. NO BOOKMARK / FAVORITE
+   No mechanism to save, bookmark, or favorite a product exists.
+
+5. NO PAGINATION
+   The frontend caps results at 20 (results.slice(0, 20)).
+   There is no "load more" button, no infinite scroll, no page numbers.
+   The backend supports offset parameter but the frontend does not use it.
+
+6. NO CATEGORY FILTERING
+   danh_muc is a filterable attribute in Meilisearch settings but no UI
+   filter controls exist. All results are returned regardless of category.
+
+7. NO SORTING
+   No sort controls exist in the UI. Results are sorted only by Meilisearch's
+   internal ranking rules.
+
+8. NO GEOLOCATION COMPONENT
+   Product search ignores locationBias entirely. Products are not geo-tagged.
+
+9. NO PRODUCT LISTING PAGE (STANDALONE)
+   Product search results only appear inside the sidebar Sheet, attached to
+   the map interface. There is no dedicated /products route.
+
+10. getById NOT IMPLEMENTED
+    backend/src/meilisearch/services/ProductSearchService.getById(id) throws:
+    "getById(id) — Not implemented (Phase 8)."
+
+11. useProductSearch HOOK NOT USED IN MAIN FLOW
+    The useProductSearch hook exists but is not used by SearchBar or any
+    active component in the current search flow. SearchBar uses the adapter
+    pattern instead.
+
+12. SEARCH RESULT LIMIT IS HARDCODED
+    SearchBar caps listing results to 20 (results.slice(0, 20)) regardless
+    of what the backend returns.
+
+13. NO EMPTY AUTOCOMPLETE GUARD ON ENGINE LEVEL
+    ProductSearchEngine guards empty queries but SearchBar also has its own
+    guard (debouncedQuery.trim().length < 1). There is mild redundancy.
+
+
+================================================================================
+14. FUTURE ROADMAP
+================================================================================
+
+The following phases are referenced in comments within the source code.
+They represent planned work that has NOT been implemented yet.
+
+PHASE 8 — PRODUCT DETAIL
+  When a user selects a product from the dropdown or listing, a Product
+  Detail panel should open (similar to PoiDetailCard for places). This
+  requires:
+  - Implementing ProductSearchService.getById(id) on the backend.
+  - Creating a ProductDetailCard component.
+  - Adding a 'product-detail' view state in SearchBar.
+  - Routing handleSuggestionSelect and handleListingSelect to open the panel.
+  - Using suggestion.original (typed as ProductListingItem) for the detail data.
+
+PHASE 9 — PRODUCT IMAGES
+  Add image URLs to the Meilisearch "products" index.
+  One-line change in ProductSearchService.search(): replace image: null with
+  the actual image URL field from the document.
+  No UI component changes needed (SearchListingCard already handles images).
+
+PHASE 10 — PRODUCT DETAIL PAGE / ROUTE
+  Standalone product detail page with full description (overview field),
+  cong_dung (uses), huong_dan_su_dung (usage instructions),
+  diem_noi_bat (highlights), lich_su_hinh_thanh (history).
+  All fields are already stored in the Meilisearch document.
+
+PHASE 11 — CATEGORY FILTERING
+  UI filter controls for danh_muc (category). Meilisearch already has
+  danh_muc as a filterable attribute. The SearchRequest model already
+  has a filter field.
+
+PHASE 12 — PRODUCT RECOMMENDATIONS
+  "Nearby Products" or "Related Products" features based on category or
+  geographic proximity (if product geo-data is added).
+
+PHASE 13 — PAGINATION
+  "Load more" or infinite scroll using the offset parameter already
+  supported by backend (GET /api/products/search?offset=20).
+
+PHASE 14 — SORTING
+  Sort controls in the listing panel (e.g. by name, by category).
+  The SearchRequest model already has a sort field.
+
+PHASE 15 — PRODUCT GALLERY
+  Image gallery inside Product Detail card.
+
+PHASE 16 — REVIEWS / RATINGS
+  User reviews and star ratings for products.
+
+PHASE 17 — FAVORITES
+  Save products to a user favorites list.
+
+PHASE 18 — SHOPPING / PURCHASE LINK
+  Link to external purchase page or integrate a cart if required.
+
+
+================================================================================
+15. COMPLETE FILE DEPENDENCY TREE
+================================================================================
+
+SearchBar
+├── SearchMode (type)
+├── SearchSuggestion (type)
+├── SearchEngineAdapter
+│   ├── SearchEngine (interface)
+│   ├── ProductSearchEngine                   [when mode='product']
+│   │   ├── ProductSearchService (frontend)
+│   │   │   └── Backend REST API
+│   │   │       └── productSearch.routes.ts
+│   │   │           ├── ProductSearchController
+│   │   │           │   └── ProductSearchService (backend)
+│   │   │           │       ├── meiliClientPromise (client.ts)
+│   │   │           │       ├── INDEXES (indexes.ts)
+│   │   │           │       ├── ProductSearchDocument (document)
+│   │   │           │       ├── ProductListingItem (model)
+│   │   │           │       └── ProductListingResponse (model)
+│   │   │           └── ProductAutocompleteController
+│   │   │               └── ProductSearchService (backend)
+│   │   │                   ├── AutocompleteItem (model)
+│   │   │                   └── AutocompleteResponse (model)
+│   │   └── SearchSuggestionMapper
+│   │       ├── AutocompleteItem (frontend type)
+│   │       ├── ProductListingItem (frontend type)
+│   │       └── SearchSuggestion (type)
+│   └── Map4DSearchEngine                     [when mode='place']
+│       ├── SearchService (map4d)
+│       └── SearchSuggestionMapper
+│           └── PlaceSuggestion
+├── SearchModeSwitcher
+│   └── SearchMode (type)
+├── SearchResult                              [dropdown]
+│   └── SearchSuggestion (type)
+└── SearchListing                             [sidebar panel]
+    ├── SearchSuggestion (type)
+    └── SearchListingCard
+        └── SearchSuggestion (type)
+
+
+INDEXING PIPELINE (separate from search flow):
+sync-product-types.ts
+└── ProductIndexService
+    ├── meiliClientPromise (client.ts)
+    ├── INDEXES (indexes.ts)
+    ├── PRODUCTS_SETTINGS (products.settings.ts)
+    ├── ProductTypeRepository
+    │   └── supabase (config)
+    └── ProductTypeMapper
+        └── ProductSearchDocument (document)
+
+
+================================================================================
+16. REQUEST / RESPONSE EXAMPLES
+================================================================================
+
+AUTOCOMPLETE REQUEST
+  (user typed "cà phê" with mode='product')
+
+  HTTP Request:
+    GET http://localhost:5000/api/products/autocomplete?query=c%C3%A0+ph%C3%AA
+    Headers: none required
+
+  Meilisearch Query (internal):
+    index: "products"
+    query: "cà phê"
+    limit: 5
+    attributesToRetrieve: ["name"]
+
+AUTOCOMPLETE RESPONSE
+  HTTP 200 OK:
+  {
+    "success": true,
+    "data": {
+      "query": "cà phê",
+      "processingTimeMs": 1,
+      "estimatedTotalHits": 4,
+      "items": [
+        { "name": "Cà phê Bà Nà" },
+        { "name": "Cà phê chồn OCOP" },
+        { "name": "Cà phê arabica Sơn Trà" },
+        { "name": "Cà phê phin truyền thống" },
+        { "name": "Cà phê muối Đà Nẵng" }
+      ]
+    }
+  }
+
+  [Note: "coffee" and "cafe" would also match due to synonym settings:
+   "cà phê" ↔ "coffee" ↔ "cafe"]
+
+SEARCH REQUEST
+  (user pressed Enter with query "coffee")
+
+  HTTP Request:
+    GET http://localhost:5000/api/products/search?query=coffee&limit=20&offset=0
+
+  Meilisearch Query (internal):
+    index: "products"
+    query: "coffee"  (matches "café", "cà phê" via synonyms)
+    limit: 20
+    offset: 0
+    attributesToRetrieve: ["id", "name", "short_description"]
+
+SEARCH RESPONSE
+  HTTP 200 OK:
+  {
+    "success": true,
+    "data": {
+      "query": "coffee",
+      "processingTimeMs": 4,
+      "estimatedTotalHits": 3,
+      "items": [
+        {
+          "id": "a1b2c3d4-e5f6-...",
+          "name": "Cà phê Bà Nà",
+          "short_description": "Cà phê arabica trồng trên đỉnh Bà Nà Hills 1487m",
+          "image": null
+        },
+        {
+          "id": "b2c3d4e5-f6a7-...",
+          "name": "Cà phê chồn OCOP",
+          "short_description": "Loại cà phê đặc sản được chứng nhận OCOP 4 sao tại Đà Nẵng",
+          "image": null
+        }
+      ]
+    }
+  }
+
+MAPPED SearchSuggestion (after SearchSuggestionMapper.fromProducts())
+  [
+    {
+      "id": "a1b2c3d4-e5f6-...",
+      "type": "product",
+      "title": "Cà phê Bà Nà",
+      "description": "Cà phê arabica trồng trên đỉnh Bà Nà Hills 1487m",
+      "image": undefined,
+      "original": { id, name, short_description, image: null }
+    },
+    {
+      "id": "b2c3d4e5-f6a7-...",
+      "type": "product",
+      "title": "Cà phê chồn OCOP",
+      "description": "Loại cà phê đặc sản được chứng nhận OCOP 4 sao tại Đà Nẵng",
+      "image": undefined,
+      "original": { id, name, short_description, image: null }
+    }
+  ]
+
+RENDERED LISTING
+  SearchListing header: "Results | 2 found | "coffee""
+  
+  Card 1:
+    [ImageIcon placeholder 64x64] | Cà phê Bà Nà
+                                  | Cà phê arabica trồng trên đỉnh Bà Nà Hills 1487m
+  
+  Card 2:
+    [ImageIcon placeholder 64x64] | Cà phê chồn OCOP
+                                  | Loại cà phê đặc sản được chứng nhận OCOP 4 sao tại Đà Nẵng
+
+
+================================================================================
+17. DEBUGGING GUIDE
+================================================================================
+
+ISSUE: Dropdown is empty after typing
+  Step 1 — Check browser DevTools Network tab.
+    Is GET /api/products/autocomplete?query=... being sent?
+    If NOT: check that searchMode is 'product' (not 'place').
+    If NOT: check that debouncedQuery.trim().length >= 1 (debounce delay?).
+  Step 2 — Is the request being aborted?
+    In DevTools, look for "cancelled" status. Normal — means a newer request
+    replaced it. If ALL requests are cancelled, check AbortController logic.
+  Step 3 — Is the backend responding?
+    Check response status. 400 = query param missing. 500 = Meilisearch error.
+  Step 4 — Is the Meilisearch index empty?
+    Run the sync script: npx ts-node backend/src/meilisearch/scripts/sync-product-types.ts
+  Step 5 — Is MEILISEARCH_HOST correct in backend .env?
+    Check backend/.env: MEILISEARCH_HOST=http://localhost:7700
+  Step 6 — Is the frontend VITE_BACKEND_URL set?
+    Check frontend/.env: VITE_BACKEND_URL=http://localhost:5000
+  Step 7 — Is the backend running?
+    Check that the Express server is listening on port 5000.
+
+ISSUE: Listing is empty after pressing Enter
+  Step 1 — Check Network tab for GET /api/products/search?query=...
+  Step 2 — Check response. 400 = query missing. 500 = Meilisearch error.
+  Step 3 — Is estimatedTotalHits 0?
+    The query returned no matches. Try a simpler query ("cafe", "mật").
+    Check Meilisearch index has documents (use Meilisearch dashboard).
+  Step 4 — Are results being sliced to 0?
+    Check that results.slice(0, 20) is not slicing an empty array.
+    Add console.log(results) in SearchBar.handleEnterSearch() after adapter.search().
+  Step 5 — Is listingResults state being set?
+    Add console.log in setListingResults callback.
+
+ISSUE: API error (HTTP 500)
+  Step 1 — Check backend console for error log:
+    "[ProductSearchController] search error:" or console.error(error)
+  Step 2 — Meilisearch not running?
+    GET http://localhost:7700/health → should return { "status": "available" }
+  Step 3 — Wrong MEILISEARCH_ADMIN_KEY?
+    Meilisearch returns 401 or 403. Check backend .env.
+  Step 4 — Index "products" does not exist?
+    GET http://localhost:7700/indexes/products with the admin key.
+    If 404: run the sync script to create and populate the index.
+
+ISSUE: Network error (fetch fails entirely)
+  Step 1 — Is the backend server running?
+    curl http://localhost:5000/health → should return { "status": "OK" }
+  Step 2 — CORS error in browser?
+    Check browser console for "CORS policy" error.
+    The backend uses app.use(cors()) globally — ensure it is active.
+  Step 3 — Wrong VITE_BACKEND_URL?
+    Check frontend/.env for VITE_BACKEND_URL.
+    After .env changes, restart Vite dev server (npm run dev).
+
+ISSUE: Mapper error (unexpected data shape)
+  Step 1 — Log the raw response in ProductSearchService:
+    console.log(envelope) inside productSearch.service.ts.
+  Step 2 — Check that envelope.data.items is an array.
+    If undefined: backend returned unexpected shape.
+  Step 3 — Check ProductListingItem fields:
+    If id is missing: check backend AttributesToRetrieve list.
+    If name is missing: check Meilisearch document has name field.
+  Step 4 — Check SearchSuggestionMapper.fromProduct():
+    Add console.log(product) before the return statement.
+
+ISSUE: Adapter error (wrong engine selected)
+  Step 1 — Log searchMode in SearchBar:
+    console.log('[SearchBar] searchMode:', searchMode)
+  Step 2 — Verify SearchEngineAdapter constructor branch:
+    console.log('[SearchEngineAdapter] mode:', mode)
+  Step 3 — Verify which engine method is called:
+    Add console.log to ProductSearchEngine.autocomplete() entry.
+
+ISSUE: Wrong data (product results appear in place mode)
+  This should be impossible by design. Verify that:
+  - SearchEngineAdapter constructor uses the correct branch.
+  - The adapter is recreated when mode changes (useMemo([searchMode])).
+  - No stale closure is holding the old adapter.
+
+ISSUE: No response (fetch hangs)
+  Step 1 — Check if AbortController aborted early.
+  Step 2 — Set a timeout: is Meilisearch responding slowly?
+    GET http://localhost:7700/health — if slow, Meilisearch is overloaded.
+  Step 3 — Check network tab: is the request pending?
+    If pending indefinitely → backend is not sending a response.
+    Add try/catch logging in the controller.
+
+ISSUE: Toast "Failed to fetch autocomplete suggestions" appears
+  This fires for errors that are NOT AbortError.
+  Step 1 — Check Network tab for the autocomplete request status.
+  Step 2 — If 500: backend error → check backend logs.
+  Step 3 — If net::ERR_CONNECTION_REFUSED: backend not running.
+  Step 4 — If net::ERR_NETWORK_CHANGED: transient network issue.
+
+
+================================================================================
+18. SUMMARY
+================================================================================
+
+HOW PRODUCT SEARCH WORKS
+  The user clicks "Product Search" in the mode switcher. From that moment,
+  every keystroke debounce triggers a GET /api/products/autocomplete request
+  to the backend, which queries Meilisearch and returns up to 5 product names.
+  These are mapped to SearchSuggestion DTOs and rendered in the dropdown.
+  When the user presses Enter, a GET /api/products/search request fetches up
+  to 20 full ProductListingItem results. These are mapped to SearchSuggestion
+  and rendered as cards in the sidebar listing panel.
+
+WHY THE ARCHITECTURE IS CLEAN
+  Every layer has exactly one responsibility:
+  - SearchBar: state management and orchestration
+  - SearchEngineAdapter: strategy selection
+  - ProductSearchEngine: engine-level coordination
+  - ProductSearchService (frontend): HTTP communication
+  - SearchSuggestionMapper: type conversion
+  - SearchSuggestion: the universal DTO
+  - Backend controllers: HTTP validation
+  - Backend ProductSearchService: Meilisearch communication and anti-corruption
+  - Meilisearch: full-text search
+
+HOW EVERY LAYER IS SEPARATED
+  The frontend presentation layer (SearchResult, SearchListing, SearchListingCard)
+  depends ONLY on SearchSuggestion. It has zero knowledge of Map4D, Meilisearch,
+  AutocompleteItem, or ProductListingItem.
+
+  The engine layer (ProductSearchEngine, Map4DSearchEngine) depends on the
+  SearchEngine interface — not on each other or on the presentation layer.
+
+  The adapter layer (SearchEngineAdapter) knows the SearchMode and the
+  SearchEngine interface — but nothing about Meilisearch or Map4D internals.
+
+  The service layer (ProductSearchService frontend) knows the HTTP endpoints
+  and response envelopes — nothing about React state or UI rendering.
+
+  The mapper (SearchSuggestionMapper) knows provider types and the frozen DTO
+  — nothing about HTTP, React, or state.
+
+WHY FUTURE PRODUCT DETAIL CAN BE ADDED WITHOUT MODIFYING SEARCHBAR
+  SearchBar already stores the raw provider object in suggestion.original
+  (typed as unknown). When Product Detail (Phase 8) is implemented:
+
+  1. A ProductDetailCard component will be created (does not touch SearchBar internals).
+  2. handleSuggestionSelect() and handleListingSelect() will cast suggestion.original
+     as ProductListingItem to access the full product data.
+  3. A new 'product-detail' view state will be added to SearchView.
+  4. ProductSearchService.getById(id) will be implemented on the backend.
+
+  SearchBar.tsx will only need the addition of a new case in two handler
+  functions and one new rendering block in the JSX — equivalent changes to
+  adding the existing POI detail flow. The entire search pipeline, adapter,
+  engine, service, and mapper remain untouched.
+
+================================================================================
+END OF DOCUMENT
+================================================================================

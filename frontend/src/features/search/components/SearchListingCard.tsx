@@ -1,5 +1,5 @@
 import React from 'react';
-import { ImageIcon, MapPin, ShoppingBag } from 'lucide-react';
+import { ImageIcon } from 'lucide-react';
 import type { SearchSuggestion } from '../types/SearchSuggestion';
 
 interface SearchListingCardProps {
@@ -16,7 +16,7 @@ export const SearchListingCard: React.FC<SearchListingCardProps> = ({
   result,
   onSelect,
 }) => {
-  const Icon = result.type === 'place' ? MapPin : ShoppingBag;
+
 
   return (
     <button
@@ -49,6 +49,7 @@ export const SearchListingCard: React.FC<SearchListingCardProps> = ({
             <span>{result.description}</span>
           </p>
         )}
+
       </div>
     </button>
   );

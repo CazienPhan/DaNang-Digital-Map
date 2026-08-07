@@ -19,10 +19,12 @@ app.use(express.json());
 // Set up route handlers
 app.use('/api/map4d', map4dRouter);
 app.use('/api/pois', poiRouter);
-app.use('/api/products', productRouter);
-
-// Product search route — GET /api/products/search?query=...
+// Product search routes — must be registered BEFORE productRouter to prevent
+// the wildcard /:id route from matching /search and /autocomplete first.
 app.use('/api/products', productSearchRouter);
+
+// Product resource routes (by-poi lookup, product detail by id)
+app.use('/api/products', productRouter);
 
 // Base sanity check / health route
 app.get('/health', (req, res) => {

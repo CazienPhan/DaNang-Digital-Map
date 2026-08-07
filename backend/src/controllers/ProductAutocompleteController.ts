@@ -54,7 +54,13 @@ export class ProductAutocompleteController {
 
         catch (error) {
 
-            console.error(error);
+            console.error("[ProductAutocompleteController] autocomplete FAILED");
+            console.error("  query      :", req.query.query);
+            console.error("  index name : products");
+            console.error("  error      :", error);
+            if (error instanceof Error) {
+                console.error("  stack      :", error.stack);
+            }
 
             res.status(500).json({
 

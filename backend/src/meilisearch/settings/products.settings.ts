@@ -73,6 +73,7 @@ export const PRODUCTS_SETTINGS: ProductIndexSettings = {
 
 
     displayedAttributes: [
+        "id",
         "slug",
         "name",
         "danh_muc",
@@ -94,9 +95,8 @@ export const PRODUCTS_SETTINGS: ProductIndexSettings = {
         "words",
         "typo",
         "proximity",
+        "attribute",
         "sort",
-        "attributeRank",
-        "wordPosition",
         "exactness"
     ],
 

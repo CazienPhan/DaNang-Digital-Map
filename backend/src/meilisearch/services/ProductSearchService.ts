@@ -69,10 +69,11 @@ export class ProductSearchService {
             .index(INDEXES.PRODUCTS)
             .search(query, {
                 limit,
-                attributesToRetrieve: ["name"],
+                attributesToRetrieve: ["id", "name"],
             });
 
         const items: AutocompleteItem[] = result.hits.map((hit) => ({
+            id: hit.id,
             name: hit.name,
         }));
 

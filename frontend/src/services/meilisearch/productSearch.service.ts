@@ -40,6 +40,7 @@ const API_URL = import.meta.env.VITE_BACKEND_URL;
  * ========================================================================== */
 
 export interface AutocompleteItem {
+    id: string;
     name: string;
 }
 
@@ -110,7 +111,7 @@ export class ProductSearchService {
      *       query: string,
      *       processingTimeMs: number,
      *       estimatedTotalHits: number,
-     *       items: AutocompleteItem[]   ← only { name } per item
+     *       items: AutocompleteItem[]   ← { id, name } per item
      *     }
      *   }
      */

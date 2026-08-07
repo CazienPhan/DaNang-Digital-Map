@@ -14,6 +14,7 @@ import SearchModeSwitcher from './SearchModeSwitcher';
 import type { SearchMode } from '../types/SearchMode';
 import type { SearchSuggestion } from '../types/SearchSuggestion';
 import { SearchEngineAdapter } from '../services/SearchEngineAdapter';
+import { ProductDetailCard } from './product-detail/ProductDetailCard';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -61,9 +62,10 @@ interface SearchBarProps {
 
 // ---------------------------------------------------------------------------
 // View state — controls which panel the sidebar renders.
-// 'refining' = user is typing while a previous listing is still visible.
+// 'refining'        = user is typing while a previous listing is still visible.
+// 'product-detail'  = product selected; Product Info Detail is shown.
 // ---------------------------------------------------------------------------
-type SearchView = 'idle' | 'autocomplete' | 'listing' | 'refining' | 'detail';
+type SearchView = 'idle' | 'autocomplete' | 'listing' | 'refining' | 'detail' | 'product-detail';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -118,6 +120,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const [listingResults, setListingResults] = useState<SearchSuggestion[]>([]);
   const [listingLoading, setListingLoading] = useState(false);
   const [listingQuery, setListingQuery] = useState('');
+
+  // ---- Selected product (Product Detail) ----
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   // ---- AbortController ref ----
   const autocompleteAbortRef = useRef<AbortController | null>(null);
@@ -213,10 +218,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setSuggestions([]);
 
     if (suggestion.type === 'product') {
-      // Phase 7.5.5 — Product Detail is built in Phase 8.
-      // For now, acknowledge the selection and stay in current view.
-      console.log('[SearchBar] Product selected:', suggestion);
+      // Product Detail: hide dropdown, set product id, switch to product-detail view.
       setQuery(suggestion.title);
+      setSelectedProductId(suggestion.id);
+      setSearchView('product-detail');
       return;
     }
 
@@ -260,10 +265,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setSuggestions([]);
 
     if (suggestion.type === 'product') {
-      // Phase 7.5.5 — Product Detail is built in Phase 8.
-      // For now, acknowledge the selection and stay in the listing view.
-      console.log('[SearchBar] Product selected from listing:', suggestion);
+      // Product Detail: switch from listing to product-detail view.
       setQuery(suggestion.title);
+      setSelectedProductId(suggestion.id);
+      setSearchView('product-detail');
       return;
     }
 
@@ -276,8 +281,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     onSelectPlaceSuccess?.(suggestion);
   };
 
-  // ---- Back arrow: detail → listing ----
-  const handleBack = () => setSearchView('listing');
+  // ---- Back arrow: product-detail → listing | detail → listing ----
+  const handleBack = () => {
+    if (searchView === 'product-detail') {
+      setSelectedProductId(null);
+      setSearchView('listing');
+    } else {
+      setSearchView('listing');
+    }
+  };
 
   // ---- Clear ----
   const handleClearAll = () => {
@@ -285,6 +297,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setSuggestions([]);
     setListingResults([]);
     setListingQuery('');
+    setSelectedProductId(null);
     setSearchView('idle');
     onCloseInfoCard();
   };
@@ -304,6 +317,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const isSidebarOpen = !!(
     searchView === 'listing' ||
     searchView === 'refining' ||
+    searchView === 'product-detail' ||
     selectedPoiDetails ||
     poiDetailLoading ||
     poiDetailError ||
@@ -314,10 +328,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const isSearching =
     searchView === 'autocomplete' ||
     searchView === 'listing' ||
-    searchView === 'refining';
+    searchView === 'refining' ||
+    searchView === 'product-detail';
 
   const poiOnBack =
     searchView === 'detail' && listingResults.length > 0 ? handleBack : undefined;
+
+  const productOnBack =
+    searchView === 'product-detail' && listingResults.length > 0 ? handleBack : undefined;
 
   // ---- Render ----
   return (
@@ -423,7 +441,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   />
                 )}
 
-                {/* DETAIL */}
+                {/* PRODUCT DETAIL */}
+                {searchView === 'product-detail' && (
+                  <ProductDetailCard
+                    productId={selectedProductId}
+                    onClose={handleClearAll}
+                    onBack={productOnBack}
+                  />
+                )}
+
+                {/* POI DETAIL */}
                 {searchView === 'detail' &&
                   !directionActive &&
                   (selectedPoiDetails || poiDetailLoading || poiDetailError) && (

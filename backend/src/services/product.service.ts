@@ -1,4 +1,5 @@
 import sql from '../db';
+import { supabase } from '../config/supabase';
 
 export interface ProductRecord {
   id: string;
@@ -12,6 +13,32 @@ export interface ProductRecord {
   price_min: number | null;
   price_max: number | null;
   stock_status: string | null;
+}
+
+// ─── Product Type Detail ─────────────────────────────────────────────────────
+
+export interface HistoryItem {
+  thoi_gian: string;
+  mo_ta: string;
+  hinh_anh_url: string | null;
+}
+
+export interface HighlightItem {
+  title: string;
+  description: string;
+  hinh_anh_url: string | null;
+}
+
+export interface ProductTypeDetailRecord {
+  id: string;
+  name: string;
+  overview: string | null;
+  huong_dan_su_dung: string[];
+  cong_dung: string[];
+  diem_noi_bat: HighlightItem[];
+  lich_su_hinh_thanh: HistoryItem[];
+  banner_url: string | null;
+  process_image_url: string | null;
 }
 
 export class ProductService {
@@ -65,5 +92,105 @@ export class ProductService {
       console.error(`Error fetching products for POI ${poiId}:`, err);
       throw new Error(`Database Query Failure: ${err.message || err}`);
     }
+  }
+
+  /**
+   * Fetches a complete product type record from Supabase by ID.
+   * Resolves banner and process images from the "ProductCategory" Storage bucket.
+   * This is the ONLY source of truth for Product Detail — Meilisearch is NOT used.
+   *
+   * Image resolution strategy:
+   *   The product_media join table does not exist in the database.
+   *   Images are stored in Supabase Storage under "ProductCategory/<FolderName>/",
+   *   where FolderName is the product slug converted to PascalCase:
+   *     "dong-trung-ha-thao" → "DongTrungHaThao"
+   *     "nuoc-mam-nam-o"     → "NuocMamNamO"
+   *
+   *   Banner  : first file whose name starts with "overview"
+   *   Process : first file whose name starts with "quy_trinh"
+   */
+  static async getProductTypeById(id: string): Promise<ProductTypeDetailRecord | null> {
+    // 1. Fetch product_types row (include slug — needed to derive Storage folder)
+    const { data: pt, error: ptError } = await supabase
+      .schema('poi')
+      .from('product_types')
+      .select('id, slug, name, overview, huong_dan_su_dung, cong_dung, diem_noi_bat, lich_su_hinh_thanh')
+      .eq('id', id)
+      .single();
+
+    if (ptError) {
+      if (ptError.code === 'PGRST116') return null; // no rows
+      throw new Error(`Supabase product_types error: ${ptError.message}`);
+    }
+    if (!pt) return null;
+
+    // 2. Resolve banner_url and process_image_url from Supabase Storage.
+    //    Graceful: if Storage lookup fails, images are null and the rest of the
+    //    product detail continues to render normally.
+    let banner_url: string | null = null;
+    let process_image_url: string | null = null;
+
+    try {
+      const BUCKET = 'ProductCategory';
+      // Signed URLs valid for 10 years — images are static production assets
+      const SIGNED_TTL = 315_360_000;
+
+      // slug → PascalCase folder name
+      // e.g. "dong-trung-ha-thao" → "DongTrungHaThao"
+      const folder = (pt.slug as string)
+        .split('-')
+        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join('');
+
+      const { data: files, error: listErr } = await supabase.storage
+        .from(BUCKET)
+        .list(folder, { limit: 50 });
+
+      if (listErr) {
+        console.warn(`[ProductService] Storage list failed for "${folder}": ${listErr.message}`);
+      } else if (files && files.length > 0) {
+        const fileNames = files.map((f: any) => f.name as string);
+
+        // Banner: file starting with "overview" (overview.png, overview.jpg, …)
+        const bannerFile = fileNames.find((n) => n.toLowerCase().startsWith('overview'));
+        if (bannerFile) {
+          const { data: signed, error: signErr } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(`${folder}/${bannerFile}`, SIGNED_TTL);
+          if (signErr) {
+            console.warn(`[ProductService] Banner sign failed "${folder}/${bannerFile}": ${signErr.message}`);
+          } else {
+            banner_url = signed?.signedUrl ?? null;
+          }
+        }
+
+        // Process image: file starting with "quy_trinh" (quy_trinh.png, quy_trinh_lam_mam.png, …)
+        const processFile = fileNames.find((n) => n.toLowerCase().startsWith('quy_trinh'));
+        if (processFile) {
+          const { data: signed, error: signErr } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(`${folder}/${processFile}`, SIGNED_TTL);
+          if (signErr) {
+            console.warn(`[ProductService] Process sign failed "${folder}/${processFile}": ${signErr.message}`);
+          } else {
+            process_image_url = signed?.signedUrl ?? null;
+          }
+        }
+      }
+    } catch (storageErr: any) {
+      console.warn(`[ProductService] Storage image lookup failed (id=${id}): ${storageErr.message}`);
+    }
+
+    return {
+      id: pt.id,
+      name: pt.name ?? '',
+      overview: pt.overview ?? null,
+      huong_dan_su_dung: Array.isArray(pt.huong_dan_su_dung) ? pt.huong_dan_su_dung : [],
+      cong_dung: Array.isArray(pt.cong_dung) ? pt.cong_dung : [],
+      diem_noi_bat: Array.isArray(pt.diem_noi_bat) ? pt.diem_noi_bat : [],
+      lich_su_hinh_thanh: Array.isArray(pt.lich_su_hinh_thanh) ? pt.lich_su_hinh_thanh : [],
+      banner_url,
+      process_image_url,
+    };
   }
 }
