@@ -28,6 +28,12 @@ export interface MapContainerProps {
   onMapEvent?: (eventName: string, args: any) => void;
   className?: string;
   style?: React.CSSProperties;
+  /**
+   * Restricts which database POIs the POIOverlay fetches/renders.
+   * Omitted -> no filtering (all POIs shown). Provided with both flags
+   * false -> no POI/OCOP markers are shown at all.
+   */
+  activeFilters?: { place: boolean; ocop: boolean };
 }
 
 export const MapContainer: React.FC<MapContainerProps> = ({
@@ -50,6 +56,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   onMapEvent,
   className,
   style,
+  activeFilters,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapInstance, setMapInstance] = useState<any>(null);
@@ -308,10 +315,25 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   useEffect(() => {
     if (!mapInstance) return;
 
+    // With activeFilters provided and neither category selected, show no
+    // POI/OCOP markers at all — skip creating the overlay entirely. The
+    // previous overlay (if any) was already torn down by the last effect's
+    // cleanup before this run.
+    if (activeFilters && !activeFilters.place && !activeFilters.ocop) {
+      return;
+    }
+
+    const categoriesQuery = activeFilters
+      ? `?categories=${[
+          activeFilters.place ? 'place' : null,
+          activeFilters.ocop ? 'ocop' : null,
+        ].filter(Boolean).join(',')}`
+      : '';
+
     // Create POIOverlay for Database POIs
     const overlay = new window.map4d.POIOverlay({
       getUrl: (x: number, y: number, zoom: number) => {
-        return `${MAP4D_CONFIG.backendUrl}/api/pois/tile/${x}/${y}/${zoom}`;
+        return `${MAP4D_CONFIG.backendUrl}/api/pois/tile/${x}/${y}/${zoom}${categoriesQuery}`;
       },
       parserData: (response: any) => {
         let data = response;
@@ -393,7 +415,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       customPoiByDbId.clear();
       customPoiByEngineId.clear();
     };
-  }, [mapInstance]);
+  }, [mapInstance, activeFilters?.place, activeFilters?.ocop]);
 
   // Synchronize dynamic center and zoom properties together with smooth camera transition
   useEffect(() => {

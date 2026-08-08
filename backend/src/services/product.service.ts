@@ -151,8 +151,8 @@ export class ProductService {
       } else if (files && files.length > 0) {
         const fileNames = files.map((f: any) => f.name as string);
 
-        // Banner: file starting with "overview" (overview.png, overview.jpg, …)
-        const bannerFile = fileNames.find((n) => n.toLowerCase().startsWith('overview'));
+// Banner: file starting with "overview" (overview.png, overview.jpg, …)
+        const bannerFile = fileNames.find((n: string) => n.toLowerCase().startsWith('overview'));
         if (bannerFile) {
           const { data: signed, error: signErr } = await supabase.storage
             .from(BUCKET)
@@ -164,8 +164,8 @@ export class ProductService {
           }
         }
 
-        // Process image: file starting with "quy_trinh" (quy_trinh.png, quy_trinh_lam_mam.png, …)
-        const processFile = fileNames.find((n) => n.toLowerCase().startsWith('quy_trinh'));
+// Process image: file starting with "quy_trinh" (quy_trinh.png, quy_trinh_lam_mam.png, …)
+        const processFile = fileNames.find((n: string) => n.toLowerCase().startsWith('quy_trinh'));
         if (processFile) {
           const { data: signed, error: signErr } = await supabase.storage
             .from(BUCKET)
