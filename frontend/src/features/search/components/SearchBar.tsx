@@ -127,6 +127,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   // ---- AbortController ref ----
   const autocompleteAbortRef = useRef<AbortController | null>(null);
 
+  // ---- Suppress the next autocomplete fetch triggered by a programmatic
+  // query change (e.g. selecting a suggestion sets query = suggestion.title,
+  // which would otherwise re-trigger the debounced autocomplete effect and
+  // re-open the dropdown right after selection). ----
+  const suppressAutocompleteRef = useRef(false);
+
   // ---- Adapter — stable per mode; locationBias is passed per-call ----
   // The adapter is only recreated when searchMode changes. locationBias is
   // forwarded directly to each call, so the map center can change freely
@@ -149,6 +155,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   // ---- Autocomplete effect ----
   useEffect(() => {
+    if (suppressAutocompleteRef.current) {
+      suppressAutocompleteRef.current = false;
+      return;
+    }
+
     if (debouncedQuery.trim().length < 1) {
       setSuggestions([]);
       if (searchViewRef.current === 'autocomplete') setSearchView('idle');
@@ -215,6 +226,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   // ---- Suggestion selected ----
   const handleSuggestionSelect = (suggestion: SearchSuggestion) => {
+    suppressAutocompleteRef.current = true;
     setSuggestions([]);
 
     if (suggestion.type === 'product') {
@@ -262,6 +274,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   // ---- Listing item selected ----
   const handleListingSelect = (suggestion: SearchSuggestion) => {
+    suppressAutocompleteRef.current = true;
     setSuggestions([]);
 
     if (suggestion.type === 'product') {
