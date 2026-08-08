@@ -40,7 +40,19 @@ router.get('/tile/:x/:y/:zoom', async (req: Request, res: Response) => {
       });
     }
 
-    const pois = await PoiService.getPoisByTile(x, y, zoom);
+    // `categories` is a comma-separated list of 'place' and/or 'ocop'.
+    // Omitted entirely -> no filtering (all POIs). Present but empty/invalid
+    // -> no category selected, so no POIs are returned.
+    const categoriesParam = req.query.categories;
+    let categories: Array<'place' | 'ocop'> | undefined;
+    if (typeof categoriesParam === 'string') {
+      categories = categoriesParam
+        .split(',')
+        .map((c) => c.trim())
+        .filter((c): c is 'place' | 'ocop' => c === 'place' || c === 'ocop');
+    }
+
+    const pois = await PoiService.getPoisByTile(x, y, zoom, categories);
     return res.status(200).json(pois);
   } catch (error: any) {
     console.error(`Failed to get POIs for tile ${req.params.x}/${req.params.y}/${req.params.zoom}:`, error);

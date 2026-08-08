@@ -79,8 +79,30 @@ export class PoiService {
 
   /**
    * Retrieves POIs within the boundaries of a given Web Mercator map tile.
+   *
+   * `categories`, when provided, restricts results to 'place' (everything
+   * except OCOP stores) and/or 'ocop' (OCOP_STORE only). An empty array means
+   * no category is selected, so no POIs should be returned. Omitting the
+   * parameter entirely preserves the unfiltered (show-all) behavior.
    */
-  static async getPoisByTile(x: number, y: number, zoom: number): Promise<POIRecord[]> {
+  static async getPoisByTile(
+    x: number,
+    y: number,
+    zoom: number,
+    categories?: Array<'place' | 'ocop'>
+  ): Promise<POIRecord[]> {
+    if (categories && categories.length === 0) {
+      return [];
+    }
+
+    const includesPlace = !categories || categories.includes('place');
+    const includesOcop = !categories || categories.includes('ocop');
+    const categoryFilter = includesPlace && includesOcop
+      ? sql``
+      : includesOcop
+        ? sql`AND p.poi_type = 'OCOP_STORE'`
+        : sql`AND p.poi_type != 'OCOP_STORE'`;
+
     const n = Math.pow(2, zoom);
     const lngMin = (x / n) * 360 - 180;
     const lngMax = ((x + 1) / n) * 360 - 180;
@@ -114,6 +136,7 @@ export class PoiService {
         LEFT JOIN poi.poi_categories c ON c.id = p.category_id
         WHERE g.lat >= ${latMinBound} AND g.lat <= ${latMaxBound}
           AND g.lng >= ${lngMinBound} AND g.lng <= ${lngMaxBound}
+          ${categoryFilter}
       `;
       return result.map((raw: any) => {
         const categoryName = raw.category_name || '';
