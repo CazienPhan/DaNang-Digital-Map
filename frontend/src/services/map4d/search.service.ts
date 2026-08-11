@@ -1,4 +1,5 @@
 import { MAP4D_CONFIG } from '@/config/map.config';
+import { fetchMap4d } from './http';
 
 export interface PlaceSuggestion {
   id: string;
@@ -86,13 +87,10 @@ export class SearchService {
    */
   static async reverseGeocode(lat: number, lng: number): Promise<string> {
     try {
-      const response = await fetch(
-        `${MAP4D_CONFIG.backendUrl}/api/map4d/geocode?location=${lat},${lng}`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
+      const data = await fetchMap4d({
+        backendPath: `/api/map4d/geocode?location=${lat},${lng}`,
+        directPath: `/sdk/v2/geocode?location=${lat},${lng}`,
+      });
       if (data && Array.isArray(data.result) && data.result.length > 0) {
         return data.result[0].address || data.result[0].name || '';
       }
