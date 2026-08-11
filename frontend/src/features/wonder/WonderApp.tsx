@@ -143,6 +143,22 @@ export default function WonderApp() {
     setSelectedLocationId(loc.id);
   };
 
+  /**
+   * Mở chỉ đường tới một địa điểm.
+   *
+   * Phải đóng các lớp đang che bản đồ trước. Trang chi tiết địa điểm là một
+   * ngăn kéo cao hết màn hình — nếu để nguyên thì bấm "Xem trên bản đồ" xong
+   * người dùng vẫn chỉ thấy trang chi tiết, tưởng chức năng không chạy.
+   */
+  const handleOpenDirections = (loc: LocationItem) => {
+    setDetailLocation(null);
+    setProductDetailModal(null);
+    setIsFavoritesOpen(false);
+    setIsAboutOpen(false);
+    setIsFilterOpen(false);
+    setDirectionsLocation(loc);
+  };
+
   const handleToggleFavorite = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setFavorites((prev) =>
@@ -170,7 +186,7 @@ export default function WonderApp() {
           selectedCategory={selectedCategory}
           setSelectedCategory={handleSelectCategory}
           onOpenDetail={(loc) => setDetailLocation(loc)}
-          onOpenDirections={(loc) => setDirectionsLocation(loc)}
+          onOpenDirections={handleOpenDirections}
           onOpenProductDetail={(prod) => setProductDetailModal(prod)}
           onOpenFilterModal={() => setIsFilterOpen(true)}
           onToggleDrawer={() => setIsDrawerOpen((prev) => !prev)}
@@ -212,7 +228,7 @@ export default function WonderApp() {
         selectedLocationId={selectedLocationId}
         onSelectLocation={handleSelectLocation}
         onOpenDetail={(loc) => setDetailLocation(loc)}
-        onOpenDirections={(loc) => setDirectionsLocation(loc)}
+        onOpenDirections={handleOpenDirections}
         onOpenProductDetail={(prod) => setProductDetailModal(prod)}
         recentShortcuts={RECENT_EXPLORE_SHORTCUTS}
         favorites={favorites}
@@ -227,7 +243,7 @@ export default function WonderApp() {
       <LocationDetailModal
         location={detailLocation}
         onClose={() => setDetailLocation(null)}
-        onOpenDirections={(loc) => setDirectionsLocation(loc)}
+        onOpenDirections={handleOpenDirections}
         isFavorite={detailLocation ? favorites.includes(detailLocation.id) : false}
         onToggleFavorite={handleToggleFavorite}
         allLocations={LOCATIONS_DATA}
