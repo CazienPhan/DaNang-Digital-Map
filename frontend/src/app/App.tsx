@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapContainer, MapClickHandler, MapFilterBar, type MapCoordinate, type MapFilters } from '@/features/map';
+import { MapContainer, MapClickHandler, type MapCoordinate } from '@/features/map';
 import { SearchBar, PlaceDetailCard } from '@/features/search';
 import { useDirection, type LocationState } from '@/features/directions';
 import { SearchService } from '@/services/map4d/search.service';
@@ -46,10 +46,6 @@ function App() {
   const [poiSelectSignal, setPoiSelectSignal] = useState(0);
 
   const [mapInstance, setMapInstance] = useState<any>(null);
-
-  // Map POI category filters — both start off, toggled independently.
-  const [mapFilters, setMapFilters] = useState<MapFilters>({ place: false, ocop: false });
-
 
   const handlePoiClick = (poi: POIData) => {
     // 1. If routeMode is active: DO NOT change active route/destination or update search inputs
@@ -589,9 +585,6 @@ function App() {
         poiDetailError={poiDetailError}
         externalPoiSelectSignal={poiSelectSignal}
       />
-      <div className="absolute top-[41px] left-[390px] max-[720px]:top-[184px] max-[720px]:left-2.5 z-[100]">
-        <MapFilterBar value={mapFilters} onChange={setMapFilters} />
-      </div>
       <MapContainer
         center={center}
         zoom={zoom}
@@ -606,7 +599,6 @@ function App() {
         onMapEvent={handleMapEvent}
         style={{ width: '100%', height: '100%' }}
         onMapReady={setMapInstance}
-        activeFilters={mapFilters}
       />
       {mapInstance && (
         <MapClickHandler
