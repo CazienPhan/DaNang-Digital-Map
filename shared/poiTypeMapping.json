@@ -1,0 +1,64 @@
+{
+  "$comment": "Source of truth for POI icon-type mapping. DO NOT edit the copies in backend/src/config or frontend/src/features/map/config directly — edit this file, then run `node scripts/sync-poi-type-mapping.js` from the repo root to resync both.",
+  "POI_TYPE_TO_SDK_TYPE": {
+    "RESTAURANT": "restaurant",
+    "HOTEL": "motel",
+    "MARKET": "marketplace"
+  },
+  "RAW_TYPE_TO_SDK_TYPE": {
+    "cafe": "cafe",
+    "restaurant": "restaurant",
+    "food_service": "restaurant",
+    "bakery": "cafe",
+    "bar": "restaurant",
+
+    "lodging": "hotel",
+    "hotel": "hotel",
+
+    "store": "shop",
+    "grocery_store": "shop",
+    "convenience_store": "shop",
+    "supermarket": "shop",
+    "fashion": "shop",
+    "clothing_store": "shop",
+    "home_goods_store": "shop",
+    "book_store": "shop",
+    "furniture_store": "shop",
+    "electronics_store": "electronics",
+    "computer_store": "electronics",
+    "jewelry_store": "shop",
+    "liquor_store": "shop",
+    "shoe_store": "shop",
+    "shopping_mall": "marketplace",
+
+    "museum": "museum",
+    "art_gallery": "museum",
+    "park": "park",
+    "campground": "park",
+
+    "university": "university",
+    "primary_school": "school",
+    "secondary_school": "school",
+    "education": "school",
+
+    "bank": "bank",
+    "finance": "bank",
+    "atm": "atm",
+
+    "health": "hospital",
+    "hospital": "hospital",
+    "doctor": "hospital",
+    "dentist": "hospital",
+    "pharmacy": "pharmacy",
+
+    "bus_station": "bus_station",
+    "transit_station": "bus_station",
+    "public_transport": "bus_station",
+
+    "cinema": "theatre",
+    "entertainment": "theatre",
+    "stadium": "stadium",
+
+    "bridge": "bridge"
+  }
+}

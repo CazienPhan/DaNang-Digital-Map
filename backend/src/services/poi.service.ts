@@ -1,4 +1,42 @@
 import sql from '../db';
+import poiTypeMapping from '../config/poiTypeMapping.json';
+
+// Synced from shared/poiTypeMapping.json — see scripts/sync-poi-type-mapping.js.
+// Used to rank POIs into declutter tiers for the zoom-based filter below.
+const STYLED_RAW_TYPES = new Set(Object.keys(poiTypeMapping.RAW_TYPE_TO_SDK_TYPE));
+const STYLED_POI_TYPES = new Set(Object.keys(poiTypeMapping.POI_TYPE_TO_SDK_TYPE));
+
+// Three-tier declutter: tier 1 (a real category icon_url from the DB — the
+// most trustworthy data) always shows. Tier 2 (an SDK built-in icon resolved
+// from raw_type/poi_type) only shows once zoomed past TIER_2_MIN_ZOOM. Tier 3
+// (no match — renders as the default blue-teardrop marker) only shows once
+// zoomed past TIER_3_MIN_ZOOM, since it's the least informative and the most
+// numerous. Tune by eye against the live map.
+const TIER_2_MIN_ZOOM = 12;
+const TIER_3_MIN_ZOOM = 19;
+
+function getPoiTier(poi: {
+  category_icon_url?: string | null;
+  raw_type?: string[] | null;
+  poi_type: string;
+}): 1 | 2 | 3 {
+  if (poi.category_icon_url) {
+    return 1;
+  }
+  if (poi.raw_type && poi.raw_type.some((tag) => STYLED_RAW_TYPES.has(tag))) {
+    return 2;
+  }
+  if (STYLED_POI_TYPES.has(poi.poi_type)) {
+    return 2;
+  }
+  return 3;
+}
+
+function isVisibleAtZoom(tier: 1 | 2 | 3, zoom: number): boolean {
+  if (tier === 1) return true;
+  if (tier === 2) return zoom >= TIER_2_MIN_ZOOM;
+  return zoom >= TIER_3_MIN_ZOOM;
+}
 
 export interface POIRecord {
   id: string;
@@ -14,6 +52,8 @@ export interface POIRecord {
   category_name?: string | null;
   category_name_en?: string | null;
   category_icon_url?: string | null;
+  category_color_hex?: string | null;
+  raw_type?: string[] | null;
 }
 
 export class PoiService {
@@ -25,15 +65,17 @@ export class PoiService {
       const result = await sql`
         SELECT 
           p.id, 
-          p.name, 
-          p.name_en, 
-          p.poi_type, 
-          p.dia_chi, 
-          g.lat, 
+          p.name,
+          p.name_en,
+          p.poi_type,
+          p.dia_chi,
+          p.raw_type,
+          g.lat,
           g.lng,
           c.name AS category_name,
           c.name_en AS category_name_en,
-          c.icon_url AS category_icon_url
+          c.icon_url AS category_icon_url,
+          c.color_hex AS category_color_hex
         FROM poi.pois p
         JOIN poi.poi_geometries g ON g.poi_id = p.id
         LEFT JOIN poi.poi_categories c ON c.id = p.category_id
@@ -68,7 +110,9 @@ export class PoiService {
           iconSource,
           category_name: raw.category_name || null,
           category_name_en: raw.category_name_en || null,
-          category_icon_url: raw.category_icon_url || null
+          category_icon_url: raw.category_icon_url || null,
+          category_color_hex: raw.category_color_hex || null,
+          raw_type: raw.raw_type || null
         };
       });
     } catch (err: any) {
@@ -120,17 +164,19 @@ export class PoiService {
 
     try {
       const result = await sql`
-        SELECT 
-          p.id, 
-          p.name, 
-          p.name_en, 
-          p.poi_type, 
-          p.dia_chi, 
-          g.lat, 
+        SELECT
+          p.id,
+          p.name,
+          p.name_en,
+          p.poi_type,
+          p.dia_chi,
+          p.raw_type,
+          g.lat,
           g.lng,
           c.name AS category_name,
           c.name_en AS category_name_en,
-          c.icon_url AS category_icon_url
+          c.icon_url AS category_icon_url,
+          c.color_hex AS category_color_hex
         FROM poi.pois p
         JOIN poi.poi_geometries g ON g.poi_id = p.id
         LEFT JOIN poi.poi_categories c ON c.id = p.category_id
@@ -138,7 +184,15 @@ export class PoiService {
           AND g.lng >= ${lngMinBound} AND g.lng <= ${lngMaxBound}
           ${categoryFilter}
       `;
-      return result.map((raw: any) => {
+      const rows = result.filter((raw: any) => isVisibleAtZoom(
+        getPoiTier({
+          category_icon_url: raw.category_icon_url || null,
+          raw_type: raw.raw_type || null,
+          poi_type: raw.poi_type
+        }),
+        zoom
+      ));
+      return rows.map((raw: any) => {
         const categoryName = raw.category_name || '';
         const categoryNameEn = raw.category_name_en || '';
         const isOcop = categoryName === 'Sản phẩm OCOP' || categoryNameEn === 'OCOP Products';
@@ -168,7 +222,9 @@ export class PoiService {
           iconSource,
           category_name: raw.category_name || null,
           category_name_en: raw.category_name_en || null,
-          category_icon_url: raw.category_icon_url || null
+          category_icon_url: raw.category_icon_url || null,
+          category_color_hex: raw.category_color_hex || null,
+          raw_type: raw.raw_type || null
         };
       });
     } catch (err: any) {

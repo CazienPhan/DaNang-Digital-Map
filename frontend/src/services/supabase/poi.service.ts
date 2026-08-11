@@ -14,6 +14,8 @@ export interface POIData {
   category_name?: string | null;
   category_name_en?: string | null;
   category_icon_url?: string | null;
+  category_color_hex?: string | null;
+  raw_type?: string[] | null;
 }
 
 export interface POIMediaItem {
