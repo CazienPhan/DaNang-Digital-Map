@@ -163,6 +163,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const [activeMapMode, setActiveMapMode] = useState<MapMode>('roadmap');
   const [isMapModeSelectorOpen, setIsMapModeSelectorOpen] = useState(false);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const [isSellingListOpen, setIsSellingListOpen] = useState(true);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   /** Giữ giá trị mới nhất để listener đăng ký một lần vẫn đọc được dữ liệu hiện tại. */
@@ -554,6 +555,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
     const points = sellingPoints?.points ?? [];
     if (points.length === 0) return;
+    setIsSellingListOpen(true);
 
     try {
       const bounds = new window.map4d.LatLngBounds();
@@ -567,19 +569,24 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         const safeName = sp.name.replace(/[<>&]/g, '');
         const marker = new window.map4d.Marker({
           position: new window.map4d.LatLng(sp.lat, sp.lng),
+          // Khối ngoài PHẢI khai báo width/height cụ thể. Map4D dựa vào kích
+          // thước này để đặt lớp phủ; để trống thì khối co về 0 và marker
+          // không hiện ra — đúng lỗi đã gặp.
           iconView: `
-            <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+            <div style="width:180px;height:58px;display:flex;flex-direction:column;
+                        align-items:center;justify-content:flex-start;cursor:pointer;">
               <div style="display:flex;align-items:center;justify-content:center;
-                          width:30px;height:30px;border-radius:9999px;background:${color};
-                          border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);
+                          width:30px;height:30px;flex:0 0 30px;border-radius:9999px;
+                          background:${color};border:3px solid #fff;
+                          box-shadow:0 2px 6px rgba(0,0,0,.35);
                           color:#fff;font-size:12px;font-weight:800;">${i + 1}</div>
-              <div style="margin-top:3px;max-width:150px;padding:2px 7px;border-radius:9999px;
+              <div style="margin-top:3px;max-width:180px;padding:2px 7px;border-radius:9999px;
                           background:rgba(255,255,255,.96);border:1px solid #E5E7EB;
                           box-shadow:0 1px 4px rgba(0,0,0,.18);font-size:11px;font-weight:700;
                           color:#1F2937;white-space:nowrap;overflow:hidden;
                           text-overflow:ellipsis;">${safeName}</div>
             </div>`,
-          anchor: { x: 0.5, y: 0.5 },
+          anchor: { x: 0.5, y: 0.26 },
           title: sp.name,
           visible: true,
         });
@@ -590,6 +597,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       });
 
       map.fitBounds(bounds);
+      console.log(`[Điểm bán] Đã vẽ ${sellingLayersRef.current.length}/${points.length} marker`);
     } catch (err) {
       console.error('Không vẽ được các điểm bán:', err);
     }
@@ -699,6 +707,22 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         camera.getZoom() + delta
       ),
       { animate: true }
+    );
+  };
+
+  /** Bấm một dòng trong bảng điểm bán: đưa bản đồ tới nơi và mở thẻ thông tin. */
+  const focusSellingPoint = (sp: SellingPointItem) => {
+    moveCameraTo(sp.lat, sp.lng, 17);
+    onMapPointClickRef.current?.(
+      buildAdHocLocation({
+        id: `${AD_HOC_ID_PREFIX}store-${sp.id}`,
+        name: sp.name,
+        lat: sp.lat,
+        lng: sp.lng,
+        address: `${sp.address} · ${sp.stockStatus}`,
+        categoryLabel: 'Điểm bán OCOP',
+        category: 'ocop_outlet',
+      })
     );
   };
 
@@ -1141,35 +1165,81 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         </div>
       )}
 
-      {/* Bảng điểm bán sản phẩm đang hiển thị */}
+      {/* Bảng danh sách điểm bán — đi kèm marker trên bản đồ cho dễ đối chiếu */}
       {sellingPoints && sellingPoints.points.length > 0 && (
         <div
-          className={`absolute top-28 sm:top-32 z-30 transition-all duration-300 ${
+          className={`absolute top-28 sm:top-32 z-30 w-[300px] max-w-[calc(100vw-32px)] transition-all duration-300 ${
             isDrawerOpen ? 'left-4 sm:left-[435px]' : 'left-4 sm:left-6'
           }`}
         >
-          <div className="flex items-start gap-2.5 bg-white/97 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 px-3.5 py-2.5 max-w-[330px]">
-            <ShoppingBag className="w-4 h-4 text-[#F47A1F] shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-xs font-black text-slate-800 truncate">
-                {sellingPoints.points.length} điểm bán
-              </p>
-              <p className="text-[11px] text-slate-500 font-medium truncate">
-                {sellingPoints.productName}
-              </p>
-              <p className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[10px] font-semibold">
-                <span className="text-emerald-600">● Còn hàng</span>
-                <span className="text-[#F47A1F]">● Sắp hết</span>
-                <span className="text-slate-400">● Hết hàng</span>
-              </p>
+          <div className="bg-white/97 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+            {/* Đầu bảng */}
+            <div className="flex items-start gap-2.5 px-3.5 py-2.5 border-b border-slate-100 bg-[#FFF9F3]">
+              <ShoppingBag className="w-4 h-4 text-[#F47A1F] shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black text-slate-800">
+                  {sellingPoints.points.length} điểm bán
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium truncate">
+                  {sellingPoints.productName}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsSellingListOpen((v) => !v)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                aria-label={isSellingListOpen ? 'Thu gọn danh sách' : 'Mở danh sách'}
+              >
+                {isSellingListOpen ? <Minus className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={() => onClearSellingPoints?.()}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                aria-label="Bỏ hiển thị điểm bán"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <button
-              onClick={() => onClearSellingPoints?.()}
-              className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
-              aria-label="Bỏ hiển thị điểm bán"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+
+            {/* Danh sách — số thứ tự khớp với số trên marker */}
+            {isSellingListOpen && (
+              <div className="max-h-[46vh] overflow-y-auto divide-y divide-slate-100">
+                {sellingPoints.points.map((sp, i) => {
+                  const color =
+                    sp.stockStatus === 'Còn hàng'
+                      ? '#198754'
+                      : sp.stockStatus === 'Hết hàng'
+                        ? '#94A3B8'
+                        : '#F47A1F';
+                  return (
+                    <button
+                      key={sp.id}
+                      onClick={() => focusSellingPoint(sp)}
+                      className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-orange-50/70 transition-colors cursor-pointer group"
+                    >
+                      <span
+                        className="w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-[11px] font-black text-white mt-0.5"
+                        style={{ backgroundColor: color }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-bold text-slate-800 truncate group-hover:text-[#F47A1F] transition-colors">
+                          {sp.name}
+                        </span>
+                        <span className="block text-[11px] text-slate-500 truncate">
+                          {sp.address}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-2 text-[10px] font-semibold">
+                          <span style={{ color }}>{sp.stockStatus}</span>
+                          {sp.distanceStr && <span className="text-slate-400">{sp.distanceStr}</span>}
+                        </span>
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0 mt-1 group-hover:text-[#F47A1F] group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
