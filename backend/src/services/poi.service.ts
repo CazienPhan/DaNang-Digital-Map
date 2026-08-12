@@ -268,6 +268,7 @@ export class PoiService {
           b.nganh_hang,
           b.tam_gia,
           b.sdt,
+          b.gioi_thieu AS business_gioi_thieu,
           t.gioi_thieu,
           t.gioi_thieu_en,
           t.nam_xay_dung,
@@ -302,9 +303,10 @@ export class PoiService {
         gia_ve: raw.gia_ve || null
       } : null;
 
-      const business = (raw.nganh_hang || raw.sdt) ? {
+      const business = (raw.nganh_hang || raw.sdt || raw.business_gioi_thieu) ? {
         nganh_hang: raw.nganh_hang || null,
-        sdt: raw.sdt || null
+        sdt: raw.sdt || null,
+        gioi_thieu: raw.business_gioi_thieu || null,
       } : null;
 
       const mediaRaw = Array.isArray(raw.media) ? raw.media : [];

@@ -186,11 +186,11 @@ export const MapContainer: React.FC<MapContainerProps> = ({
           } else if (clickedPoi.id && typeof clickedPoi.id === 'string' && clickedPoi.id.startsWith('database-poi-')) {
             // Keep prefix fallback support for legacy components/tests
             const dbId = clickedPoi.id.replace('database-poi-', '');
-            
+
             const poiName = clickedPoi.title || (typeof clickedPoi.getTitle === 'function' ? clickedPoi.getTitle() : '') || clickedPoi.name || '';
             const rawLat = clickedPoi.position?.lat ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lat === 'function' ? clickedPoi.getPosition().lat() : clickedPoi.getPosition().lat) : args.location?.lat);
             const rawLng = clickedPoi.position?.lng ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lng === 'function' ? clickedPoi.getPosition().lng() : clickedPoi.getPosition().lng) : args.location?.lng);
-            
+
             const poiLat = rawLat ?? 0;
             const poiLng = rawLng ?? 0;
 
@@ -211,7 +211,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
             const poiName = clickedPoi.name || clickedPoi.title || (typeof clickedPoi.getTitle === 'function' ? clickedPoi.getTitle() : '') || '';
             const rawLat = clickedPoi.location?.lat ?? clickedPoi.position?.lat ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lat === 'function' ? clickedPoi.getPosition().lat() : clickedPoi.getPosition().lat) : args.location?.lat);
             const rawLng = clickedPoi.location?.lng ?? clickedPoi.position?.lng ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lng === 'function' ? clickedPoi.getPosition().lng() : clickedPoi.getPosition().lng) : args.location?.lng);
-            
+
             const poiLat = rawLat ?? 0;
             const poiLng = rawLng ?? 0;
 
@@ -374,11 +374,11 @@ export const MapContainer: React.FC<MapContainerProps> = ({
               });
               standalonePoi.setMap(mapInstance);
               const engineId = standalonePoi.id;
-              
+
               const mapping = { engineId, standalonePoi, poi };
               customPoiByDbIdRef.current.set(poi.id, mapping);
               customPoiByEngineIdRef.current.set(engineId, mapping);
-              
+
               console.log(`[Standalone POI Map] Mapped database POI "${poi.name}" (ID: ${poi.id}) to engine ID: ${engineId}`);
             }
           } else {
@@ -395,7 +395,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
     overlay.setMap(mapInstance);
     poiOverlayRef.current = overlay;
-    
+
     const customPoiByDbId = customPoiByDbIdRef.current;
     const customPoiByEngineId = customPoiByEngineIdRef.current;
 

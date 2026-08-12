@@ -356,12 +356,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       {/* SEARCH BAR */}
       <div className="absolute top-6 left-2.5 z-[100] w-[360px] max-w-[85vw] p-3">
         <div className="relative w-full">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#fd9401]">
             <Search size={18} />
           </div>
           <Input
             type="text"
-            className="pl-10 pr-10 bg-background rounded-lg shadow-md border-0 h-10 text-base"
+            className="pl-10 pr-10 bg-background rounded-lg shadow-sm border-1 h-10 text-base"
             placeholder="Search..."
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
@@ -391,7 +391,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               onClick={onDirectionClick}
               aria-label="Directions"
             >
-              <Navigation className="h-5 w-5" />
+              <Navigation className="h-5 w-5 text-[#fd9401]" />
             </Button>
           )}
         </div>

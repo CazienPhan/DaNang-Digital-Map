@@ -23,9 +23,9 @@ const MODES: {
   label: string;
   Icon: React.FC<React.SVGProps<SVGSVGElement>>;
 }[] = [
-  { mode: 'place',   label: 'Place Search',   Icon: MapPin      },
-  { mode: 'product', label: 'Product Search', Icon: ShoppingBag },
-];
+    { mode: 'place', label: 'Place Search', Icon: MapPin },
+    { mode: 'product', label: 'Product Search', Icon: ShoppingBag },
+  ];
 
 // ---------------------------------------------------------------------------
 // Component
@@ -54,8 +54,8 @@ const SearchModeSwitcher: React.FC<SearchModeSwitcherProps> = ({
   return (
     <div
       className={cn(
-        'flex w-full mt-2 rounded-lg bg-muted/60 p-1 gap-1',
-        'shadow-sm border border-border/40',
+        'flex w-full mt-2 rounded-lg bg-white p-1 gap-0.5',
+        'shadow-sm border-1',
       )}
       role="tablist"
       aria-label="Search mode"
@@ -70,20 +70,20 @@ const SearchModeSwitcher: React.FC<SearchModeSwitcherProps> = ({
             onClick={() => onChange(mode)}
             className={cn(
               // Base layout
-              'flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5',
-              'rounded-md text-xs font-medium',
+              'flex flex-1 items-center justify-center gap-1.5 px-3 py-2',
+              'rounded-lg text-xs font-medium',
               // Smooth transitions
               'transition-all duration-200 ease-in-out',
               // Active state — matches shadcn/ui's filled tab style
               isActive
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'bg-[#fd9401] text-white shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
             )}
           >
             <Icon
               className={cn(
                 'h-3.5 w-3.5 shrink-0 transition-colors duration-200',
-                isActive ? 'text-foreground' : 'text-muted-foreground',
+                isActive ? 'text-white' : 'text-muted-foreground',
               )}
             />
             <span className="truncate">{label}</span>

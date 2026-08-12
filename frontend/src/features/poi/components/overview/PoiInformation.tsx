@@ -18,7 +18,7 @@ interface InfoRowProps {
 
 const InfoRow: React.FC<InfoRowProps> = ({ icon, label, children }) => (
   <div className="flex items-start gap-3 py-3 border-b border-border/50 last:border-0">
-    <div className="flex-shrink-0 mt-0.5 text-muted-foreground">
+    <div className="flex-shrink-0 mt-0.5 text-[#fd9401]">
       {icon}
     </div>
     <div className="flex-1 min-w-0">

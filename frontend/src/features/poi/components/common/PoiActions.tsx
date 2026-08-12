@@ -10,11 +10,12 @@ export const PoiActions: React.FC<PoiActionsProps> = React.memo(({ onGetDirectio
   if (!onGetDirections) return null;
 
   return (
-    <div className="px-4 py-3 border-t border-border/50">
+    <div className="px-4 py-3 border-t border-border/50" style={{ borderColor: '#fd9401' }}>
       <Button
         onClick={onGetDirections}
         className="w-full gap-2 font-semibold"
         size="default"
+        style={{ backgroundColor: '#fd9401' }}
       >
         <Navigation2 size={16} />
         Chỉ đường

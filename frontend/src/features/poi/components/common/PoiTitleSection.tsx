@@ -1,6 +1,6 @@
 import React from 'react';
-import { ShieldCheck, Star } from 'lucide-react';
-
+// import { ShieldCheck, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 interface PoiTitleSectionProps {
   name?: string;
   rating: number | null;
@@ -9,21 +9,21 @@ interface PoiTitleSectionProps {
   categoryName?: string;
 }
 
-export const PoiTitleSection: React.FC<PoiTitleSectionProps> = React.memo(({ name, rating, reviewCount, tagColor, categoryName }) => {
+export const PoiTitleSection: React.FC<PoiTitleSectionProps> = React.memo(({ name, rating, reviewCount, tagColor: _tagColor, categoryName }) => {
   const finalRating = rating !== null && rating !== undefined ? rating : 0;
-  const isOcop = categoryName === 'Sản phẩm OCOP';
+  // const isOcop = categoryName === 'Sản phẩm OCOP';
 
   return (
     <div className="px-4 pb-4">
       {/* Main title */}
-      <h1 className="text-[24px] uppercase font-black tracking-normal leading-tight text-foreground mb-2">
+      <h1 className="text-[24px] uppercase font-black tracking-normal leading-tight text-[#a05d00] mb-2">
         {name}
       </h1>
 
       {/* Category · Rating · Review count */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
         {categoryName && (
-          <span className="text-xs font-normal" style={{ color: tagColor }}>
+          <span className="text-xs font-normal">
             {categoryName}
           </span>
         )}
@@ -45,13 +45,13 @@ export const PoiTitleSection: React.FC<PoiTitleSectionProps> = React.memo(({ nam
         )}
       </div>
 
-      {/* OCOP certification badge — only for OCOP category */}
+      {/* OCOP certification badge — only for OCOP category
       {isOcop && (
         <div className="flex items-center gap-1.5 mt-2 text-emerald-600">
           <ShieldCheck size={15} strokeWidth={2} />
           <span className="text-xs font-semibold">Chứng nhận sản phẩm OCOP</span>
         </div>
-      )}
+      )} */}
     </div>
   );
 });

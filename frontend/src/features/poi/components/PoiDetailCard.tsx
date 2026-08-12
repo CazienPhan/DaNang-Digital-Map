@@ -123,7 +123,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
               className={cn(
                 'px-4 py-1.5 rounded-full text-xs tracking-normal font-normal transition-colors',
                 activeTab === tab
-                  ? 'bg-foreground text-background'
+                  ? 'bg-[#fd9401] text-background'
                   : 'text-muted-foreground hover:bg-muted'
               )}
             >
