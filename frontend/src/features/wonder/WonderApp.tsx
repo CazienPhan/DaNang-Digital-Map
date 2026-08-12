@@ -8,6 +8,7 @@ import { FavoritesDrawer } from './components/FavoritesDrawer';
 import { AboutModal } from './components/AboutModal';
 import { FilterModal } from './components/FilterModal';
 import { AD_HOC_ID_PREFIX, buildAdHocLocation } from './utils/adHocLocation';
+import { useRealLocations } from './hooks/useRealLocations';
 
 import type {
   CategoryType,
@@ -32,7 +33,26 @@ import {
  *   - Bước 2: thay lớp bản đồ Leaflet bằng Map4D (features/map/components/MapContainer.tsx)
  *   - Bước 3: bỏ mock, nạp POI thật qua /api/pois/tile/:x/:y/:zoom
  */
+/**
+ * Nguồn dữ liệu địa điểm.
+ *   mặc định   → Supabase (dữ liệu thật của nhóm)
+ *   ?data=demo → bộ dữ liệu mẫu 38 địa điểm, dùng khi cần trình bày
+ */
+const USE_DEMO_DATA =
+  new URLSearchParams(window.location.search).get('data') === 'demo';
+
 export default function WonderApp() {
+  // Địa điểm thật từ Supabase. Đang tải hoặc hỏng thì tạm dùng dữ liệu mẫu
+  // để giao diện không bao giờ trống trơn.
+  const {
+    locations: realLocations,
+    loading: locationsLoading,
+    error: locationsError,
+  } = useRealLocations(!USE_DEMO_DATA);
+
+  const sourceLocations = realLocations ?? LOCATIONS_DATA;
+  const usingRealData = !USE_DEMO_DATA && realLocations !== null;
+
   // State Management
   const [searchQuery, setSearchQuery] = useState('');
   const [mainTab, setMainTab] = useState<MainTab>('locations');
@@ -69,7 +89,7 @@ export default function WonderApp() {
 
   // Filter Locations based on search, category, district, rating, verified status
   const filteredLocations = useMemo(() => {
-    return LOCATIONS_DATA.filter((loc) => {
+    return sourceLocations.filter((loc) => {
       // Category Filter
       if (selectedCategory !== 'all' && loc.category !== selectedCategory) {
         return false;
@@ -98,7 +118,7 @@ export default function WonderApp() {
 
       return true;
     });
-  }, [selectedCategory, selectedDistrict, minRating, onlyVerified, searchQuery]);
+  }, [sourceLocations, selectedCategory, selectedDistrict, minRating, onlyVerified, searchQuery]);
 
   // Filter OCOP Products
   const filteredProducts = useMemo(() => {
@@ -134,8 +154,8 @@ export default function WonderApp() {
   // Selected Location object
   const currentSelectedLocation = useMemo(() => {
     if (mapPointLocation) return mapPointLocation;
-    return LOCATIONS_DATA.find((l) => l.id === selectedLocationId) || null;
-  }, [selectedLocationId, mapPointLocation]);
+    return sourceLocations.find((l) => l.id === selectedLocationId) || null;
+  }, [sourceLocations, selectedLocationId, mapPointLocation]);
 
   // Handlers
   const handleSelectLocation = (loc: LocationItem) => {
@@ -212,6 +232,28 @@ export default function WonderApp() {
         />
       </div>
 
+      {/* Dải báo nguồn dữ liệu — để người xem biết đang là dữ liệu thật hay mẫu */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+        {locationsLoading ? (
+          <span className="flex items-center gap-2 rounded-full bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg px-3.5 py-1.5 text-[11px] font-bold text-slate-600">
+            <span className="w-3 h-3 rounded-full border-2 border-slate-300 border-t-[#F47A1F] animate-spin" />
+            Đang tải địa điểm từ máy chủ…
+          </span>
+        ) : locationsError ? (
+          <span className="rounded-full bg-amber-50/97 backdrop-blur-md border border-amber-300 shadow-lg px-3.5 py-1.5 text-[11px] font-bold text-amber-800">
+            Không nối được máy chủ — đang dùng {LOCATIONS_DATA.length} địa điểm mẫu
+          </span>
+        ) : usingRealData ? (
+          <span className="rounded-full bg-emerald-50/97 backdrop-blur-md border border-emerald-300 shadow-lg px-3.5 py-1.5 text-[11px] font-bold text-emerald-800">
+            Dữ liệu thật · {sourceLocations.length} địa điểm từ Supabase
+          </span>
+        ) : (
+          <span className="rounded-full bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg px-3.5 py-1.5 text-[11px] font-bold text-slate-600">
+            Dữ liệu mẫu · {sourceLocations.length} địa điểm
+          </span>
+        )}
+      </div>
+
       {/* 2. Left Slide-out Drawer (Google Maps style) */}
       <Sidebar
         isOpen={isDrawerOpen}
@@ -246,7 +288,7 @@ export default function WonderApp() {
         onOpenDirections={handleOpenDirections}
         isFavorite={detailLocation ? favorites.includes(detailLocation.id) : false}
         onToggleFavorite={handleToggleFavorite}
-        allLocations={LOCATIONS_DATA}
+        allLocations={sourceLocations}
         onSelectLocation={(loc) => {
           setDetailLocation(loc);
           setSelectedLocationId(loc.id);
@@ -274,7 +316,7 @@ export default function WonderApp() {
           // Trước đây nếu không tìm thấy cửa hàng thì rơi vào `l.id === 'loc-1'`,
           // tức là luôn chỉ đường về Chợ Hàn — sai điểm đến.
           setProductDetailModal(null);
-          const matched = LOCATIONS_DATA.find((l) => l.id === store.id);
+          const matched = sourceLocations.find((l) => l.id === store.id);
           setDirectionsLocation(
             matched ??
               buildAdHocLocation({
@@ -302,7 +344,7 @@ export default function WonderApp() {
         isOpen={isFavoritesOpen}
         onClose={() => setIsFavoritesOpen(false)}
         favorites={favorites}
-        locations={LOCATIONS_DATA}
+        locations={sourceLocations}
         onSelectLocation={handleSelectLocation}
         onRemoveFavorite={(id) => handleToggleFavorite(id)}
         onClearAll={() => setFavorites([])}
