@@ -6,14 +6,86 @@ import poiTypeMapping from '../config/poiTypeMapping.json';
 const STYLED_RAW_TYPES = new Set(Object.keys(poiTypeMapping.RAW_TYPE_TO_SDK_TYPE));
 const STYLED_POI_TYPES = new Set(Object.keys(poiTypeMapping.POI_TYPE_TO_SDK_TYPE));
 
-// Three-tier declutter: tier 1 (a real category icon_url from the DB — the
-// most trustworthy data) always shows. Tier 2 (an SDK built-in icon resolved
-// from raw_type/poi_type) only shows once zoomed past TIER_2_MIN_ZOOM. Tier 3
-// (no match — renders as the default blue-teardrop marker) only shows once
-// zoomed past TIER_3_MIN_ZOOM, since it's the least informative and the most
-// numerous. Tune by eye against the live map.
-const TIER_2_MIN_ZOOM = 12;
-const TIER_3_MIN_ZOOM = 19;
+// Generic linear interpolation between zoom-keyed anchor points. Used for
+// every "smoothly ramp this number up as zoom increases" table below, so
+// zoom-in/out never causes a sudden jump — just intermediate values.
+function interpolateByZoom<K extends string>(
+  anchors: Array<{ zoom: number } & Record<K, number>>,
+  zoom: number,
+  key: K
+): number {
+  if (zoom <= anchors[0].zoom) return anchors[0][key];
+  for (let i = 1; i < anchors.length; i++) {
+    const prev = anchors[i - 1];
+    const curr = anchors[i];
+    if (zoom <= curr.zoom) {
+      const t = (zoom - prev.zoom) / (curr.zoom - prev.zoom);
+      return prev[key] + t * (curr[key] - prev[key]);
+    }
+  }
+  return anchors[anchors.length - 1][key];
+}
+
+// Tier 1 (marker_url) is capped *exactly* on the frontend, by total count
+// actually visible on screen — see TIER1_TOTAL_CAP_ANCHORS in
+// MapContainer.tsx, which fetches every tile in the viewport itself and
+// can slice to an exact total. This backend number is just a safety
+// ceiling per tile so one pathologically dense tile can't blow up the
+// response while the frontend hasn't applied its total cap yet.
+const TIER1_SAFETY_CAP_PER_TILE = 300;
+
+// Tier 2/3 are rendered through POIOverlay, which the Map4D SDK drives
+// internally (it decides which tiles to fetch and when) — a single tile
+// request on the backend has no way to know how many tiles make up the
+// current viewport, so it can't cap by an exact on-screen total the way
+// tier 1 does. Instead we approximate: pick the desired total visible on
+// screen (anchors below), divide by an assumed average tile count per
+// viewport, and use that as the per-tile cap. ASSUMED_TILES_PER_VIEWPORT
+// is a rough estimate for a typical browser window (~1400x900 at 256px
+// tiles is roughly 6x4 tiles plus partial edge tiles) — if tier 2/3 is
+// consistently over/under the numbers below, tune this constant first.
+const ASSUMED_TILES_PER_VIEWPORT = 20;
+
+const ZOOM_TIER23_TOTAL_ANCHORS: Array<{ zoom: number; total: number }> = [
+  { zoom: 0, total: 15 },
+  { zoom: 10, total: 20 },
+  { zoom: 12, total: 25 },
+  { zoom: 14, total: 30 },
+  { zoom: 16, total: 35 },
+  { zoom: 18, total: 40 }
+];
+
+function getTier23CapPerTile(zoom: number): number {
+  const total = interpolateByZoom(ZOOM_TIER23_TOTAL_ANCHORS, zoom, 'total');
+  return Math.max(1, Math.round(total / ASSUMED_TILES_PER_VIEWPORT));
+}
+
+// Split of the tier 2/3 per-tile cap between tier 2 (SDK built-in icon)
+// and tier 3 (default teardrop) — tier3Share is always the remainder.
+const ZOOM_TIER2_SHARE_ANCHORS: Array<{ zoom: number; tier2Share: number }> = [
+  { zoom: 0, tier2Share: 0.8 },
+  { zoom: 10, tier2Share: 0.8 },
+  { zoom: 12, tier2Share: 0.8 },
+  { zoom: 14, tier2Share: 0.8 },
+  { zoom: 16, tier2Share: 0.8 },
+  { zoom: 18, tier2Share: 0.8 }
+];
+
+function getTier2Share(zoom: number): number {
+  return interpolateByZoom(ZOOM_TIER2_SHARE_ANCHORS, zoom, 'tier2Share');
+}
+
+// Fills up to `cap` rows from the tier 2/3 pools per the tier2/tier3
+// split. Whatever tier 2's pool can't fill spills forward into tier 3, so
+// the cap is still used fully whenever enough POIs exist across both.
+function fillTier23<T>(pools: { tier2: T[]; tier3: T[] }, cap: number, tier2Share: number): T[] {
+  const tier2Target = Math.round(cap * tier2Share);
+  const tier2Take = Math.min(tier2Target, pools.tier2.length);
+  const tier3Target = Math.max(0, cap - tier2Take);
+  const tier3Take = Math.min(tier3Target, pools.tier3.length);
+
+  return [...pools.tier2.slice(0, tier2Take), ...pools.tier3.slice(0, tier3Take)];
+}
 
 function getPoiTier(poi: {
   category_icon_url?: string | null;
@@ -30,12 +102,6 @@ function getPoiTier(poi: {
     return 2;
   }
   return 3;
-}
-
-function isVisibleAtZoom(tier: 1 | 2 | 3, zoom: number): boolean {
-  if (tier === 1) return true;
-  if (tier === 2) return zoom >= TIER_2_MIN_ZOOM;
-  return zoom >= TIER_3_MIN_ZOOM;
 }
 
 export interface POIRecord {
@@ -184,14 +250,24 @@ export class PoiService {
           AND g.lng >= ${lngMinBound} AND g.lng <= ${lngMaxBound}
           ${categoryFilter}
       `;
-      const rows = result.filter((raw: any) => isVisibleAtZoom(
-        getPoiTier({
+      const pools = { tier1: [] as any[], tier2: [] as any[], tier3: [] as any[] };
+      result.forEach((raw: any) => {
+        const tier = getPoiTier({
           category_icon_url: raw.category_icon_url || null,
           raw_type: raw.raw_type || null,
           poi_type: raw.poi_type
-        }),
-        zoom
-      ));
+        });
+        (tier === 1 ? pools.tier1 : tier === 2 ? pools.tier2 : pools.tier3).push(raw);
+      });
+      // Tier 1: safety ceiling only — the frontend applies the real,
+      // exact total-on-screen cap itself once it has collected every
+      // tile in the viewport.
+      const tier1Rows = pools.tier1.slice(0, TIER1_SAFETY_CAP_PER_TILE);
+      // Tier 2/3: approximate per-tile cap derived from a desired total
+      // on-screen count (see comments above ASSUMED_TILES_PER_VIEWPORT).
+      const tier23Rows = fillTier23(pools, getTier23CapPerTile(zoom), getTier2Share(zoom));
+      const rows = [...tier1Rows, ...tier23Rows];
+
       return rows.map((raw: any) => {
         const categoryName = raw.category_name || '';
         const categoryNameEn = raw.category_name_en || '';

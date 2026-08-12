@@ -4,6 +4,35 @@ import { loadMap4dSDK } from '@/utils/map.helper';
 import { type POIData } from '@/services/supabase/poi.service';
 import { resolvePoiStyle } from '../config/mapCategoryConfig';
 
+// Exact cap on how many tier-1 (marker_url) POIs render on screen at
+// once, by zoom — interpolated linearly between anchors so it ramps up
+// smoothly instead of jumping. Unlike the backend's tier 2/3 cap (which
+// only sees one tile at a time via POIOverlay), this effect fetches every
+// tile in the current viewport itself, so it can slice to this number
+// exactly rather than approximate it.
+const TIER1_TOTAL_CAP_ANCHORS: Array<{ zoom: number; total: number }> = [
+  { zoom: 0, total: 9 },
+  { zoom: 10, total: 12 },
+  { zoom: 12, total: 15 },
+  { zoom: 14, total: 18 },
+  { zoom: 16, total: 21 },
+  { zoom: 18, total: 24 }
+];
+
+function getTier1TotalCap(zoom: number): number {
+  const anchors = TIER1_TOTAL_CAP_ANCHORS;
+  if (zoom <= anchors[0].zoom) return anchors[0].total;
+  for (let i = 1; i < anchors.length; i++) {
+    const prev = anchors[i - 1];
+    const curr = anchors[i];
+    if (zoom <= curr.zoom) {
+      const t = (zoom - prev.zoom) / (curr.zoom - prev.zoom);
+      return Math.round(prev.total + t * (curr.total - prev.total));
+    }
+  }
+  return anchors[anchors.length - 1].total;
+}
+
 export interface MapCoordinate {
   lat: number;
   lng: number;
@@ -68,9 +97,18 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const routePolylineRef = useRef<any>(null);
   const originMarkerRef = useRef<any>(null);
   const destinationMarkerRef = useRef<any>(null);
+  // Tier 2/3 POIs (no custom category icon_url) go through POIOverlay,
+  // which renders `type`-styled POIs via the SDK's own internal vector
+  // style pipeline — this is what gives each POI type its native Map4D
+  // color; a manually-created POI object with the same `type` falls back
+  // to a hardcoded red instead, since it bypasses that pipeline.
   const poiOverlayRef = useRef<any>(null);
-  const customPoiByDbIdRef = useRef<Map<string, { engineId: number; standalonePoi: any; poi: any }>>(new Map());
-  const customPoiByEngineIdRef = useRef<Map<number, any>>(new Map());
+  // Tier 1 POIs (custom category icon_url) can't go through POIOverlay —
+  // it ignores external image URLs — so these are standalone map4d.POI
+  // objects we create and track ourselves, keyed by poi.id, diffed against
+  // the visible tile range on every `idle` event so stale ones actually get
+  // removed (the original bug: they used to leak forever across pans/zooms).
+  const dbPoisRef = useRef<Map<string, any>>(new Map());
 
   const onPoiClickRef = useRef(onPoiClick);
   const onBuiltInPoiClickRef = useRef(onBuiltInPoiClick);
@@ -163,13 +201,12 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       map.addListener('click', (args: any) => {
         console.log('[Map Event - Unified Click] Click arguments received:', args);
 
-        // 1. Check if a custom Database POI or built-in POI was clicked
+        // 1. Check if a custom Database POI was clicked
         if (args && args.poi) {
           const clickedPoi = args.poi;
-          const customPoiMapping = customPoiByEngineIdRef.current.get(clickedPoi.id);
+          const dbPoi = typeof clickedPoi.getUserData === 'function' ? clickedPoi.getUserData() : null;
 
-          if (customPoiMapping) {
-            const dbPoi = customPoiMapping.poi;
+          if (dbPoi) {
             console.log('[Map Event] Custom Database POI clicked:', dbPoi.id, dbPoi.name);
             if (onPoiClickRef.current) {
               onPoiClickRef.current({
@@ -184,25 +221,24 @@ export const MapContainer: React.FC<MapContainerProps> = ({
             }
             return;
           } else if (clickedPoi.id && typeof clickedPoi.id === 'string' && clickedPoi.id.startsWith('database-poi-')) {
-            // Keep prefix fallback support for legacy components/tests
+            // POIOverlay-rendered POI (tier 2/3) — these are the SDK's own
+            // internal objects, not ours, so there's no getUserData(). The
+            // fields below were embedded in the item we handed to
+            // POIOverlay's parserData, and come back on the click payload.
             const dbId = clickedPoi.id.replace('database-poi-', '');
-
             const poiName = clickedPoi.title || (typeof clickedPoi.getTitle === 'function' ? clickedPoi.getTitle() : '') || clickedPoi.name || '';
             const rawLat = clickedPoi.position?.lat ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lat === 'function' ? clickedPoi.getPosition().lat() : clickedPoi.getPosition().lat) : args.location?.lat);
             const rawLng = clickedPoi.position?.lng ?? (typeof clickedPoi.getPosition === 'function' ? (typeof clickedPoi.getPosition().lng === 'function' ? clickedPoi.getPosition().lng() : clickedPoi.getPosition().lng) : args.location?.lng);
 
-            const poiLat = rawLat ?? 0;
-            const poiLng = rawLng ?? 0;
-
-            console.log('[Map Event] Database POI clicked (Legacy prefix match):', dbId, poiName);
+            console.log('[Map Event] POIOverlay Database POI clicked:', dbId, poiName);
             if (onPoiClickRef.current) {
               onPoiClickRef.current({
                 id: dbId,
                 name: poiName,
                 name_en: clickedPoi.name_en || null,
-                poi_type: clickedPoi.type || clickedPoi.poi_type || 'TOURISM',
-                lat: Number(poiLat),
-                lng: Number(poiLng),
+                poi_type: clickedPoi.poi_type || 'TOURISM',
+                lat: Number(rawLat ?? 0),
+                lng: Number(rawLng ?? 0),
                 dia_chi: clickedPoi.dia_chi || null
               });
             }
@@ -310,14 +346,12 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, error, mapInstance]);
 
-  // Synchronize POIOverlay lifecycle with mapInstance
+  // Render tier 2/3 Database POIs via POIOverlay — SDK-managed tile
+  // lifecycle, native per-type coloring. Tier 1 (custom icon_url) is
+  // excluded here; see the next effect.
   useEffect(() => {
     if (!mapInstance) return;
 
-    // With activeFilters provided and neither category selected, show no
-    // POI/OCOP markers at all — skip creating the overlay entirely. The
-    // previous overlay (if any) was already torn down by the last effect's
-    // cleanup before this run.
     if (activeFilters && !activeFilters.place && !activeFilters.ocop) {
       return;
     }
@@ -329,7 +363,6 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         ].filter(Boolean).join(',')}`
       : '';
 
-    // Create POIOverlay for Database POIs
     const overlay = new window.map4d.POIOverlay({
       getUrl: (x: number, y: number, zoom: number) => {
         return `${MAP4D_CONFIG.backendUrl}/api/pois/tile/${x}/${y}/${zoom}${categoriesQuery}`;
@@ -348,43 +381,19 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
         items.forEach((poi: any) => {
           const style = resolvePoiStyle(poi);
-          const poiProps = {
+          if (style.icon) return; // tier 1 — handled by the other effect
+
+          standardPois.push({
             id: poi.id,
-            position: {
-              lat: Number(poi.lat),
-              lng: Number(poi.lng)
-            },
+            position: { lat: Number(poi.lat), lng: Number(poi.lng) },
             title: poi.name,
             name_en: poi.name_en || null,
             poi_type: poi.poi_type,
             dia_chi: poi.dia_chi || null,
-            icon: style.icon,
             type: style.type,
             color: style.color,
             anchor: { x: 0.5, y: 1.0 }
-          };
-
-          // If the icon is an external HTTP URL (like from Supabase), Map4D POIOverlay will ignore it
-          // We must render it as a standalone map4d.POI object instead to support custom images
-          if (style.icon) {
-            if (!customPoiByDbIdRef.current.has(poi.id)) {
-              const standalonePoi = new window.map4d.POI({
-                ...poiProps,
-                visible: true
-              });
-              standalonePoi.setMap(mapInstance);
-              const engineId = standalonePoi.id;
-
-              const mapping = { engineId, standalonePoi, poi };
-              customPoiByDbIdRef.current.set(poi.id, mapping);
-              customPoiByEngineIdRef.current.set(engineId, mapping);
-
-              console.log(`[Standalone POI Map] Mapped database POI "${poi.name}" (ID: ${poi.id}) to engine ID: ${engineId}`);
-            }
-          } else {
-            // Otherwise, let POIOverlay handle it using vector style textures
-            standardPois.push(poiProps);
-          }
+          });
         });
 
         return standardPois;
@@ -396,20 +405,151 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     overlay.setMap(mapInstance);
     poiOverlayRef.current = overlay;
 
-    const customPoiByDbId = customPoiByDbIdRef.current;
-    const customPoiByEngineId = customPoiByEngineIdRef.current;
-
     return () => {
       if (poiOverlayRef.current) {
         poiOverlayRef.current.setMap(null);
         poiOverlayRef.current = null;
       }
-      // Also clear custom standalone POIs
-      customPoiByDbId.forEach(mapping => {
-        mapping.standalonePoi.setMap(null);
+    };
+  }, [mapInstance, activeFilters?.place, activeFilters?.ocop]);
+
+  // Fetch, render and declutter tier 1 Database POIs (custom category
+  // icon_url) for the current viewport. POIOverlay can't render these
+  // (it ignores external image URLs), so this effect fetches the visible
+  // tile range itself on every `idle` event, diffs the result against
+  // what's currently rendered by poi.id, and only adds/removes what
+  // actually changed — fixing the original bug where standalone POIs never
+  // got cleaned up as the user panned/zoomed.
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    // With activeFilters provided and neither category selected, show no
+    // POI/OCOP markers at all — skip fetching entirely. The previous
+    // markers (if any) were already torn down by the last effect's cleanup
+    // before this run.
+    if (activeFilters && !activeFilters.place && !activeFilters.ocop) {
+      return;
+    }
+
+    const categoriesQuery = activeFilters
+      ? `?categories=${[
+          activeFilters.place ? 'place' : null,
+          activeFilters.ocop ? 'ocop' : null,
+        ].filter(Boolean).join(',')}`
+      : '';
+
+    let cancelled = false;
+    let requestGeneration = 0;
+    let lastTileKey: string | null = null;
+
+    // Standard Web Mercator lat/lng -> XYZ tile conversion (inverse of the
+    // tile-bounds math in backend/src/services/poi.service.ts).
+    const latLngToTile = (lat: number, lng: number, z: number) => {
+      const n = Math.pow(2, z);
+      const x = Math.floor(((lng + 180) / 360) * n);
+      const latRad = (lat * Math.PI) / 180;
+      const y = Math.floor(
+        ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
+      );
+      return {
+        x: Math.min(Math.max(x, 0), n - 1),
+        y: Math.min(Math.max(y, 0), n - 1)
+      };
+    };
+
+    const refreshPois = async () => {
+      const generation = ++requestGeneration;
+      const camera = mapInstance.getCamera();
+      const zoomLevel = Math.max(0, Math.floor(camera.getZoom()));
+      const bounds = mapInstance.getBounds();
+      const ne = bounds.getNortheast();
+      const sw = bounds.getSouthwest();
+
+      const nwTile = latLngToTile(ne.lat, sw.lng, zoomLevel);
+      const seTile = latLngToTile(sw.lat, ne.lng, zoomLevel);
+      const xMin = Math.min(nwTile.x, seTile.x);
+      const xMax = Math.max(nwTile.x, seTile.x);
+      const yMin = Math.min(nwTile.y, seTile.y);
+      const yMax = Math.max(nwTile.y, seTile.y);
+
+      const tiles: Array<{ x: number; y: number }> = [];
+      const MAX_TILES = 64;
+      outer: for (let x = xMin; x <= xMax; x++) {
+        for (let y = yMin; y <= yMax; y++) {
+          tiles.push({ x, y });
+          if (tiles.length >= MAX_TILES) break outer;
+        }
+      }
+
+      const tileKey = `${zoomLevel}:${tiles.map(t => `${t.x},${t.y}`).join('|')}`;
+      if (tileKey === lastTileKey) return;
+      lastTileKey = tileKey;
+
+      const tileResults = await Promise.all(
+        tiles.map(async ({ x, y }) => {
+          try {
+            const res = await fetch(`${MAP4D_CONFIG.backendUrl}/api/pois/tile/${x}/${y}/${zoomLevel}${categoriesQuery}`);
+            const data = await res.json();
+            return Array.isArray(data) ? data : (data?.pois || []);
+          } catch (e) {
+            console.error(`Failed to fetch POI tile ${x}/${y}/${zoomLevel}:`, e);
+            return [];
+          }
+        })
+      );
+
+      if (cancelled || generation !== requestGeneration) return;
+
+      // Collect tier-1 POIs across every fetched tile, dedupe by id, then
+      // cut to the exact total-on-screen cap — this is the precise cap
+      // the backend can't do itself (it only ever sees one tile at a
+      // time). Order is whatever the tiles returned in; good enough since
+      // there's no "importance" ranking within tier 1 itself.
+      const uniqueTier1 = new Map<string, any>();
+      tileResults.flat().forEach((poi: any) => {
+        const style = resolvePoiStyle(poi);
+        if (style.icon && !uniqueTier1.has(poi.id)) uniqueTier1.set(poi.id, poi);
       });
-      customPoiByDbId.clear();
-      customPoiByEngineId.clear();
+      const tier1Cap = getTier1TotalCap(zoomLevel);
+      const currentPois = new Map(Array.from(uniqueTier1.entries()).slice(0, tier1Cap));
+
+      // Add newly visible tier-1 POIs
+      currentPois.forEach((poi, id) => {
+        if (dbPoisRef.current.has(id)) return;
+
+        const style = resolvePoiStyle(poi);
+        const poiObj = new window.map4d.POI({
+          position: { lat: Number(poi.lat), lng: Number(poi.lng) },
+          title: poi.name,
+          icon: style.icon,
+          color: style.color,
+          visible: true,
+          anchor: { x: 0.5, y: 1.0 }
+        });
+        poiObj.setUserData(poi);
+        poiObj.setMap(mapInstance);
+        dbPoisRef.current.set(id, poiObj);
+      });
+
+      // Remove POIs no longer in any visible tile
+      dbPoisRef.current.forEach((poiObj, id) => {
+        if (!currentPois.has(id)) {
+          poiObj.setMap(null);
+          dbPoisRef.current.delete(id);
+        }
+      });
+    };
+
+    const idleListener = mapInstance.addListener('idle', refreshPois);
+    refreshPois();
+
+    const dbPois = dbPoisRef.current;
+
+    return () => {
+      cancelled = true;
+      idleListener.remove();
+      dbPois.forEach(poiObj => poiObj.setMap(null));
+      dbPois.clear();
     };
   }, [mapInstance, activeFilters?.place, activeFilters?.ocop]);
 
