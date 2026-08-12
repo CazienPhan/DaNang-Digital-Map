@@ -152,6 +152,8 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const routeLayersRef = useRef<any[]>([]);
   /** Marker các điểm bán sản phẩm đang hiển thị. */
   const sellingLayersRef = useRef<any[]>([]);
+  /** Tra ngược marker → điểm bán, dùng khi người dùng bấm vào marker. */
+  const sellingByMarkerRef = useRef<Array<{ marker: any; point: SellingPointItem }>>([]);
   /** Danh sách đã canh khung gần nhất — tránh canh lại khi không đổi bộ lọc. */
   const lastFitKeyRef = useRef<string>('');
 
@@ -438,6 +440,24 @@ export const MapContainer: React.FC<MapContainerProps> = ({
               return;
             }
           }
+
+          // Marker điểm bán của sản phẩm — hiện thẻ kèm tên và tình trạng hàng
+          const hit = sellingByMarkerRef.current.find((x) => x.marker === args.marker);
+          if (hit) {
+            const sp = hit.point;
+            onMapPointClickRef.current?.(
+              buildAdHocLocation({
+                id: `${AD_HOC_ID_PREFIX}store-${sp.id}`,
+                name: sp.name,
+                lat: sp.lat,
+                lng: sp.lng,
+                address: `${sp.address} · ${sp.stockStatus}`,
+                categoryLabel: 'Điểm bán OCOP',
+                category: 'ocop_outlet',
+              })
+            );
+            return;
+          }
         }
 
         const notify = onMapPointClickRef.current;
@@ -530,6 +550,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
     sellingLayersRef.current.forEach((l) => l.setMap(null));
     sellingLayersRef.current = [];
+    sellingByMarkerRef.current = [];
 
     const points = sellingPoints?.points ?? [];
     if (points.length === 0) return;
@@ -541,14 +562,22 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         const inStock = sp.stockStatus === 'Còn hàng';
         const color = inStock ? '#198754' : sp.stockStatus === 'Hết hàng' ? '#94A3B8' : '#F47A1F';
 
+        // Hiện luôn tên cửa hàng dưới marker — chỉ đánh số thì người dùng
+        // không biết điểm nào là điểm nào.
+        const safeName = sp.name.replace(/[<>&]/g, '');
         const marker = new window.map4d.Marker({
           position: new window.map4d.LatLng(sp.lat, sp.lng),
           iconView: `
-            <div style="display:flex;flex-direction:column;align-items:center;">
+            <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;">
               <div style="display:flex;align-items:center;justify-content:center;
                           width:30px;height:30px;border-radius:9999px;background:${color};
                           border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);
                           color:#fff;font-size:12px;font-weight:800;">${i + 1}</div>
+              <div style="margin-top:3px;max-width:150px;padding:2px 7px;border-radius:9999px;
+                          background:rgba(255,255,255,.96);border:1px solid #E5E7EB;
+                          box-shadow:0 1px 4px rgba(0,0,0,.18);font-size:11px;font-weight:700;
+                          color:#1F2937;white-space:nowrap;overflow:hidden;
+                          text-overflow:ellipsis;">${safeName}</div>
             </div>`,
           anchor: { x: 0.5, y: 0.5 },
           title: sp.name,
@@ -556,6 +585,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         });
         marker.setMap(map);
         sellingLayersRef.current.push(marker);
+        sellingByMarkerRef.current.push({ marker, point: sp });
         bounds.extend(new window.map4d.LatLng(sp.lat, sp.lng));
       });
 
