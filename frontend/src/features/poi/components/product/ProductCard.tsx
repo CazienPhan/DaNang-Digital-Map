@@ -3,6 +3,7 @@ import { type ProductItem } from '@/services/supabase/product.service';
 
 interface ProductCardProps {
   item: ProductItem;
+  onSelect?: (item: ProductItem) => void;
 }
 
 /**
@@ -10,9 +11,12 @@ interface ProductCardProps {
  * Pure presentational — no API calls, no data fetching.
  * Receives a fully mapped ProductItem from ProductGrid.
  */
-export const ProductCard: React.FC<ProductCardProps> = React.memo(({ item }) => {
+export const ProductCard: React.FC<ProductCardProps> = React.memo(({ item, onSelect }) => {
   return (
-    <div className="group relative flex flex-col bg-card border border-border/60 rounded-2xl overflow-hidden hover:shadow-md hover:border-border transition-all duration-200 cursor-default">
+    <div
+      onClick={onSelect ? () => onSelect(item) : undefined}
+      className={`group relative flex flex-col bg-card border border-border/60 rounded-2xl overflow-hidden hover:shadow-md hover:border-border transition-all duration-200 ${onSelect ? 'cursor-pointer' : 'cursor-default'}`}
+    >
       {/* Product image */}
       <div className="relative aspect-square bg-muted overflow-hidden">
         {item.img ? (
