@@ -1,5 +1,12 @@
 import { MAP4D_CONFIG } from '@/config/map.config';
+import { fetchMap4d } from './http';
 import { type MapCoordinate } from '@/features/map/components/MapContainer';
+
+/** Một chặng trong lộ trình (nếu Map4D trả về). */
+export interface RouteStep {
+  instruction: string;
+  distance?: string;
+}
 
 export interface RouteResult {
   path: MapCoordinate[];
@@ -7,6 +14,36 @@ export interface RouteResult {
   duration: string;
   distanceValue: number; // in meters
   durationValue: number; // in seconds
+  /**
+   * Danh sách chặng đường. Không phải phản hồi nào của Map4D cũng có, nên
+   * luôn kiểm tra rỗng trước khi hiển thị.
+   */
+  steps?: RouteStep[];
+}
+
+/**
+ * Trích các chặng từ phản hồi Map4D một cách phòng thủ — cấu trúc legs/steps
+ * thay đổi tuỳ endpoint và tuỳ phương tiện, thiếu thì trả mảng rỗng.
+ */
+function extractSteps(route: any): RouteStep[] {
+  const legs = Array.isArray(route?.legs) ? route.legs : [];
+  const steps: RouteStep[] = [];
+
+  for (const leg of legs) {
+    for (const s of Array.isArray(leg?.steps) ? leg.steps : []) {
+      // Map4D trả câu chỉ dẫn tiếng Việt sẵn ở `htmlInstructions`
+      // (ví dụ: "Rẽ phải vào Nguyễn Thái Học").
+      const instruction =
+        s?.htmlInstructions ?? s?.instruction ?? s?.streetName ?? '';
+      if (!instruction) continue;
+      steps.push({
+        instruction: String(instruction).replace(/<[^>]+>/g, '').trim(),
+        distance: s?.distance?.text ?? undefined,
+      });
+    }
+  }
+
+  return steps;
 }
 
 export class RoutingService {
@@ -62,18 +99,15 @@ export class RoutingService {
     try {
       const originStr = `${origin.lat},${origin.lng}`;
       const destStr = `${destination.lat},${destination.lng}`;
-      let url = `${MAP4D_CONFIG.backendUrl}/api/map4d/route?origin=${encodeURIComponent(originStr)}&destination=${encodeURIComponent(destStr)}`;
-      if (mode) {
-        url += `&mode=${encodeURIComponent(mode)}`;
-      }
-      
-      const response = await fetch(url);
+      const query =
+        `origin=${encodeURIComponent(originStr)}` +
+        `&destination=${encodeURIComponent(destStr)}` +
+        (mode ? `&mode=${encodeURIComponent(mode)}` : '');
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await fetchMap4d({
+        backendPath: `/api/map4d/route?${query}`,
+        directPath: `/sdk/route?${query}`,
+      });
 
       if (data && data.code === 'ok' && data.result && data.result.routes && data.result.routes.length > 0) {
         const route = data.result.routes[0];
@@ -86,6 +120,7 @@ export class RoutingService {
           duration: route.duration?.text || '0 mins',
           distanceValue: route.distance?.value || 0,
           durationValue: route.duration?.value || 0,
+          steps: extractSteps(route),
         };
       }
 
