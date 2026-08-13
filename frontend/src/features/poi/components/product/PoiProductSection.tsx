@@ -5,6 +5,8 @@ import { ProductGrid } from './ProductGrid';
 interface PoiProductSectionProps {
   /** ID of the currently selected POI — determines which products are fetched. */
   poiId: string;
+  /** Called when the user clicks a product card — opens the product detail panel. */
+  onSelectProduct?: (item: ProductItem) => void;
 }
 
 /**
@@ -17,7 +19,7 @@ interface PoiProductSectionProps {
  *
  * No mock data. No hardcoded arrays. Every product comes from the database.
  */
-export const PoiProductSection: React.FC<PoiProductSectionProps> = React.memo(({ poiId }) => {
+export const PoiProductSection: React.FC<PoiProductSectionProps> = React.memo(({ poiId, onSelectProduct }) => {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,5 +96,5 @@ export const PoiProductSection: React.FC<PoiProductSectionProps> = React.memo(({
   }
 
   // ── Product grid ──────────────────────────────────────────────────────────
-  return <ProductGrid products={products} />;
+  return <ProductGrid products={products} onSelectProduct={onSelectProduct} />;
 });

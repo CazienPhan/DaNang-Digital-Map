@@ -4,7 +4,13 @@ import { supabase } from '../config/supabase';
 export interface ProductRecord {
   id: string;
   name: string;
-  description: string | null;
+  /**
+   * May be plain text (legacy records) or a JSON array of
+   * { title, item } sections (e.g. Thành phần/Hướng dẫn sử dụng/Công dụng/Hạn
+   * sử dụng) when the column stores jsonb — passed through as-is, parsed by
+   * the frontend.
+   */
+  description: string | unknown[] | null;
   is_ocop: boolean | null;
   hinh_anh_url: string | null;
   danh_muc: string | null;
@@ -13,6 +19,8 @@ export interface ProductRecord {
   price_min: number | null;
   price_max: number | null;
   stock_status: string | null;
+  /** poi.ocop_certifications.certificate_file_url — null when no cert row or no image set. */
+  certificate_file_url: string | null;
 }
 
 // ─── Product Type Detail ─────────────────────────────────────────────────────
@@ -72,9 +80,11 @@ export class ProductService {
           pr.is_available,
           pl.price_min,
           pl.price_max,
-          pl.stock_status
+          pl.stock_status,
+          oc.certificate_file_url
         FROM poi.product_listings pl
         JOIN poi.products pr ON pr.id = pl.product_id
+        LEFT JOIN poi.ocop_certifications oc ON oc.product_id = pr.id
         WHERE pl.poi_id = ${poiId}
           AND (pr.is_available IS NULL OR pr.is_available = true)
         ORDER BY pr.is_ocop DESC NULLS LAST, pr.name ASC
@@ -98,6 +108,7 @@ export class ProductService {
             ? Number(raw.price_max)
             : null,
         stock_status: raw.stock_status || null,
+        certificate_file_url: raw.certificate_file_url || null,
       }));
     } catch (err: any) {
       console.error(`Error fetching products for POI ${poiId}:`, err);

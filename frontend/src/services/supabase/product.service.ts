@@ -6,6 +6,12 @@ import { MAP4D_CONFIG } from '@/config/map.config';
  * ProductItem is the UI-facing shape consumed by ProductCard and ProductGrid.
  * It is derived from the raw database records by mapProductRecord().
  */
+/** One titled section of product detail copy, e.g. { title: "Thành phần", item: "..." } */
+export interface ProductDetailSection {
+  title: string;
+  item: string;
+}
+
 export interface ProductItem {
   /** Unique product ID (UUID) */
   id: string;
@@ -25,6 +31,15 @@ export interface ProductItem {
    * null when both price_min and price_max are 0 or absent.
    */
   price: string | null;
+  /**
+   * Structured detail copy parsed from products.description when it holds a
+   * JSON array of { title, item } sections (e.g. "Thành phần", "Hướng dẫn sử
+   * dụng", "Công dụng", "Hạn sử dụng"). Empty when description is plain text
+   * or absent — callers should fall back gracefully.
+   */
+  detailSections: ProductDetailSection[];
+  /** poi.ocop_certifications.certificate_file_url — null when no cert image is set. */
+  certificateImageUrl: string | null;
 }
 
 // ─── Price formatting ─────────────────────────────────────────────────────────
@@ -60,10 +75,46 @@ const PRODUCT_TYPE_LABELS: Record<string, string> = {
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────
 
+/**
+ * Parses products.description into structured { title, item } sections.
+ * description may be:
+ *   - a JSON array of { title, item } (stored as jsonb, or as a JSON string)
+ *   - plain descriptive text (older records)
+ *   - null/absent
+ * Returns [] whenever the value isn't a valid array of sections, so callers
+ * can fall back to treating description as plain text.
+ */
+function parseDetailSections(description: unknown): ProductDetailSection[] {
+  let value: unknown = description;
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('[')) return [];
+    try {
+      value = JSON.parse(trimmed);
+    } catch {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(value)) return [];
+
+  return value.filter(
+    (entry): entry is ProductDetailSection =>
+      entry &&
+      typeof entry === 'object' &&
+      typeof entry.title === 'string' &&
+      typeof entry.item === 'string'
+  );
+}
+
 function mapProductRecord(p: any): ProductItem {
+  const detailSections = parseDetailSections(p.description);
+
   /**
    * Tag priority (per task spec):
-   * 1. products.description — converted from a string into a single-element array
+   * 1. products.description — only when it is NOT structured detail-section
+   *    JSON, converted from a string into a single-element array
    * 2. products.danh_muc   — category name, appended if present
    * 3. products.product_type — translated enum label, appended if present and different
    *
@@ -71,8 +122,12 @@ function mapProductRecord(p: any): ProductItem {
    */
   const tags: string[] = [];
 
-  // description → first tag (task spec: "Organic food" → ["Organic food"])
-  if (typeof p.description === 'string' && p.description.trim().length > 0) {
+  // description → first tag, but only when it's plain text (not detail-section JSON)
+  if (
+    detailSections.length === 0 &&
+    typeof p.description === 'string' &&
+    p.description.trim().length > 0
+  ) {
     tags.push(p.description.trim());
   }
 
@@ -95,6 +150,8 @@ function mapProductRecord(p: any): ProductItem {
     badge: p.is_ocop === true ? 'OCOP' : null,
     img: p.hinh_anh_url || null,
     price: formatPrice(p.price_min, p.price_max),
+    detailSections,
+    certificateImageUrl: p.certificate_file_url || null,
   };
 }
 

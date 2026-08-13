@@ -5,8 +5,9 @@ import SearchResult from './SearchResult';
 import { SearchListing } from './SearchListing';
 import { DirectionPanel, type LocationState } from '@/features/directions';
 import { type RouteResult } from '@/services/map4d/routing.service';
-import { PoiDetailCard } from '@/features/poi';
+import { PoiDetailCard, ProductDetailPanel } from '@/features/poi';
 import { type POIDetailData } from '@/services/supabase/poi.service';
+import { type ProductItem } from '@/services/supabase/product.service';
 import { Button, Input } from '@/components/ui';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Search, X, Navigation } from 'lucide-react';
@@ -123,6 +124,32 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   // ---- Selected product (Product Detail) ----
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
+  // ---- Selected product from a POI's "Sản phẩm" tab (side panel next to the POI Sheet) ----
+  const [selectedPoiProduct, setSelectedPoiProduct] = useState<ProductItem | null>(null);
+  useEffect(() => {
+    // Close the product panel whenever the underlying POI changes or the detail view closes.
+    setSelectedPoiProduct(null);
+  }, [selectedPoiDetails?.id, searchView]);
+
+  // ---- Measure the POI Sheet's actual rendered width so ProductDetailPanel can
+  // sit flush against its right edge on desktop, regardless of the Sheet's own
+  // responsive width classes. The Sheet's content only mounts once `open` is
+  // true, so a plain useRef + mount-time effect can miss it — a callback ref
+  // re-attaches the observer every time the DOM node actually appears. ----
+  const [sheetWidth, setSheetWidth] = useState(0);
+  const sheetResizeObserverRef = useRef<ResizeObserver | null>(null);
+  const sheetContentRef = useCallback((el: HTMLDivElement | null) => {
+    sheetResizeObserverRef.current?.disconnect();
+    sheetResizeObserverRef.current = null;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) setSheetWidth(width);
+    });
+    observer.observe(el);
+    sheetResizeObserverRef.current = observer;
+  }, []);
 
   // ---- AbortController ref ----
   const autocompleteAbortRef = useRef<AbortController | null>(null);
@@ -434,6 +461,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       ) : (
         <Sheet open={isSidebarOpen} modal={false} disablePointerDismissal={true}>
           <SheetContent
+            ref={sheetContentRef}
             side="left"
             withOverlay={false}
             className={[
@@ -486,9 +514,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                       loading={poiDetailLoading}
                       error={poiDetailError}
                       isSecondary={false}
-                      onClose={onCloseInfoCard}
+                      onClose={() => {
+                        setSelectedPoiProduct(null);
+                        onCloseInfoCard();
+                      }}
                       onGetDirections={onDirectionClick}
                       onBack={poiOnBack}
+                      onSelectProduct={setSelectedPoiProduct}
+                      onOverviewTabSelected={() => setSelectedPoiProduct(null)}
                     />
                   )}
 
@@ -502,6 +535,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             </div>
           </SheetContent>
         </Sheet>
+      )}
+
+      {!directionActive && searchView === 'detail' && (
+        <ProductDetailPanel
+          product={selectedPoiProduct}
+          anchorLeft={sheetWidth || undefined}
+          onClose={() => setSelectedPoiProduct(null)}
+        />
       )}
     </>
   );

@@ -4,6 +4,7 @@ import { LoadingState, ErrorState } from '../states';
 import { PoiHeader, PoiTitleSection, PoiActions } from './common';
 import { PoiOverviewSection } from './overview';
 import { PoiProductSection } from './product';
+import { type ProductItem } from '@/services/supabase/product.service';
 import { cn } from '@/lib/utils';
 
 interface PoiDetailCardProps {
@@ -14,6 +15,10 @@ interface PoiDetailCardProps {
   onClose?: () => void;
   onBack?: () => void;
   isSecondary?: boolean;
+  /** Called when the user clicks a product in the "Sản phẩm" tab. */
+  onSelectProduct?: (item: ProductItem) => void;
+  /** Called when the user switches back to the "Tổng quan" tab. */
+  onOverviewTabSelected?: () => void;
 }
 
 export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
@@ -24,6 +29,8 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
   onClose,
   onBack,
   isSecondary = false,
+  onSelectProduct,
+  onOverviewTabSelected,
 }) => {
   // Local tab state — only affects UI, no business logic
   const [activeTab, setActiveTab] = useState<'overview' | 'menu'>('overview');
@@ -119,7 +126,10 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
           {(['overview', 'menu'] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                if (tab === 'overview') onOverviewTabSelected?.();
+              }}
               className={cn(
                 'px-4 py-1.5 rounded-full text-xs tracking-normal font-normal transition-colors',
                 activeTab === tab
@@ -138,7 +148,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
         {activeTab === 'overview' ? (
           <PoiOverviewSection poi={poi} images={images} videos={videos} isTourismPoi={isTourismPoi} />
         ) : (
-          <PoiProductSection poiId={poi.id} />
+          <PoiProductSection poiId={poi.id} onSelectProduct={onSelectProduct} />
         )}
       </div>
 
