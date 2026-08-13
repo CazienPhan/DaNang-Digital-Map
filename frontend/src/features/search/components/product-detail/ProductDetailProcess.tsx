@@ -6,10 +6,16 @@ interface ProductDetailProcessProps {
 }
 
 /**
- * ProductDetailProcess — Section 6.
+ * ProductDetailProcess — Section 5.
  *
- * Full-width process/production image.
- * Sourced from product_media where media_category = 'quy_trinh'.
+ * Layout:
+ *   - Dark-red header (#720000) with uppercase section title "QUY TRÌNH"
+ *   - Cream content area (#fff8eb) with the process image
+ *
+ * Image source: poi.poi_media where
+ *   media_category = 'quy_trinh'
+ *   AND product_type_id = <id>
+ *
  * Renders nothing when url is null.
  */
 export const ProductDetailProcess: React.FC<ProductDetailProcessProps> = ({
@@ -19,17 +25,27 @@ export const ProductDetailProcess: React.FC<ProductDetailProcessProps> = ({
   if (!url) return null;
 
   return (
-    <div className="px-4 py-4">
-      <h2 className="text-sm font-bold uppercase tracking-normal text-muted-foreground mb-3">
-        Quy trình sản xuất
-      </h2>
-      <div className="w-full rounded-xl overflow-hidden border border-border">
-        <img
-          src={url}
-          alt={`${productName} — quy trình sản xuất`}
-          className="w-full object-cover"
-          loading="lazy"
-        />
+    <div className="w-full mt-12">
+      {/* Section header */}
+      <div
+        className="px-6 py-3"
+        style={{ backgroundColor: '#720000' }}
+      >
+        <h2 className="text-base font-bold uppercase tracking-wide" style={{ color: 'white' }}>
+          Quy trình
+        </h2>
+      </div>
+
+      {/* Section content */}
+      <div className="px-3 pt-6 " style={{ backgroundColor: '#fff8eb' }}>
+        <div className="w-full rounded-xl overflow-hidden ">
+          <img
+            src={url}
+            alt={`${productName} — quy trình sản xuất`}
+            className="w-full object-cover"
+            loading="lazy"
+          />
+        </div>
       </div>
     </div>
   );

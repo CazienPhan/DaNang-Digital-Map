@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
  */
 export const ProductFindStoreButton: React.FC = () => {
   return (
-    <div className="px-4 py-2 flex justify-center">
+    <div className="px-4 py-2 flex justify-center mt-8 mb-8">
       <Button
         size={"sm"}
         variant="outline"

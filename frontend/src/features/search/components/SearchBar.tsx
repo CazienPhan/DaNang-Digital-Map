@@ -436,9 +436,23 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <SheetContent
             side="left"
             withOverlay={false}
-            className="w-[480px] sm:w-[520px] sm:max-w-[520px] p-0 h-screen bg-background flex flex-col shadow-lg border-r"
+            className={[
+              'w-[480px] sm:w-[520px] sm:max-w-[520px] p-0 h-screen flex flex-col shadow-lg',
+              searchView === 'product-detail' ? '' : 'bg-background border-r',
+            ].join(' ')}
+            style={searchView === 'product-detail' ? { backgroundColor: '#ffe48a' } : undefined}
             showCloseButton={false}
           >
+            {/* #720000 border ring — absolute overlay so it is never clipped by
+                 overflow-hidden children and is always visible on all four sides. */}
+            {searchView === 'product-detail' && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 z-50"
+                style={{ border: '6px solid #720000' }}
+              />
+            )}
+
             <div className="flex flex-col flex-1 overflow-hidden">
               <div className="h-[140px] shrink-0" />
 

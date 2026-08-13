@@ -8,12 +8,6 @@ export interface HistoryItem {
   hinh_anh_url: string | null;
 }
 
-export interface HighlightItem {
-  title: string;
-  description: string;
-  hinh_anh_url: string | null;
-}
-
 /**
  * ProductDetailData — the complete product type record used by Product Info Detail.
  *
@@ -24,12 +18,17 @@ export interface ProductDetailData {
   id: string;
   name: string;
   overview: string | null;
-  huong_dan_su_dung: string[];
   cong_dung: string[];
-  diem_noi_bat: HighlightItem[];
   lich_su_hinh_thanh: HistoryItem[];
-  banner_url: string | null;
+  /** Banner VIDEO url from poi_media (media_category='banner', media_type='VIDEO') */
+  video_url: string | null;
+  /** Process image url from poi_media (media_category='quy_trinh') */
   process_image_url: string | null;
+  /**
+   * Gallery image urls from poi_media
+   * (media_category='gallery', media_type='IMAGE')
+   */
+  gallery_image_urls: string[];
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────

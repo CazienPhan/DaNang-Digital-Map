@@ -8,25 +8,37 @@ interface ProductDetailOverviewProps {
 /**
  * ProductDetailOverview — Section 2.
  *
- * Displays the product name as the visual focus (h1) and the overview
- * inside a bordered description box.
+ * Displays the product name (product_types.name) and overview
+ * (product_types.overview) on a dark-red (#720000) background.
+ *
+ * Name  → color #ffc14c (amber)
+ * Text  → color white
  */
 export const ProductDetailOverview: React.FC<ProductDetailOverviewProps> = ({
   name,
   overview,
 }) => {
   return (
-    <div className="px-6 py-10 space-y-3">
-      <h1 className="text-xl text-center font-extrabold uppercase text-foreground leading-tight">{name}</h1>
+    <section
+      className="relative z-10 mt-12 mb-8 w-full px-6 py-8"
+      style={{ backgroundColor: '#720000' }}
+    >
+      <h1
+        className="text-center text-2xl font-extrabold uppercase leading-tight"
+        style={{ color: '#ffc14c' }}
+      >
+        {name}
+      </h1>
 
       {overview && (
-        <div className="border border-border rounded-lg p-3 bg-muted/30">
-          <p className="text-xs text-justify text-foreground/80 leading-relaxed whitespace-pre-line">
-            {overview}
-          </p>
-        </div>
+        <p
+          className=" mx-2 mt-4 text-justify text-xs leading-relaxed whitespace-pre-line"
+          style={{ color: 'white' }}
+        >
+          {overview}
+        </p>
       )}
-    </div>
+    </section>
   );
 };
 

@@ -14,7 +14,5 @@ export interface ProductSearchDocument {
   short_description: string;
   overview: string;
   cong_dung: string[];
-  huong_dan_su_dung: string[];
-  diem_noi_bat: unknown[];
   lich_su_hinh_thanh: unknown[];
 } 

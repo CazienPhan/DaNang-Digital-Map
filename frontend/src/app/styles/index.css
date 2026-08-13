@@ -65,3 +65,19 @@
   }
 
 }
+
+@layer utilities {
+
+  /* Hide the visual scrollbar while keeping scrolling fully functional.
+     Covers Chromium/WebKit (::-webkit-scrollbar), Firefox (scrollbar-width),
+     and IE/Edge Legacy (-ms-overflow-style). */
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+}

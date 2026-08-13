@@ -79,8 +79,6 @@ export const PRODUCTS_SETTINGS: ProductIndexSettings = {
         "danh_muc",
         "short_description",
         "overview",
-        "diem_noi_bat",
-        "huong_dan_su_dung",
         "cong_dung",
         "lich_su_hinh_thanh"
     ],

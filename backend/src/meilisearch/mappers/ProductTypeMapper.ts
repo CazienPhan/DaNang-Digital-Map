@@ -27,18 +27,10 @@ export class ProductTypeMapper {
             overview:
                 product.overview ?? "",
 
-            huong_dan_su_dung:
-                Array.isArray(product.huong_dan_su_dung)
-                    ? product.huong_dan_su_dung
-                    : [],
-
             cong_dung:
                 Array.isArray(product.cong_dung)
                     ? product.cong_dung
                     : [],
-
-            diem_noi_bat:
-                product.diem_noi_bat ?? [],
 
             lich_su_hinh_thanh:
                 product.lich_su_hinh_thanh ?? [],

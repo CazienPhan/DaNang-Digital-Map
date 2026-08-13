@@ -23,22 +23,33 @@ export interface HistoryItem {
   hinh_anh_url: string | null;
 }
 
-export interface HighlightItem {
-  title: string;
-  description: string;
-  hinh_anh_url: string | null;
-}
-
 export interface ProductTypeDetailRecord {
   id: string;
   name: string;
   overview: string | null;
-  huong_dan_su_dung: string[];
   cong_dung: string[];
-  diem_noi_bat: HighlightItem[];
   lich_su_hinh_thanh: HistoryItem[];
-  banner_url: string | null;
+  /**
+   * Banner VIDEO url — sourced from poi.poi_media where
+   *   media_category = 'banner' AND media_type = 'VIDEO'
+   *   AND product_type_id = <id>
+   * Null when no matching record exists.
+   */
+  video_url: string | null;
+  /**
+   * Process image url — sourced from poi.poi_media where
+   *   media_category = 'quy_trinh'
+   *   AND product_type_id = <id>
+   * Null when no matching record exists.
+   */
   process_image_url: string | null;
+  /**
+   * Gallery image urls — sourced from poi.poi_media where
+   *   media_category = 'gallery' AND media_type = 'IMAGE'
+   *   AND product_type_id = <id>
+   * Empty array when no matching records exist.
+   */
+  gallery_image_urls: string[];
 }
 
 export class ProductService {
@@ -96,25 +107,24 @@ export class ProductService {
 
   /**
    * Fetches a complete product type record from Supabase by ID.
-   * Resolves banner and process images from the "ProductCategory" Storage bucket.
-   * This is the ONLY source of truth for Product Detail — Meilisearch is NOT used.
    *
-   * Image resolution strategy:
-   *   The product_media join table does not exist in the database.
-   *   Images are stored in Supabase Storage under "ProductCategory/<FolderName>/",
-   *   where FolderName is the product slug converted to PascalCase:
-   *     "dong-trung-ha-thao" → "DongTrungHaThao"
-   *     "nuoc-mam-nam-o"     → "NuocMamNamO"
+   * Media resolution strategy:
+   *   Banner VIDEO : poi.poi_media where media_category = 'banner'
+   *                  AND media_type = 'VIDEO'
+   *                  AND product_type_id = <id>
+   *   Process image: poi.poi_media where media_category = 'quy_trinh'
+   *                  AND product_type_id = <id>
    *
-   *   Banner  : first file whose name starts with "overview"
-   *   Process : first file whose name starts with "quy_trinh"
+   * Both look up the poi_media table directly.
+   * Graceful: if the media query fails or returns nothing, the field is null
+   * and the rest of the Product Detail continues to render normally.
    */
   static async getProductTypeById(id: string): Promise<ProductTypeDetailRecord | null> {
-    // 1. Fetch product_types row (include slug — needed to derive Storage folder)
+    // 1. Fetch product_types row
     const { data: pt, error: ptError } = await supabase
       .schema('poi')
       .from('product_types')
-      .select('id, slug, name, overview, huong_dan_su_dung, cong_dung, diem_noi_bat, lich_su_hinh_thanh')
+      .select('id, name, overview, cong_dung, lich_su_hinh_thanh')
       .eq('id', id)
       .single();
 
@@ -124,73 +134,64 @@ export class ProductService {
     }
     if (!pt) return null;
 
-    // 2. Resolve banner_url and process_image_url from Supabase Storage.
-    //    Graceful: if Storage lookup fails, images are null and the rest of the
-    //    product detail continues to render normally.
-    let banner_url: string | null = null;
+    // 2. Resolve media from poi_media table.
+    //    Graceful: if the media query fails, both urls remain null.
+    let video_url: string | null = null;
     let process_image_url: string | null = null;
+    let gallery_image_urls: string[] = [];
 
     try {
-      const BUCKET = 'ProductCategory';
-      // Signed URLs valid for 10 years — images are static production assets
-      const SIGNED_TTL = 315_360_000;
+      const { data: mediaRows, error: mediaError } = await supabase
+        .schema('poi')
+        .from('poi_media')
+        .select('media_type, media_category, url')
+        .eq('product_type_id', id)
+        .in('media_category', ['banner', 'quy_trinh', 'gallery']);
 
-      // slug → PascalCase folder name
-      // e.g. "dong-trung-ha-thao" → "DongTrungHaThao"
-      const folder = (pt.slug as string)
-        .split('-')
-        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join('');
-
-      const { data: files, error: listErr } = await supabase.storage
-        .from(BUCKET)
-        .list(folder, { limit: 50 });
-
-      if (listErr) {
-        console.warn(`[ProductService] Storage list failed for "${folder}": ${listErr.message}`);
-      } else if (files && files.length > 0) {
-        const fileNames = files.map((f: any) => f.name as string);
-
-// Banner: file starting with "overview" (overview.png, overview.jpg, …)
-        const bannerFile = fileNames.find((n: string) => n.toLowerCase().startsWith('overview'));
-        if (bannerFile) {
-          const { data: signed, error: signErr } = await supabase.storage
-            .from(BUCKET)
-            .createSignedUrl(`${folder}/${bannerFile}`, SIGNED_TTL);
-          if (signErr) {
-            console.warn(`[ProductService] Banner sign failed "${folder}/${bannerFile}": ${signErr.message}`);
-          } else {
-            banner_url = signed?.signedUrl ?? null;
-          }
+      if (mediaError) {
+        console.warn(`[ProductService] poi_media query failed (id=${id}): ${mediaError.message}`);
+      } else if (mediaRows && mediaRows.length > 0) {
+        // Banner VIDEO: media_category = 'banner' AND media_type = 'VIDEO'
+        const bannerVideo = mediaRows.find(
+          (m: any) =>
+            m.media_category === 'banner' &&
+            m.media_type === 'VIDEO'
+        );
+        if (bannerVideo) {
+          video_url = bannerVideo.url ?? null;
         }
 
-// Process image: file starting with "quy_trinh" (quy_trinh.png, quy_trinh_lam_mam.png, …)
-        const processFile = fileNames.find((n: string) => n.toLowerCase().startsWith('quy_trinh'));
-        if (processFile) {
-          const { data: signed, error: signErr } = await supabase.storage
-            .from(BUCKET)
-            .createSignedUrl(`${folder}/${processFile}`, SIGNED_TTL);
-          if (signErr) {
-            console.warn(`[ProductService] Process sign failed "${folder}/${processFile}": ${signErr.message}`);
-          } else {
-            process_image_url = signed?.signedUrl ?? null;
-          }
+        // Process image: media_category = 'quy_trinh'
+        const processMedia = mediaRows.find(
+          (m: any) => m.media_category === 'quy_trinh'
+        );
+        if (processMedia) {
+          process_image_url = processMedia.url ?? null;
         }
+        // Gallery images: media_category = 'gallery' AND media_type = 'IMAGE'
+        // (Actual database values — NOT 'Quy trinh'/'Image' which don't exist in DB)
+        const galleryImages = mediaRows.filter(
+          (m: any) =>
+            m.media_category === 'gallery' &&
+            m.media_type === 'IMAGE' &&
+            typeof m.url === 'string' &&
+            m.url.length > 0
+        );
+        gallery_image_urls = galleryImages.map((m: any) => m.url as string);
       }
-    } catch (storageErr: any) {
-      console.warn(`[ProductService] Storage image lookup failed (id=${id}): ${storageErr.message}`);
+    } catch (mediaErr: any) {
+      console.warn(`[ProductService] poi_media lookup failed (id=${id}): ${mediaErr.message}`);
     }
 
     return {
       id: pt.id,
       name: pt.name ?? '',
       overview: pt.overview ?? null,
-      huong_dan_su_dung: Array.isArray(pt.huong_dan_su_dung) ? pt.huong_dan_su_dung : [],
       cong_dung: Array.isArray(pt.cong_dung) ? pt.cong_dung : [],
-      diem_noi_bat: Array.isArray(pt.diem_noi_bat) ? pt.diem_noi_bat : [],
       lich_su_hinh_thanh: Array.isArray(pt.lich_su_hinh_thanh) ? pt.lich_su_hinh_thanh : [],
-      banner_url,
+      video_url,
       process_image_url,
+      gallery_image_urls,
     };
   }
 }

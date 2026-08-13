@@ -1,15 +1,14 @@
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import { useProductDetail } from '../../hooks/useProductDetail';
 import { ProductDetailHeader } from './ProductDetailHeader';
 import { ProductDetailBanner } from './ProductDetailBanner';
 import { ProductDetailOverview } from './ProductDetailOverview';
 import { ProductFindStoreButton } from './ProductFindStoreButton';
 import { ProductDetailHistory } from './ProductDetailHistory';
-import { ProductDetailHighlights } from './ProductDetailHighlights';
 import { ProductDetailProcess } from './ProductDetailProcess';
 import { ProductDetailTips } from './ProductDetailTips';
+import { ProductImageGallery } from './ProductImageGallery';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -47,7 +46,7 @@ interface ProductDetailErrorProps {
 }
 
 const ProductDetailError: React.FC<ProductDetailErrorProps> = ({ error, onClose, onBack }) => (
-  <div className="flex-1 flex flex-col overflow-hidden h-full bg-background text-foreground">
+  <div className="flex-1 flex flex-col overflow-hidden h-full text-foreground">
     <div className="shrink-0">
       <ProductDetailHeader onClose={onClose} onBack={onBack} />
     </div>
@@ -67,13 +66,13 @@ const ProductDetailError: React.FC<ProductDetailErrorProps> = ({ error, onClose,
  * ProductDetailCard — Top-level Product Info Detail container.
  *
  * Composes all seven sections in the specified order:
- *   1. Banner Image
- *   2. Product Name + Overview
- *   3. Find Store Button
- *   4. History
- *   5. Highlights
- *   6. Production Process
- *   7. Tips (Usage Guide / Use Cases tabs)
+ *   1. Video Banner   (poi_media: media_category='banner', media_type='VIDEO')
+ *   2. Product Name + Overview  (bg #720000, name #ffc14c, text white)
+ *   3. Image Gallery  (poi_media: media_category='Quy trinh', media_type='Image')
+ *   4. Find Store Button
+ *   5. Lịch sử hình thành (header #720000, content #fff8eb)
+ *   6. Quy trình            (header #720000, content #fff8eb)
+ *   7. Công dụng            (header #720000, content #fff8eb)
  *
  * Data flows exclusively through useProductDetail → GET /api/products/:id → Supabase.
  * Meilisearch is never used here.
@@ -92,7 +91,7 @@ export const ProductDetailCard: React.FC<ProductDetailCardProps> = ({
   // --- Loading ---
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col overflow-hidden h-full bg-background">
+      <div className="flex-1 flex flex-col overflow-hidden h-full">
         <div className="shrink-0">
           <ProductDetailHeader onClose={onClose} onBack={onBack} />
         </div>
@@ -112,61 +111,47 @@ export const ProductDetailCard: React.FC<ProductDetailCardProps> = ({
     );
   }
 
-  // --- Success: render all 7 sections ---
+  // --- Success: render all 6 sections ---
   return (
-    <div className="flex-1 flex flex-col overflow-hidden h-full bg-background text-foreground">
+    <div className="flex-1 flex flex-col overflow-hidden h-full text-foreground">
       {/* Fixed header */}
       <div className="shrink-0">
         <ProductDetailHeader onClose={onClose} onBack={onBack} />
       </div>
 
       {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Section 1 — Banner */}
-        <ProductDetailBanner url={data.banner_url} productName={data.name} />
+      <div className="flex-1 overflow-y-auto scrollbar-hidden">
 
-        {/* Section 2 — Name + Overview */}
+        {/* Section 1 — Video Banner */}
+        <ProductDetailBanner url={data.video_url} productName={data.name} />
+
+        {/* Section 2 — Name + Overview (dark-red bg) */}
         <ProductDetailOverview name={data.name} overview={data.overview} />
 
-        <Separator className="mx-4" />
+        {/* Section 3 — Image Gallery (poi_media: media_category='Quy trinh', media_type='Image') */}
+        <ProductImageGallery
+          imageUrls={data.gallery_image_urls}
+          productName={data.name}
+        />
 
-        {/* Section 3 — Find Store (UI-only) */}
+        {/* Section 4 — Find Store (UI-only) */}
         <ProductFindStoreButton />
 
-        <Separator className="mx-4" />
-
-        {/* Section 4 — History */}
+        {/* Section 4 — Lịch sử hình thành */}
         {data.lich_su_hinh_thanh.length > 0 && (
-          <>
-            <ProductDetailHistory items={data.lich_su_hinh_thanh} />
-            <Separator className="mx-4" />
-          </>
+          <ProductDetailHistory items={data.lich_su_hinh_thanh} />
         )}
 
-        {/* Section 5 — Highlights */}
-        {data.diem_noi_bat.length > 0 && (
-          <>
-            <ProductDetailHighlights items={data.diem_noi_bat} />
-            <Separator className="mx-4" />
-          </>
-        )}
-
-        {/* Section 6 — Production Process */}
+        {/* Section 5 — Quy trình */}
         {data.process_image_url && (
-          <>
-            <ProductDetailProcess
-              url={data.process_image_url}
-              productName={data.name}
-            />
-            <Separator className="mx-4" />
-          </>
+          <ProductDetailProcess
+            url={data.process_image_url}
+            productName={data.name}
+          />
         )}
 
-        {/* Section 7 — Tips */}
-        <ProductDetailTips
-          huong_dan_su_dung={data.huong_dan_su_dung}
-          cong_dung={data.cong_dung}
-        />
+        {/* Section 6 — Công dụng */}
+        <ProductDetailTips cong_dung={data.cong_dung} />
 
         {/* Bottom padding */}
         <div className="h-6" />
