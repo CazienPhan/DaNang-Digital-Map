@@ -46,6 +46,12 @@ export interface ProductItem {
   detailSections: ProductDetailSection[];
   /** poi.ocop_certifications.certificate_file_url — null when no cert image is set. */
   certificateImageUrl: string | null;
+  /**
+   * OCOP certification star rating from ocop_certifications.so_sao.
+   * Only present when is_ocop = true AND a matching certification row exists.
+   * null means no star rating is available — do NOT invent a fallback.
+   */
+  ocopSoSao: number | null;
 }
 
 // ─── Price formatting ─────────────────────────────────────────────────────────
@@ -161,6 +167,12 @@ function mapProductRecord(p: any): ProductItem {
     priceNumeric: numMin,
     detailSections,
     certificateImageUrl: p.certificate_file_url || null,
+    ocopSoSao:
+      p.is_ocop === true &&
+      p.ocop_so_sao !== null &&
+      p.ocop_so_sao !== undefined
+        ? Number(p.ocop_so_sao)
+        : null,
   };
 }
 

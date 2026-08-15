@@ -21,6 +21,8 @@ export interface ProductRecord {
   stock_status: string | null;
   /** poi.ocop_certifications.certificate_file_url — null when no cert row or no image set. */
   certificate_file_url: string | null;
+  /** poi.ocop_certifications.so_sao — null when no cert row or so_sao is absent. */
+  ocop_so_sao: number | null;
 }
 
 // ─── Product Type Detail ─────────────────────────────────────────────────────
@@ -81,7 +83,8 @@ export class ProductService {
           pl.price_min,
           pl.price_max,
           pl.stock_status,
-          oc.certificate_file_url
+          oc.certificate_file_url,
+          oc.so_sao AS ocop_so_sao
         FROM poi.product_listings pl
         JOIN poi.products pr ON pr.id = pl.product_id
         LEFT JOIN poi.ocop_certifications oc ON oc.product_id = pr.id
@@ -109,6 +112,10 @@ export class ProductService {
             : null,
         stock_status: raw.stock_status || null,
         certificate_file_url: raw.certificate_file_url || null,
+        ocop_so_sao:
+          raw.ocop_so_sao !== null && raw.ocop_so_sao !== undefined
+            ? Number(raw.ocop_so_sao)
+            : null,
       }));
     } catch (err: any) {
       console.error(`Error fetching products for POI ${poiId}:`, err);
