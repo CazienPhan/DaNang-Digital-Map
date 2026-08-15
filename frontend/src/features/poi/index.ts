@@ -3,3 +3,4 @@
 export { PoiDetailCard } from './components/PoiDetailCard';
 export { ProductDetailPanel } from './components/product/ProductDetailPanel';
 export { CartSummary } from './components/CartSummary';
+export { ExperienceRegistrationForm } from './components/ExperienceRegistrationForm';

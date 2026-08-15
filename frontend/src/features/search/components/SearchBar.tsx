@@ -5,7 +5,7 @@ import SearchResult from './SearchResult';
 import { SearchListing } from './SearchListing';
 import { DirectionPanel, type LocationState } from '@/features/directions';
 import { type RouteResult } from '@/services/map4d/routing.service';
-import { PoiDetailCard, ProductDetailPanel, CartSummary } from '@/features/poi';
+import { PoiDetailCard, ProductDetailPanel, CartSummary, ExperienceRegistrationForm } from '@/features/poi';
 import { useCart } from '@/hooks/useCart';
 import { type POIDetailData } from '@/services/supabase/poi.service';
 import { type ProductItem } from '@/services/supabase/product.service';
@@ -148,6 +148,23 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   /** Closes the cart WITHOUT clearing cart contents. */
   const closeCart = () => setCartOpen(false);
+
+  // ---- Experience Registration Form ----
+  const [experienceFormOpen, setExperienceFormOpen] = useState(false);
+
+  /** Opens the experience registration form. Closes cart if open. */
+  const openExperienceForm = () => {
+    setCartOpen(false);
+    setExperienceFormOpen(true);
+  };
+
+  /** Closes the experience registration form; returns to POI detail. */
+  const closeExperienceForm = () => setExperienceFormOpen(false);
+
+  // Close the experience form whenever the underlying POI changes or the detail view closes.
+  useEffect(() => {
+    setExperienceFormOpen(false);
+  }, [selectedPoiDetails?.id, searchView]);
 
   // ---- Measure the POI Sheet's actual rendered width so ProductDetailPanel can
   // sit flush against its right edge on desktop, regardless of the Sheet's own
@@ -522,11 +539,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   />
                 )}
 
-                {/* POI DETAIL or CART SUMMARY */}
+                {/* POI DETAIL, CART SUMMARY, or EXPERIENCE REGISTRATION FORM */}
                 {searchView === 'detail' &&
                   !directionActive &&
                   (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
-                    cartOpen ? (
+                    experienceFormOpen ? (
+                      <ExperienceRegistrationForm
+                        onClose={closeExperienceForm}
+                      />
+                    ) : cartOpen ? (
                       <CartSummary
                         onClose={closeCart}
                       />
@@ -540,6 +561,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                         onClose={() => {
                           setSelectedPoiProduct(null);
                           setCartOpen(false);
+                          setExperienceFormOpen(false);
                           onCloseInfoCard();
                         }}
                         onGetDirections={onDirectionClick}
@@ -552,6 +574,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                           openCart('menu');
                         }}
                         onOpenCart={() => openCart('menu')}
+                        onRegisterExperience={openExperienceForm}
                         cartItemCount={cart.totalItems}
                       />
                     )
