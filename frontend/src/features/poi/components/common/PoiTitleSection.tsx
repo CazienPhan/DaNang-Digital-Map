@@ -16,7 +16,7 @@ export const PoiTitleSection: React.FC<PoiTitleSectionProps> = React.memo(({ nam
   return (
     <div className="px-4 pb-4">
       {/* Main title */}
-      <h1 className="text-[24px] uppercase font-black tracking-normal leading-tight text-[#a05d00] mb-2">
+      <h1 className="text-xl uppercase font-black tracking-normal leading-tight text-[#a05d00] mb-2">
         {name}
       </h1>
 

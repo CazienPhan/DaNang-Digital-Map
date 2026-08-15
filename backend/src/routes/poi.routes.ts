@@ -54,6 +54,7 @@ router.get('/tile/:x/:y/:zoom', async (req: Request, res: Response) => {
 
     const pois = await PoiService.getPoisByTile(x, y, zoom, categories);
     return res.status(200).json(pois);
+
   } catch (error: any) {
     console.error(`Failed to get POIs for tile ${req.params.x}/${req.params.y}/${req.params.zoom}:`, error);
     return res.status(500).json({

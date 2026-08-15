@@ -32,6 +32,12 @@ export interface ProductItem {
    */
   price: string | null;
   /**
+   * Raw numeric price (price_min) for arithmetic (e.g. cart totals).
+   * null when price_min is 0 or absent — callers should treat null as "price
+   * unknown" rather than zero.
+   */
+  priceNumeric: number | null;
+  /**
    * Structured detail copy parsed from products.description when it holds a
    * JSON array of { title, item } sections (e.g. "Thành phần", "Hướng dẫn sử
    * dụng", "Công dụng", "Hạn sử dụng"). Empty when description is plain text
@@ -48,7 +54,7 @@ export interface ProductItem {
  * Formats a price range into a Vietnamese-locale currency string.
  * Returns null when both values are 0 or absent (price unknown).
  */
-function formatPrice(priceMin: number | null, priceMax: number | null): string | null {
+export function formatPrice(priceMin: number | null, priceMax: number | null): string | null {
   const min = priceMin ?? 0;
   const max = priceMax ?? 0;
 
@@ -143,6 +149,8 @@ function mapProductRecord(p: any): ProductItem {
     if (!tags.includes(label)) tags.push(label);
   }
 
+  const numMin = typeof p.price_min === 'number' && p.price_min > 0 ? p.price_min : null;
+
   return {
     id: p.id,
     name: p.name,
@@ -150,6 +158,7 @@ function mapProductRecord(p: any): ProductItem {
     badge: p.is_ocop === true ? 'OCOP' : null,
     img: p.hinh_anh_url || null,
     price: formatPrice(p.price_min, p.price_max),
+    priceNumeric: numMin,
     detailSections,
     certificateImageUrl: p.certificate_file_url || null,
   };

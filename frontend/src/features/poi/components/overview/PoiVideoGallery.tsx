@@ -4,8 +4,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface PoiVideoGalleryProps {
   videos: { url: string; caption?: string }[];
   /**
-   * isTourismPoi: true  -> portrait (9:16) cards -- POI from poi_details_tourism
-   * isTourismPoi: false -> landscape (16:9) cards -- POI from poi_details_business
+   * isTourismPoi is kept for API compatibility but no longer controls card orientation.
+   * Both Business POIs (poi_details_business) and Tourism POIs (poi_details_tourism)
+   * now use the same portrait (9:16) vertical video presentation.
    */
   isTourismPoi: boolean;
 }
@@ -14,8 +15,7 @@ interface PoiVideoGalleryProps {
 const VideoCard: React.FC<{
   url: string;
   caption?: string;
-  portrait: boolean;
-}> = ({ url, caption, portrait }) => {
+}> = ({ url, caption }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleMouseEnter = () => {
@@ -29,52 +29,30 @@ const VideoCard: React.FC<{
     }
   };
 
-  if (portrait) {
-    return (
-      /* Portrait card -- Tourism POIs (poi_details_tourism), 9:16 */
-      <div className="shrink-0 w-28 aspect-[9/16] snap-start rounded-xl overflow-hidden relative cursor-pointer group bg-black">
-        <video
-          ref={videoRef}
-          src={url}
-          controls
-          className="w-full h-full object-cover"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        />
-        {caption && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col justify-end p-2 pointer-events-none">
-            <p className="font-black text-[11px] leading-tight text-[#FFE4B0]">
-              {caption}
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  }
-
+  // Both Tourism and Business POIs use the portrait (9:16) vertical format.
   return (
-    /* Landscape card -- Business POIs (poi_details_business), 16:9 */
-    <div className="shrink-0 w-55 aspect-[16/9] snap-start rounded-xl overflow-hidden relative cursor-pointer group bg-black">
+    /* Portrait card -- all POIs (poi_details_tourism and poi_details_business), 9:16 */
+    <div className="shrink-0 w-28 aspect-[9/16] snap-start rounded-xl overflow-hidden relative cursor-pointer group bg-black">
       <video
         ref={videoRef}
         src={url}
         controls
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        className="w-full h-full object-cover"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       />
       {caption && (
-        <div className="absolute bottom-0 inset-x-0 bg-black/50 backdrop-blur-sm px-2 py-1 pointer-events-none">
-          <span className="text-[0.6rem] text-white/90 leading-tight line-clamp-1">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col justify-end p-2 pointer-events-none">
+          <p className="font-black text-[11px] leading-tight text-[#FFE4B0]">
             {caption}
-          </span>
+          </p>
         </div>
       )}
     </div>
   );
 };
 
-export const PoiVideoGallery: React.FC<PoiVideoGalleryProps> = React.memo(({ videos, isTourismPoi }) => {
+export const PoiVideoGallery: React.FC<PoiVideoGalleryProps> = React.memo(({ videos, isTourismPoi: _isTourismPoi }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   if (videos.length === 0) return null;
@@ -102,7 +80,6 @@ export const PoiVideoGallery: React.FC<PoiVideoGalleryProps> = React.memo(({ vid
             key={idx}
             url={vid.url}
             caption={vid.caption}
-            portrait={isTourismPoi}
           />
         ))}
       </div>

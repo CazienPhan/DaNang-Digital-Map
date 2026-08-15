@@ -19,6 +19,23 @@ interface PoiDetailCardProps {
   onSelectProduct?: (item: ProductItem) => void;
   /** Called when the user switches back to the "Tổng quan" tab. */
   onOverviewTabSelected?: () => void;
+  /** Called when the user taps "Giỏ hàng" in the global action bar. */
+  onOpenCart?: () => void;
+  /** Called when the user taps "Đăng ký trải nghiệm". */
+  onRegisterExperience?: () => void;
+  /** Called when any product's "Thêm vào giỏ hàng" button is clicked. */
+  onAddToCart?: (item: ProductItem) => void;
+  /** Called when any product's "Mua ngay" button is clicked.
+   *  Omit if no checkout flow exists — ProductCard degrades gracefully. */
+  onBuyNow?: (item: ProductItem) => void;
+  /** Total number of product units currently in the cart. Drives the cart badge. */
+  cartItemCount?: number;
+  /**
+   * Which tab to open by default.
+   * Pass 'menu' when returning from the Cart so the user lands on Products,
+   * not on Overview. Defaults to 'overview'.
+   */
+  defaultTab?: 'overview' | 'menu';
 }
 
 export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
@@ -31,9 +48,15 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
   isSecondary = false,
   onSelectProduct,
   onOverviewTabSelected,
+  onOpenCart,
+  onRegisterExperience,
+  onAddToCart,
+  onBuyNow,
+  cartItemCount = 0,
+  defaultTab = 'overview',
 }) => {
   // Local tab state — only affects UI, no business logic
-  const [activeTab, setActiveTab] = useState<'overview' | 'menu'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'menu'>(defaultTab);
 
   // 1. Render Loading State
   if (loading) {
@@ -73,8 +96,10 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
   // const isTourism = poi.poi_type === 'TOURISM';
   const tagColor = poi.category_color_hex || '#3b82f6';
   /**
-   * isTourismPoi: true  → portrait (9:16) video cards  — POI exists in poi_details_tourism
-   * isTourismPoi: false → landscape (16:9) video cards — POI exists in poi_details_business
+   * isTourismPoi is passed down to PoiVideoGallery for API compatibility,
+   * but since the video gallery was standardised to portrait (9:16) for
+   * ALL POI types, its value no longer controls card orientation.
+   * Both poi_details_business and poi_details_tourism render portrait videos.
    *
    * Detection: poi.poi_type === 'TOURISM' is the canonical, reliable indicator.
    * The pois.business_id column is NOT guaranteed to be populated for business POIs
@@ -95,7 +120,13 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
           <PoiOverviewSection poi={poi} images={images} videos={videos} isTourismPoi={isTourismPoi} />
         </div>
         <div className="shrink-0">
-          <PoiActions onGetDirections={onGetDirections} />
+          <PoiActions
+            onGetDirections={onGetDirections}
+            poi={poi}
+            onOpenCart={onOpenCart}
+            onRegisterExperience={onRegisterExperience}
+            cartItemCount={cartItemCount}
+          />
         </div>
       </div>
     );
@@ -148,13 +179,24 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
         {activeTab === 'overview' ? (
           <PoiOverviewSection poi={poi} images={images} videos={videos} isTourismPoi={isTourismPoi} />
         ) : (
-          <PoiProductSection poiId={poi.id} onSelectProduct={onSelectProduct} />
+          <PoiProductSection
+            poiId={poi.id}
+            onSelectProduct={onSelectProduct}
+            onAddToCart={onAddToCart}
+            onBuyNow={onBuyNow}
+          />
         )}
       </div>
 
       {/* Fixed footer */}
       <div className="shrink-0">
-        <PoiActions onGetDirections={onGetDirections} />
+        <PoiActions
+          onGetDirections={onGetDirections}
+          poi={poi}
+          onOpenCart={onOpenCart}
+          onRegisterExperience={onRegisterExperience}
+          cartItemCount={cartItemCount}
+        />
       </div>
     </div>
   );

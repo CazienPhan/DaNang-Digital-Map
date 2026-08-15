@@ -7,6 +7,10 @@ interface PoiProductSectionProps {
   poiId: string;
   /** Called when the user clicks a product card — opens the product detail panel. */
   onSelectProduct?: (item: ProductItem) => void;
+  /** Called when the user adds a product to the cart. */
+  onAddToCart?: (item: ProductItem) => void;
+  /** Called when the user clicks "Mua ngay" on a product. */
+  onBuyNow?: (item: ProductItem) => void;
 }
 
 /**
@@ -19,82 +23,91 @@ interface PoiProductSectionProps {
  *
  * No mock data. No hardcoded arrays. Every product comes from the database.
  */
-export const PoiProductSection: React.FC<PoiProductSectionProps> = React.memo(({ poiId, onSelectProduct }) => {
-  const [products, setProducts] = useState<ProductItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const PoiProductSection: React.FC<PoiProductSectionProps> = React.memo(
+  ({ poiId, onSelectProduct, onAddToCart, onBuyNow }) => {
+    const [products, setProducts] = useState<ProductItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!poiId) return;
+    useEffect(() => {
+      if (!poiId) return;
 
-    let cancelled = false;
+      let cancelled = false;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    ProductClientService.getProductsByPoiId(poiId)
-      .then((data) => {
-        if (!cancelled) {
-          setProducts(data);
-          setLoading(false);
-        }
-      })
-      .catch((err: Error) => {
-        if (!cancelled) {
-          console.error('[PoiProductSection] Failed to load products:', err);
-          setError(err.message || 'Không thể kết nối đến máy chủ.');
-          setLoading(false);
-        }
-      });
+      ProductClientService.getProductsByPoiId(poiId)
+        .then((data) => {
+          if (!cancelled) {
+            setProducts(data);
+            setLoading(false);
+          }
+        })
+        .catch((err: Error) => {
+          if (!cancelled) {
+            console.error('[PoiProductSection] Failed to load products:', err);
+            setError(err.message || 'Không thể kết nối đến máy chủ.');
+            setLoading(false);
+          }
+        });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [poiId]);
+      return () => {
+        cancelled = true;
+      };
+    }, [poiId]);
 
-  // ── Loading skeleton ──────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 gap-3 px-4 py-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="bg-muted rounded-2xl overflow-hidden animate-pulse"
-            style={{ aspectRatio: '1 / 1.4' }}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  // ── Error state ───────────────────────────────────────────────────────────
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-        <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4">
-          <span className="text-2xl">⚠️</span>
+    // ── Loading skeleton ──────────────────────────────────────────────────────
+    if (loading) {
+      return (
+        <div className="grid grid-cols-2 gap-3 px-4 py-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-muted rounded-2xl overflow-hidden animate-pulse"
+              style={{ aspectRatio: '1 / 1.4' }}
+            />
+          ))}
         </div>
-        <p className="text-sm font-semibold text-foreground mb-1">Không thể tải sản phẩm</p>
-        <p className="text-xs text-muted-foreground">{error}</p>
-      </div>
-    );
-  }
+      );
+    }
 
-  // ── Empty state ───────────────────────────────────────────────────────────
-  if (products.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-        <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4">
-          <span className="text-2xl">🍽️</span>
+    // ── Error state ───────────────────────────────────────────────────────────
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <p className="text-sm font-semibold text-foreground mb-1">Không thể tải sản phẩm</p>
+          <p className="text-xs text-muted-foreground">{error}</p>
         </div>
-        <p className="text-sm font-semibold text-foreground mb-1">Chưa có sản phẩm</p>
-        <p className="text-xs text-muted-foreground">
-          Thông tin sản phẩm sẽ được cập nhật trong thời gian tới.
-        </p>
-      </div>
+      );
+    }
+
+    // ── Empty state ───────────────────────────────────────────────────────────
+    if (products.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4">
+            <span className="text-2xl">🍽️</span>
+          </div>
+          <p className="text-sm font-semibold text-foreground mb-1">Chưa có sản phẩm</p>
+          <p className="text-xs text-muted-foreground">
+            Thông tin sản phẩm sẽ được cập nhật trong thời gian tới.
+          </p>
+        </div>
+      );
+    }
+
+    // ── Product grid ──────────────────────────────────────────────────────────
+    return (
+      <ProductGrid
+        products={products}
+        onSelectProduct={onSelectProduct}
+        onAddToCart={onAddToCart}
+        onBuyNow={onBuyNow}
+      />
     );
   }
-
-  // ── Product grid ──────────────────────────────────────────────────────────
-  return <ProductGrid products={products} onSelectProduct={onSelectProduct} />;
-});
+);

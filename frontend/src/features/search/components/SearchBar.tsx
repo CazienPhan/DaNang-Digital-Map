@@ -5,7 +5,8 @@ import SearchResult from './SearchResult';
 import { SearchListing } from './SearchListing';
 import { DirectionPanel, type LocationState } from '@/features/directions';
 import { type RouteResult } from '@/services/map4d/routing.service';
-import { PoiDetailCard, ProductDetailPanel } from '@/features/poi';
+import { PoiDetailCard, ProductDetailPanel, CartSummary } from '@/features/poi';
+import { useCart } from '@/hooks/useCart';
 import { type POIDetailData } from '@/services/supabase/poi.service';
 import { type ProductItem } from '@/services/supabase/product.service';
 import { Button, Input } from '@/components/ui';
@@ -131,6 +132,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     // Close the product panel whenever the underlying POI changes or the detail view closes.
     setSelectedPoiProduct(null);
   }, [selectedPoiDetails?.id, searchView]);
+
+  // ---- Cart ----
+  const cart = useCart();
+  const [cartOpen, setCartOpen] = useState(false);
+  // Tracks which POI tab was active when cart was opened, so closing the cart
+  // returns the user to that same tab (Products, not Overview).
+  const [cartReturnTab, setCartReturnTab] = useState<'overview' | 'menu'>('overview');
+
+  /** Opens the cart and remembers the return tab. */
+  const openCart = (returnTab: 'overview' | 'menu' = 'menu') => {
+    setCartReturnTab(returnTab);
+    setCartOpen(true);
+  };
+
+  /** Closes the cart WITHOUT clearing cart contents. */
+  const closeCart = () => setCartOpen(false);
 
   // ---- Measure the POI Sheet's actual rendered width so ProductDetailPanel can
   // sit flush against its right edge on desktop, regardless of the Sheet's own
@@ -505,24 +522,39 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   />
                 )}
 
-                {/* POI DETAIL */}
+                {/* POI DETAIL or CART SUMMARY */}
                 {searchView === 'detail' &&
                   !directionActive &&
                   (selectedPoiDetails || poiDetailLoading || poiDetailError) && (
-                    <PoiDetailCard
-                      poi={selectedPoiDetails}
-                      loading={poiDetailLoading}
-                      error={poiDetailError}
-                      isSecondary={false}
-                      onClose={() => {
-                        setSelectedPoiProduct(null);
-                        onCloseInfoCard();
-                      }}
-                      onGetDirections={onDirectionClick}
-                      onBack={poiOnBack}
-                      onSelectProduct={setSelectedPoiProduct}
-                      onOverviewTabSelected={() => setSelectedPoiProduct(null)}
-                    />
+                    cartOpen ? (
+                      <CartSummary
+                        onClose={closeCart}
+                      />
+                    ) : (
+                      <PoiDetailCard
+                        poi={selectedPoiDetails}
+                        loading={poiDetailLoading}
+                        error={poiDetailError}
+                        isSecondary={false}
+                        defaultTab={cartReturnTab}
+                        onClose={() => {
+                          setSelectedPoiProduct(null);
+                          setCartOpen(false);
+                          onCloseInfoCard();
+                        }}
+                        onGetDirections={onDirectionClick}
+                        onBack={poiOnBack}
+                        onSelectProduct={setSelectedPoiProduct}
+                        onOverviewTabSelected={() => setSelectedPoiProduct(null)}
+                        onAddToCart={(item) => cart.addItem(item)}
+                        onBuyNow={(item) => {
+                          cart.addItem(item);
+                          openCart('menu');
+                        }}
+                        onOpenCart={() => openCart('menu')}
+                        cartItemCount={cart.totalItems}
+                      />
+                    )
                   )}
 
               </div>
