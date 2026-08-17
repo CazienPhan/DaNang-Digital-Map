@@ -1,0 +1,491 @@
+================================================================================
+PLACE SEARCH — COMPLETE TECHNICAL DOCUMENTATION
+================================================================================
+Project  : MAP4D — Da Nang Digital Map Platform
+Document : place_search.txt
+Date     : 2026-08-16
+Scope    : End-to-end technical reference for the Place Search feature.
+           Covers every file, every layer, every DTO, every API call.
+================================================================================
+
+
+================================================================================
+1. FEATURE OVERVIEW
+================================================================================
+
+WHAT IS PLACE SEARCH?
+------------------------
+Place Search is the default search mode inside the SearchBar component that allows
+users to search for geographic points of interest (POIs), roads, and addresses
+across the map. 
+
+The user activates Place Search by ensuring the "Place Search" tab in the
+SearchModeSwitcher toggle beneath the search input is active. When this mode is
+active, every keystroke and Enter-key action is routed to the Place Search
+pipeline, powered by the Map4D Map API.
+
+DESTINATION SEARCH vs. PRODUCT SEARCH
+---------------------------------------
+
+  Destination Search (mode = "place")
+  ------------------------------------
+  Provider     : Map4D API (third-party mapping service)
+  Backend path : GET /api/map4d/autosuggest (backend proxy to Map4D API)
+  Index        : Map4D's own geographic POI database
+  Results      : Places with latitude/longitude — clicking moves the map
+  Icon         : MapPin (lucide-react)
+  Location bias: YES — biased toward the user's current map center
+  Engine class : Map4DSearchEngine
+
+  Product Search (mode = "product")
+  ----------------------------------
+  Provider     : Meilisearch (self-hosted search engine)
+  Backend path : GET /api/products/autocomplete and GET /api/products/search
+  Index        : "products" Meilisearch index (product_types from Supabase)
+  Results      : Product catalogue items with name, description, optional image
+  Icon         : ShoppingBag (lucide-react)
+  Location bias: NO — products are not geo-tagged; locationBias is ignored
+  Engine class : ProductSearchEngine
+
+WHY MAP4D FOR PLACES?
+-------------------------------------
+Map4D is the authoritative geographic data source for Da Nang, providing rich
+POI, road, and address data, making it the natural choice for mapping and routing.
+Unlike Product Search (which uses a self-hosted Meilisearch index), Place Search 
+delegates the heavy lifting of geographical autocomplete, text search, and 
+geocoding entirely to Map4D's external services. Our backend simply proxies 
+these requests to protect API keys and ensure secure communication.
+
+
+================================================================================
+2. COMPLETE ARCHITECTURE
+================================================================================
+
+FULL STACK ARCHITECTURE DIAGRAM
+---------------------------------
+
+  User
+    │
+    │  (types in the search input / presses Enter)
+    ▼
+  SearchBar.tsx
+    │  (reads searchMode, calls adapter.autocomplete() or adapter.search())
+    ▼
+  SearchEngineAdapter.ts  [Strategy Pattern gateway]
+    │  (selects the correct concrete engine based on searchMode)
+    ▼
+  Map4DSearchEngine.ts  [concrete engine for place mode]
+    │  (calls SearchService, maps results to SearchSuggestion[])
+    ▼
+  frontend/src/services/map4d/search.service.ts
+    │  (HTTP fetch — hides all network details from the engine)
+    │
+    │  HTTP GET /api/map4d/autosuggest?text=...&location=...
+    ▼
+  Express Backend — backend/src/index.ts
+    │  (routes /api/map4d/* to map4d.routes.ts)
+    ▼
+  map4d.routes.ts
+    │  (maps GET /autosuggest to Map4dBackendService.autosuggest or textSearch)
+    ▼
+  backend/src/services/map4d.service.ts (Map4dBackendService)
+    │  (injects MAP4D_API_KEY, forwards request to Map4D's external servers)
+    ▼
+  Map4D External API
+    │  (https://api.map4d.vn/sdk/autosuggest or https://api.map4d.vn/sdk/place/text-search)
+    ▼
+  HTTP Response (JSON from Map4D API)
+    │  (proxied back through Map4dBackendService to Express router)
+    ▼
+  HTTP Response (JSON to Frontend)
+    │
+    ▼
+  search.service.ts (frontend)
+    │  (extracts data.result, maps to PlaceSuggestion[], applies frontend relevance sort)
+    ▼
+  SearchSuggestionMapper.ts
+    │  (fromPlaces() — converts to SearchSuggestion[])
+    ▼
+  SearchSuggestion[]  [frozen DTO — the ONLY shape the UI ever sees]
+    │
+    ├──▶ SearchResult.tsx  [autocomplete dropdown]
+    │      (renders suggestions while user is typing — above the input)
+    │
+    └──▶ SearchListing.tsx  [full search listing panel]
+           │  (renders after Enter key — inside the sidebar Sheet)
+           ▼
+         SearchListingCard.tsx
+           (renders each place card: MapPin icon, name, address)
+
+
+LAYER EXPLANATIONS
+-------------------
+
+Layer 1 — User Input
+  The user's keyboard events in the browser.
+
+Layer 2 — SearchBar
+  Top-level orchestrator. Owns all state: query string, searchMode,
+  suggestions[], listingResults[], listingLoading, searchView.
+
+Layer 3 — SearchEngineAdapter
+  The Strategy Pattern gateway. Built once per searchMode via useMemo.
+  Selects Map4DSearchEngine when mode = 'place'.
+
+Layer 4 — Map4DSearchEngine
+  Implements the SearchEngine interface. Calls SearchService and
+  passes results through SearchSuggestionMapper.
+
+Layer 5 — SearchService (frontend)
+  A static class that performs HTTP fetch() calls to the backend's Map4D proxy.
+  Unlike Product Search, it uses the SAME endpoint (/api/map4d/autosuggest) 
+  for both autocomplete and full search. It also performs a custom frontend 
+  relevance sort on the results based on name/address matching.
+
+Layer 6 — Backend HTTP Boundary
+  Express server. Routes mounted at /api/map4d.
+
+Layer 7 — Backend Controller (map4d.routes.ts)
+  Validates parameters (text). Contains a specific branch: if text length === 1,
+  it falls back to Map4dBackendService.textSearch() because Map4D's autosuggest 
+  returns empty for single characters. Otherwise, it calls autosuggest().
+
+Layer 8 — Backend Map4dBackendService
+  Injects the protected MAP4D_API_KEY from the environment and uses Axios to 
+  forward requests to Map4D's external APIs (api.map4d.vn).
+
+Layer 9 — SearchSuggestionMapper (frontend)
+  Converts frontend PlaceSuggestion objects into the universal SearchSuggestion 
+  DTO used by the UI. Sets type = 'place', description = address, and preserves 
+  the latitude/longitude in the location field.
+
+
+================================================================================
+3. COMPLETE USER FLOW
+================================================================================
+
+Step 1 — User opens the application.
+  The SearchBar renders in 'idle' view. The SearchModeSwitcher shows
+  "Place Search" as the active tab (default searchMode = 'place').
+  A Map4DSearchEngine is instantiated by the adapter.
+
+  ↓
+
+Step 2 — User types a keyword (e.g. "Dragon Bridge").
+  handleQueryChange fires on every keystroke.
+  setQuery updates the controlled input value.
+  The debouncedQuery (useDebounce, 350 ms) waits for the user to pause.
+
+  ↓
+
+Step 3 — Debounce fires (350 ms after last keystroke).
+  The autocomplete useEffect triggers.
+  searchView transitions to 'autocomplete'.
+  adapter.autocomplete(debouncedQuery, locationBias, signal) is called.
+  → Map4DSearchEngine calls SearchService.searchPlaces(query, locationBias, signal).
+  → SearchService fetches:
+      GET /api/map4d/autosuggest?text=Dragon%20Bridge&location=lat,lng
+  → Backend map4d.routes.ts receives the request.
+  → Backend routes to Map4dBackendService.autosuggest (or textSearch if length=1).
+  → Backend proxies to https://api.map4d.vn with API key.
+  → Map4D returns geographic suggestions.
+  → Backend passes JSON back to frontend.
+  → SearchService extracts data.result, maps to PlaceSuggestion[], and sorts 
+    by relevance (name starts with query > name contains query > address contains).
+  → Map4DSearchEngine passes places to SearchSuggestionMapper.fromPlaces().
+  → Mapper converts them to SearchSuggestion[] with type 'place'.
+  → SearchBar.setSuggestions(results) fires.
+
+  ↓
+
+Step 4 — Dropdown (SearchResult) appears.
+  SearchBar renders <SearchResult suggestions={suggestions} />.
+  Each suggestion shows a MapPin icon (type = 'place') + title + address (muted).
+
+  ↓
+
+Step 5a — User selects a dropdown item.
+  handleSuggestionSelect(suggestion) fires.
+  For 'place', it calls onSelectPlace(suggestion).
+  This typically recenters the map to suggestion.location and may open a POI detail.
+  Suggestions are cleared. Dropdown closes.
+
+  ↓  (OR)
+
+Step 5b — User presses Enter instead of clicking a suggestion.
+  onKeyDown triggers handleEnterSearch().
+  The pending autocomplete request is aborted immediately.
+  searchView transitions to 'listing'.
+  The sidebar Sheet opens.
+
+  ↓
+
+Step 6 — Full search request is sent.
+  adapter.search(query, locationBias) is called.
+  → Map4DSearchEngine calls SearchService.searchPlaces(query, locationBias, signal).
+  (Note: Unlike Product Search which hits a different endpoint, Place Search 
+   hits the EXACT same /api/map4d/autosuggest endpoint again for the full listing).
+  → The flow repeats as in Step 3.
+  → Results are mapped to SearchSuggestion[].
+  → SearchBar.setListingResults(results.slice(0, 20)).
+  listingLoading = false.
+
+  ↓
+
+Step 7 — Listing renders inside the sidebar.
+  SearchListing renders the results.
+  Each SearchListingCard renders the place title and address description.
+  Because images are currently not part of Map4D suggestions, a fallback icon 
+  is shown. Clicking a listing card behaves like clicking a dropdown item: 
+  it moves the map to that location.
+
+
+================================================================================
+4. FILE BY FILE ANALYSIS
+================================================================================
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/types/SearchMode.ts
+------------------------------------------------------------------------
+Purpose:
+  Defines the SearchMode union type ("place" | "product").
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/types/SearchSuggestion.ts
+------------------------------------------------------------------------
+Purpose:
+  Defines the frozen SearchSuggestion DTO used uniformly by the UI.
+  For Place Search, type='place', and the location object { lat, lng } is present.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/services/SearchEngineAdapter.ts
+------------------------------------------------------------------------
+Purpose:
+  Instantiates the concrete engine based on mode. When mode is 'place', 
+  it creates a Map4DSearchEngine.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/services/Map4DSearchEngine.ts
+------------------------------------------------------------------------
+Purpose:
+  Concrete SearchEngine implementation for destination (place) search.
+
+Responsibility:
+  Delegate to SearchService and convert PlaceSuggestion[] to SearchSuggestion[].
+  Passes the locationBias string to the backend to help Map4D find nearby places.
+  Unlike ProductSearchEngine, both autocomplete() and search() here delegate 
+  to the same underlying SearchService.searchPlaces() method.
+
+------------------------------------------------------------------------
+FILE: frontend/src/features/search/services/SearchSuggestionMapper.ts
+------------------------------------------------------------------------
+Purpose:
+  Converts backend/provider types to SearchSuggestion.
+
+Mapping: fromPlace(place)
+  id          = place.id
+  type        = 'place'
+  title       = place.name
+  description = place.address ?? ''
+  location    = place.location
+  original    = place
+
+------------------------------------------------------------------------
+FILE: frontend/src/services/map4d/search.service.ts
+------------------------------------------------------------------------
+Purpose:
+  HTTP client for the Map4D backend proxy endpoints.
+
+Responsibility:
+  - Provide searchPlaces() mapping to GET /api/map4d/autosuggest
+  - Provide reverseGeocode() mapping to GET /api/map4d/geocode
+  - Perform custom frontend sorting (relevance scoring based on query match).
+  - Map data.result array to internal PlaceSuggestion objects.
+
+------------------------------------------------------------------------
+FILE: backend/src/routes/map4d.routes.ts
+------------------------------------------------------------------------
+Purpose:
+  Express Router for Map4D endpoints (/api/map4d).
+
+Routes:
+  GET /geocode     → Map4dBackendService.geocode()
+  GET /search      → Map4dBackendService.textSearch()
+  GET /autosuggest → Map4dBackendService.textSearch() (if length=1) 
+                     or Map4dBackendService.autosuggest()
+  GET /route       → Map4dBackendService.route()
+  GET /route/matrix→ Map4dBackendService.distanceMatrix()
+
+Important Logic:
+  The autosuggest route checks query length. Map4D's native autosuggest API 
+  requires at least 2 characters. The backend gracefully falls back to textSearch 
+  if exactly 1 character is provided.
+
+------------------------------------------------------------------------
+FILE: backend/src/services/map4d.service.ts
+------------------------------------------------------------------------
+Purpose:
+  Proxy service encapsulating axios calls to the external api.map4d.vn API.
+
+Responsibility:
+  - Inject MAP4D_API_KEY from environment.
+  - Expose static methods: geocode, textSearch, autosuggest, route, distanceMatrix.
+  - Return JSON data payload transparently back to the controller.
+
+
+================================================================================
+5. FRONTEND FLOW
+================================================================================
+
+LAYER 1 — SearchBar.tsx
+  Receives keystrokes. searchMode = 'place'. Adapts to engine.
+
+  ↓
+
+LAYER 2 — SearchEngineAdapter
+  Delegates to Map4DSearchEngine. Passes down query and locationBias.
+
+  ↓
+
+LAYER 3 — Map4DSearchEngine
+  Calls SearchService.searchPlaces(query, locationBias) for both dropdown and Enter-key.
+
+  ↓
+
+LAYER 4 — SearchService (search.service.ts)
+  GET /api/map4d/autosuggest?text=...&location=...
+  Receives payload, extracts data.result.
+  Maps to PlaceSuggestion[].
+  Applies local getRelevanceScore() sorting (prioritizing Name starts-with).
+
+  ↓
+
+LAYER 5 — SearchSuggestionMapper
+  fromPlaces() maps PlaceSuggestion[] to SearchSuggestion[].
+
+  ↓
+
+LAYER 6 — UI (SearchResult / SearchListing)
+  Renders place results. type='place' ensures MapPin icons are used.
+  Clicking a result bubbles up the suggestion, which contains the 'location' 
+  field used by the map to pan and zoom.
+
+
+================================================================================
+6. BACKEND FLOW
+================================================================================
+
+CONTROLLER LAYER (map4d.routes.ts)
+  GET /api/map4d/autosuggest?text=...&location=...
+  
+  Validation:
+    Checks if text is provided and is a string.
+
+  Fallback logic:
+    if (text.trim().length === 1) → Map4dBackendService.textSearch()
+    else → Map4dBackendService.autosuggest()
+
+  ↓
+
+SERVICE LAYER (Map4dBackendService)
+  Retrieves MAP4D_API_KEY from process.env.
+  Uses axios to call:
+    https://api.map4d.vn/sdk/autosuggest
+    OR
+    https://api.map4d.vn/sdk/place/text-search
+  Appends key=...&text=...&location=...
+
+  ↓
+
+MAP4D EXTERNAL API
+  Processes the geographical query, prioritizing results near the 'location' param.
+  Returns JSON array.
+
+  ↓
+
+HTTP RESPONSE
+  Backend controller receives axios response.data.
+  Sends status 200 JSON directly to frontend.
+
+
+================================================================================
+7. COMPLETE API DOCUMENTATION
+================================================================================
+
+------------------------------------------------------------------------
+ENDPOINT 1: MAP4D AUTOSUGGEST / SEARCH
+------------------------------------------------------------------------
+Endpoint   : GET /api/map4d/autosuggest
+HTTP Method: GET
+
+Query Parameters:
+  text     (required) — Search keyword (string). Empty → 400.
+  location (optional) — Bias coordinates formatted as "latitude,longitude".
+
+Request Example:
+  GET http://localhost:5000/api/map4d/autosuggest?text=Dragon%20Bridge&location=16.054,108.202
+
+Response Example (200 OK):
+  {
+    "code": "ok",
+    "result": [
+      {
+        "id": "5f1b6a3b-2f3b-4b1a-8c9f-3d1f6a3b2f3b",
+        "name": "Dragon Bridge",
+        "address": "Nguyen Van Linh, Da Nang",
+        "location": {
+          "lat": 16.061,
+          "lng": 108.227
+        }
+      }
+    ]
+  }
+
+Error Response (400 Bad Request):
+  {
+    "status": "INVALID_REQUEST",
+    "message": "Query parameter \"text\" is required and must be a string."
+  }
+
+Error Response (500 Internal Server Error):
+  {
+    "status": "ERROR",
+    "message": "Failed to contact Map4D Autosuggest endpoint..."
+  }
+
+Who Calls This Endpoint:
+  frontend/src/services/map4d/search.service.ts
+  → SearchService.searchPlaces()
+  → called by Map4DSearchEngine.autocomplete() AND Map4DSearchEngine.search()
+
+------------------------------------------------------------------------
+ENDPOINT 2: MAP4D REVERSE GEOCODING
+------------------------------------------------------------------------
+Endpoint   : GET /api/map4d/geocode
+HTTP Method: GET
+
+Query Parameters:
+  location (required) — Coordinates to geocode formatted as "latitude,longitude".
+  address  (optional) — Instead of location, provide address to get coords.
+
+Request Example:
+  GET http://localhost:5000/api/map4d/geocode?location=16.061,108.227
+
+Response Example (200 OK):
+  {
+    "code": "ok",
+    "result": [
+      {
+        "name": "Dragon Bridge",
+        "address": "Nguyen Van Linh, Phuoc Ninh, Hai Chau, Da Nang",
+        "location": {
+          "lat": 16.061,
+          "lng": 108.227
+        }
+      }
+    ]
+  }
+
+Who Calls This Endpoint:
+  frontend/src/services/map4d/search.service.ts
+  → SearchService.reverseGeocode()

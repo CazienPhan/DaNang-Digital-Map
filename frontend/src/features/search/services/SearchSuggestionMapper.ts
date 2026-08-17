@@ -3,6 +3,7 @@ import type {
   AutocompleteItem,
   ProductListingItem,
 } from '@/services/meilisearch/productSearch.service';
+import type { PlaceListingItem } from '@/services/meilisearch/placeSearch.service';
 import type { SearchSuggestion } from '../types/SearchSuggestion';
 
 /**
@@ -85,6 +86,32 @@ export class SearchSuggestionMapper {
     };
   }
 
+  /**
+   * Maps a backend PlaceListingItem (internal POI from Meilisearch or
+   * Map4D fallback) to the frozen SearchSuggestion DTO.
+   *
+   * title       = POI name              (PlaceListingItem.name)
+   * description = POI address           (PlaceListingItem.dia_chi)
+   * location    = coordinates           (PlaceListingItem.lat/lng)
+   * original    = enriched object with source for provider traceability
+   */
+  static fromPlaceItem(
+    item: PlaceListingItem,
+    source: 'meilisearch' | 'map4d' = 'meilisearch',
+  ): SearchSuggestion {
+    return {
+      id: item.id,
+      type: 'place',
+      title: item.name,
+      description: item.dia_chi ?? '',
+      location: {
+        lat: item.lat,
+        lng: item.lng,
+      },
+      original: { ...item, source },
+    };
+  }
+
   /** Convenience: map an array of PlaceSuggestions. */
   static fromPlaces(places: PlaceSuggestion[]): SearchSuggestion[] {
     return places.map(SearchSuggestionMapper.fromPlace);
@@ -105,4 +132,13 @@ export class SearchSuggestionMapper {
     );
 
   }
+
+  /** Convenience: map an array of PlaceListingItems (internal POI or Map4D fallback). */
+  static fromPlaceItems(
+    items: PlaceListingItem[],
+    source: 'meilisearch' | 'map4d' = 'meilisearch',
+  ): SearchSuggestion[] {
+    return items.map((item) => SearchSuggestionMapper.fromPlaceItem(item, source));
+  }
 }
+

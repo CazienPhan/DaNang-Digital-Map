@@ -5,6 +5,7 @@ import map4dRouter from './routes/map4d.routes';
 import poiRouter from './routes/poi.routes';
 import productRouter from './routes/product.routes';
 import productSearchRouter from './routes/productSearch.routes';
+import placeSearchRouter from './routes/placeSearch.routes';
 
 // Load environment configurations from .env file
 dotenv.config();
@@ -19,6 +20,7 @@ app.use(express.json());
 // Set up route handlers
 app.use('/api/map4d', map4dRouter);
 app.use('/api/pois', poiRouter);
+app.use('/api/places', placeSearchRouter);
 // Product search routes — must be registered BEFORE productRouter to prevent
 // the wildcard /:id route from matching /search and /autocomplete first.
 app.use('/api/products', productSearchRouter);

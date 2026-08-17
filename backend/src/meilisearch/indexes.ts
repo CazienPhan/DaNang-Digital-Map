@@ -13,6 +13,7 @@
 
 export const INDEXES = {
     PRODUCTS: 'products',
+    POIS: 'pois',
 } as const;
 
 export type IndexName = (typeof INDEXES)[keyof typeof INDEXES];

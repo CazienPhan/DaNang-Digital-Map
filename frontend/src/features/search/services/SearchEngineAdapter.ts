@@ -1,7 +1,7 @@
 import type { SearchMode } from '../types/SearchMode';
 import type { SearchSuggestion } from '../types/SearchSuggestion';
 import type { SearchEngine } from './SearchEngine';
-import { Map4DSearchEngine } from './Map4DSearchEngine';
+import { PlaceSearchEngine } from './PlaceSearchEngine';
 import { ProductSearchEngine } from './ProductSearchEngine';
 
 /**
@@ -28,7 +28,7 @@ export class SearchEngineAdapter {
 
   constructor(mode: SearchMode) {
     if (mode === 'place') {
-      this.engine = new Map4DSearchEngine();
+      this.engine = new PlaceSearchEngine();
     } else {
       this.engine = new ProductSearchEngine();
     }
