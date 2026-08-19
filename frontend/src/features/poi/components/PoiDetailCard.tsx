@@ -4,7 +4,10 @@ import { LoadingState, ErrorState } from '../states';
 import { PoiHeader, PoiTitleSection, PoiActions } from './common';
 import { PoiOverviewSection } from './overview';
 import { PoiProductSection } from './product';
+import { PoiEventSection, EventBanner } from './event';
 import { type ProductItem } from '@/services/supabase/product.service';
+import { type EventItem } from '@/services/supabase/event.service';
+import { useEventsByPoi } from '../hooks/useEventsByPoi';
 import { cn } from '@/lib/utils';
 
 interface PoiDetailCardProps {
@@ -36,6 +39,8 @@ interface PoiDetailCardProps {
    * not on Overview. Defaults to 'overview'.
    */
   defaultTab?: 'overview' | 'menu';
+  /** Called when the user clicks an event card or the overview banner. */
+  onSelectEvent?: (item: EventItem) => void;
 }
 
 export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
@@ -54,9 +59,17 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
   onBuyNow,
   cartItemCount = 0,
   defaultTab = 'overview',
+  onSelectEvent,
 }) => {
   // Local tab state — only affects UI, no business logic
-  const [activeTab, setActiveTab] = useState<'overview' | 'menu'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'menu' | 'event'>(defaultTab);
+
+  // Events linked to this POI — fetched once here, shared by the "Sự kiện"
+  // tab and the "Tổng quan" tab's banner so both agree and no duplicate
+  // network request happens. Only relevant for the primary (non-secondary)
+  // card, but the hook itself is unconditional (no early return before it).
+  const { today: todayEvents, upcoming: upcomingEvents, loading: eventsLoading, error: eventsError } =
+    useEventsByPoi(poi?.id);
 
   // 1. Render Loading State
   if (loading) {
@@ -152,9 +165,14 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
           categoryName={poi.category_name ?? undefined}
         />
 
+        {/* Event banner — only on the Overview tab, only when an event is running today */}
+        {activeTab === 'overview' && todayEvents.length > 0 && (
+          <EventBanner events={todayEvents} onClick={onSelectEvent} />
+        )}
+
         {/* Tabs row */}
         <div className="flex gap-1 px-4 pb-3">
-          {(['overview', 'menu'] as const).map((tab) => (
+          {(['overview', 'menu', 'event'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => {
@@ -168,7 +186,7 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
                   : 'text-muted-foreground hover:bg-muted'
               )}
             >
-              {tab === 'overview' ? 'Tổng quan' : 'Sản phẩm'}
+              {tab === 'overview' ? 'Tổng quan' : tab === 'menu' ? 'Sản phẩm' : 'Sự kiện'}
             </button>
           ))}
         </div>
@@ -178,12 +196,20 @@ export const PoiDetailCard: React.FC<PoiDetailCardProps> = ({
       <div className="poi-scroll-content flex-1 overflow-y-auto">
         {activeTab === 'overview' ? (
           <PoiOverviewSection poi={poi} images={images} videos={videos} isTourismPoi={isTourismPoi} />
-        ) : (
+        ) : activeTab === 'menu' ? (
           <PoiProductSection
             poiId={poi.id}
             onSelectProduct={onSelectProduct}
             onAddToCart={onAddToCart}
             onBuyNow={onBuyNow}
+          />
+        ) : (
+          <PoiEventSection
+            today={todayEvents}
+            upcoming={upcomingEvents}
+            loading={eventsLoading}
+            error={eventsError}
+            onSelectEvent={onSelectEvent}
           />
         )}
       </div>
