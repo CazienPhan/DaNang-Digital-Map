@@ -5,10 +5,11 @@ import SearchResult from './SearchResult';
 import { SearchListing } from './SearchListing';
 import { DirectionPanel, type LocationState } from '@/features/directions';
 import { type RouteResult } from '@/services/map4d/routing.service';
-import { PoiDetailCard, ProductDetailPanel, CartSummary, ExperienceRegistrationForm } from '@/features/poi';
+import { PoiDetailCard, ProductDetailPanel, EventDetailPanel, CartSummary, ExperienceRegistrationForm } from '@/features/poi';
 import { useCart } from '@/hooks/useCart';
 import { type POIDetailData } from '@/services/supabase/poi.service';
 import { type ProductItem } from '@/services/supabase/product.service';
+import { type EventItem } from '@/services/supabase/event.service';
 import { Button, Input } from '@/components/ui';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Search, X, Navigation } from 'lucide-react';
@@ -131,6 +132,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   useEffect(() => {
     // Close the product panel whenever the underlying POI changes or the detail view closes.
     setSelectedPoiProduct(null);
+  }, [selectedPoiDetails?.id, searchView]);
+
+  // ---- Selected event from a POI's "Sự kiện" tab or Overview banner (side panel next to the POI Sheet) ----
+  const [selectedPoiEvent, setSelectedPoiEvent] = useState<EventItem | null>(null);
+  useEffect(() => {
+    // Close the event panel whenever the underlying POI changes or the detail view closes.
+    setSelectedPoiEvent(null);
   }, [selectedPoiDetails?.id, searchView]);
 
   // ---- Cart ----
@@ -566,7 +574,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                         }}
                         onGetDirections={onDirectionClick}
                         onBack={poiOnBack}
-                        onSelectProduct={setSelectedPoiProduct}
+                        onSelectProduct={(item) => {
+                          setSelectedPoiEvent(null);
+                          setSelectedPoiProduct(item);
+                        }}
+                        onSelectEvent={(item) => {
+                          setSelectedPoiProduct(null);
+                          setSelectedPoiEvent(item);
+                        }}
                         onOverviewTabSelected={() => setSelectedPoiProduct(null)}
                         onAddToCart={(item) => cart.addItem(item)}
                         onBuyNow={(item) => {
@@ -597,6 +612,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           product={selectedPoiProduct}
           anchorLeft={sheetWidth || undefined}
           onClose={() => setSelectedPoiProduct(null)}
+        />
+      )}
+
+      {!directionActive && searchView === 'detail' && (
+        <EventDetailPanel
+          event={selectedPoiEvent}
+          anchorLeft={sheetWidth || undefined}
+          onClose={() => setSelectedPoiEvent(null)}
         />
       )}
     </>

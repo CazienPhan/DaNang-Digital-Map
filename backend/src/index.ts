@@ -6,6 +6,7 @@ import poiRouter from './routes/poi.routes';
 import productRouter from './routes/product.routes';
 import productSearchRouter from './routes/productSearch.routes';
 import placeSearchRouter from './routes/placeSearch.routes';
+import eventRouter from './routes/event.routes';
 
 // Load environment configurations from .env file
 dotenv.config();
@@ -27,6 +28,9 @@ app.use('/api/products', productSearchRouter);
 
 // Product resource routes (by-poi lookup, product detail by id)
 app.use('/api/products', productRouter);
+
+// Event resource routes (by-poi lookup)
+app.use('/api/events', eventRouter);
 
 // Base sanity check / health route
 app.get('/health', (req, res) => {
