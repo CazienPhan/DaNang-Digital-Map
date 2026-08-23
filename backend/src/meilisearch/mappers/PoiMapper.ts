@@ -38,6 +38,11 @@ export class PoiMapper {
             lng:
                 Number(poi.lng) || 0,
 
+            _geo: {
+                lat: Number(poi.lat) || 0,
+                lng: Number(poi.lng) || 0,
+            },
+
         };
 
     }

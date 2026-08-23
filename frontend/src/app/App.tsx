@@ -47,6 +47,19 @@ function App() {
 
   const [mapInstance, setMapInstance] = useState<any>(null);
 
+  // Temporary markers representing places returned by the latest Place Search.
+  // Replaced atomically on each new search; cleared on clear or no results.
+  const [searchResultMarkers, setSearchResultMarkers] = useState<MapCoordinate[]>([]);
+
+  // Track current map viewport bounds for geo-filtered Place Search.
+  // Updated on every camera move via the onCameraMove callback.
+  const [mapBounds, setMapBounds] = useState<{
+    ne: MapCoordinate;
+    sw: MapCoordinate;
+  } | null>(null);
+
+
+
   const handlePoiClick = (poi: POIData) => {
     // 1. If routeMode is active: DO NOT change active route/destination or update search inputs
     if (routeMode) {
@@ -251,6 +264,84 @@ function App() {
 
   const handleMapEvent = (eventName: string, args: any) => {
     console.log(`[App - Event Log] Map event "${eventName}" captured:`, args);
+  };
+
+  // Extract valid coordinates from place search results and push them to the map.
+  const handlePlaceSearchResults = (results: SearchSuggestion[]) => {
+    const coords: MapCoordinate[] = results
+      .filter(
+        (s) =>
+          s.location != null &&
+          typeof s.location.lat === 'number' &&
+          typeof s.location.lng === 'number' &&
+          isFinite(s.location.lat) &&
+          isFinite(s.location.lng),
+      )
+      .map((s) => ({ lat: s.location!.lat, lng: s.location!.lng }));
+    setSearchResultMarkers(coords);
+  };
+
+  // Seed mapBounds once on map init so the very first search has valid
+  // viewport data, even if the user has not yet panned or zoomed the map.
+  // The cameraChanging listener (handleCameraMove) keeps it updated after that.
+  useEffect(() => {
+    if (!mapInstance) return;
+    try {
+      const bounds = mapInstance.getBounds();
+      const ne = bounds.getNortheast();
+      const sw = bounds.getSouthwest();
+      setMapBounds({
+        ne: { lat: ne.lat, lng: ne.lng },
+        sw: { lat: sw.lat, lng: sw.lng },
+      });
+    } catch {
+      // Bounds may not be available immediately — handleCameraMove will
+      // populate mapBounds once the user interacts with the map.
+    }
+  }, [mapInstance]);
+
+  // Update map viewport bounds on every camera move for geo-filtered search.
+  const handleCameraMove = (_camera: any) => {
+    if (!mapInstance) return;
+    try {
+      const bounds = mapInstance.getBounds();
+      const ne = bounds.getNortheast();
+      const sw = bounds.getSouthwest();
+      setMapBounds({
+        ne: { lat: ne.lat, lng: ne.lng },
+        sw: { lat: sw.lat, lng: sw.lng },
+      });
+    } catch (err) {
+      // Silently ignore — bounds may not be available during initialization.
+    }
+  };
+
+  // Track GPS position for search context. Called by MapContainer's
+  // geolocation watcher whenever the browser reports a position update.
+  // Immediately sets cachedGps so searches can include userLat/userLng
+  // right away; address is resolved asynchronously afterwards.
+  const handleGeolocate = async (coords: MapCoordinate) => {
+    // Set GPS coordinates immediately so the next search has them.
+    const immediateState: LocationState = {
+      lat: coords.lat,
+      lng: coords.lng,
+      address: 'Current Location',
+      name: 'Current Location',
+    };
+    setCachedGps(immediateState);
+
+    // Then resolve the address asynchronously.
+    try {
+      const resolved = await SearchService.reverseGeocode(coords.lat, coords.lng);
+      if (resolved) {
+        setCachedGps({
+          ...immediateState,
+          address: resolved,
+        });
+      }
+    } catch {
+      // Reverse geocode failure is non-critical — keep fallback address.
+    }
   };
 
   const {
@@ -574,6 +665,7 @@ function App() {
           clearRoute();
         }}
         cachedGps={cachedGps}
+        mapBounds={mapBounds}
         hasClickCard={false}
         selectedTransportMode={selectedTransportMode}
         setSelectedTransportMode={setSelectedTransportMode}
@@ -584,6 +676,7 @@ function App() {
         poiDetailLoading={poiDetailLoading}
         poiDetailError={poiDetailError}
         externalPoiSelectSignal={poiSelectSignal}
+        onPlaceSearchResults={handlePlaceSearchResults}
       />
       <MapContainer
         center={center}
@@ -599,6 +692,9 @@ function App() {
         onMapEvent={handleMapEvent}
         style={{ width: '100%', height: '100%' }}
         onMapReady={setMapInstance}
+        onCameraMove={handleCameraMove}
+        onGeolocate={handleGeolocate}
+        searchResultMarkers={searchResultMarkers}
       />
       {mapInstance && (
         <MapClickHandler

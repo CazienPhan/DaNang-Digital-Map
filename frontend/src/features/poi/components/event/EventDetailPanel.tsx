@@ -53,13 +53,13 @@ export const EventDetailPanel: React.FC<EventDetailPanelProps> = ({ event, onClo
     >
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden p-4 pt-0">
         <div className="flex h-[52px] shrink-0 items-center justify-end">
-        <button
-          onClick={onClose}
-          aria-label="Đóng"
-          className="-mr-1 flex h-8 w-8 items-center justify-center text-neutral-700 hover:text-black hover:opacity-70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25 focus-visible:ring-offset-2"
-        >
-          <X size={20} strokeWidth={1.8} />
-        </button>
+          <button
+            onClick={onClose}
+            aria-label="Đóng"
+            className="-mr-1 flex h-8 w-8 items-center justify-center text-neutral-700 hover:text-black hover:opacity-70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25 focus-visible:ring-offset-2"
+          >
+            <X size={20} strokeWidth={1.8} />
+          </button>
         </div>
 
         {/* One continuous dark block: blurred+darkened cover image as an
@@ -100,22 +100,22 @@ export const EventDetailPanel: React.FC<EventDetailPanelProps> = ({ event, onClo
               )}
             </div>
 
-            <div className="flex flex-col gap-1.5 pl-4.5 pr-3 shrink-0 mt-2">
-              <h2 className="text-[15px] font-extrabold tracking-tight leading-snug" style={{ color: GOLD }}>
+            <div className="flex flex-col gap-2 pl-4.5 pr-3 shrink-0 mt-2">
+              <h2 className="text-base font-extrabold uppercase tracking-normal leading-snug" style={{ color: GOLD }}>
                 {displayed.name}
               </h2>
-              <div className="flex items-center gap-1.5 text-[11px] text-white">
+              <div className="flex items-center gap-2 text-xs text-white">
                 <Clock size={12} className="shrink-0" />
                 <span className="min-w-0 leading-snug">{displayed.timeRangeLabel}</span>
               </div>
               {displayed.locationText && (
-                <div className="flex items-center gap-1.5 text-[11px] text-white">
+                <div className="flex items-center gap-2 text-xs text-white">
                   <MapPin size={12} className="shrink-0" />
                   <span className="min-w-0 line-clamp-2 leading-snug">{displayed.locationText}</span>
                 </div>
               )}
               {displayed.giaVe && (
-                <div className="flex items-center gap-1.5 text-[11px] text-white">
+                <div className="flex items-center gap-2 text-xs text-white">
                   <Ticket size={12} className="shrink-0" />
                   <span>Giá vé: {displayed.giaVe}</span>
                 </div>

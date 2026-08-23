@@ -15,4 +15,5 @@ export interface PoiSearchDocument {
   dia_chi: string;
   lat: number;
   lng: number;
+  _geo: { lat: number; lng: number };
 }

@@ -53,20 +53,20 @@ export const EventUpcomingCard: React.FC<EventUpcomingCardProps> = React.memo(({
                 {event.name}
               </h3>
 
-              <div className="flex items-center gap-1.5 text-[11px]" style={{ color: MAROON }}>
+              <div className="flex items-center gap-1.5 text-xs" style={{ color: MAROON }}>
                 <Clock size={12} className="shrink-0" />
                 <span className="min-w-0 truncate leading-snug">{event.timeRangeLabel}</span>
               </div>
 
               {event.locationText && (
-                <div className="flex items-center gap-1.5 text-[11px]" style={{ color: MAROON }}>
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: MAROON }}>
                   <MapPin size={12} className="shrink-0" />
                   <span className="min-w-0 line-clamp-2 leading-snug">{event.locationText}</span>
                 </div>
               )}
 
               {event.giaVe && (
-                <div className="flex items-center gap-1.5 text-[11px]" style={{ color: MAROON }}>
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: MAROON }}>
                   <Ticket size={12} className="shrink-0" />
                   <span className="min-w-0 truncate leading-snug">Giá vé: {event.giaVe}</span>
                 </div>

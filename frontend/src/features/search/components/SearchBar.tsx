@@ -17,6 +17,7 @@ import SearchModeSwitcher from './SearchModeSwitcher';
 import type { SearchMode } from '../types/SearchMode';
 import type { SearchSuggestion } from '../types/SearchSuggestion';
 import { SearchEngineAdapter } from '../services/SearchEngineAdapter';
+import type { GeoSearchContext } from '../services/SearchEngine';
 import { ProductDetailCard } from './product-detail/ProductDetailCard';
 
 // ---------------------------------------------------------------------------
@@ -47,6 +48,8 @@ interface SearchBarProps {
   selectedPlace: LocationState | null;
   onCloseInfoCard: () => void;
   cachedGps?: LocationState | null;
+  /** Current map viewport bounds — updated on every camera move. */
+  mapBounds?: { ne: MapCoordinate; sw: MapCoordinate } | null;
   hasClickCard?: boolean;
   selectedTransportMode: string;
   setSelectedTransportMode: (mode: string) => void;
@@ -61,6 +64,13 @@ interface SearchBarProps {
    * SearchBar reacts by switching to 'detail' view.
    */
   externalPoiSelectSignal?: number;
+  /**
+   * Called with the full list of SearchSuggestion results immediately after
+   * a Place Search (Enter key) completes. Receives an empty array when the
+   * search returns no results, fails, or is cleared.
+   * Only fired for place-mode searches — not product searches.
+   */
+  onPlaceSearchResults?: (results: SearchSuggestion[]) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +104,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   selectedPlace,
   onCloseInfoCard,
   cachedGps,
+  mapBounds,
   hasClickCard,
   selectedTransportMode,
   setSelectedTransportMode,
@@ -104,6 +115,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   poiDetailLoading = false,
   poiDetailError = null,
   externalPoiSelectSignal = 0,
+  onPlaceSearchResults,
 }) => {
   // ---- Query ----
   const [query, setQuery] = useState('');
@@ -329,17 +341,41 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setListingLoading(true);
     setSearchView('listing');
 
+    // Build geographic context for Place Search geo-filtered full search.
+    // Only populated when map bounds or GPS are available.
+    const geoContext: GeoSearchContext = {};
+    if (cachedGps) {
+      geoContext.userGps = { lat: cachedGps.lat, lng: cachedGps.lng };
+    }
+    if (mapBounds) {
+      geoContext.bounds = mapBounds;
+    }
+
+    // DEBUG: Log the exact geoContext being sent with this search
+    console.log('[SearchBar] handleEnterSearch:', {
+      query: trimmed,
+      cachedGps: cachedGps ? { lat: cachedGps.lat, lng: cachedGps.lng } : null,
+      mapBounds: mapBounds ? { ne: mapBounds.ne, sw: mapBounds.sw } : null,
+      geoContext,
+    });
+
     try {
-      const results = await adapter.search(trimmed, locationBias);
-      setListingResults(results.slice(0, 20));
+      const results = await adapter.search(trimmed, locationBias, undefined, geoContext);
+      const sliced = results.slice(0, 20);
+      setListingResults(sliced);
+      // Notify App.tsx so it can display matching markers on the map.
+      if (searchMode === 'place') {
+        onPlaceSearchResults?.(sliced);
+      }
     } catch (err: unknown) {
       console.error('Search listing fetch failed:', err);
       setListingResults([]);
+      onPlaceSearchResults?.([]);
       showToast('Failed to fetch search results. Please try again.');
     } finally {
       setListingLoading(false);
     }
-  }, [query, adapter, locationBias]);
+  }, [query, adapter, locationBias, cachedGps, mapBounds]);
 
   // ---- Listing item selected ----
   const handleListingSelect = (suggestion: SearchSuggestion) => {
@@ -382,6 +418,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setSelectedProductId(null);
     setSearchView('idle');
     onCloseInfoCard();
+    // Clear search-result markers from the map.
+    onPlaceSearchResults?.([]);
   };
 
   // ---- Typing handler ----

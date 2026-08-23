@@ -7,7 +7,6 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "nodemon --watch src --ext ts --exec \"ts-node src/index.ts\"",
-    "meili:settings": "ts-node src/scripts/u-apply-settings.ts",
     "sync:product-types": "ts-node src/meilisearch/scripts/sync-product-types.ts",
     "sync:pois": "ts-node src/meilisearch/scripts/sync-pois.ts"
   },

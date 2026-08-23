@@ -1,6 +1,27 @@
 import type { SearchSuggestion } from '../types/SearchSuggestion';
 
 /**
+ * GeoSearchContext — geographic context for full search filtering.
+ *
+ * Passed from SearchBar to the engine on full search (Enter key) only.
+ * Contains the user's GPS coordinates and the current map viewport bounds.
+ *
+ * This context is used by the backend to determine the appropriate
+ * geographic filter (_geoRadius or _geoBoundingBox).
+ *
+ * Autocomplete does NOT use this context.
+ */
+export interface GeoSearchContext {
+  /** User's current GPS coordinates (if available). */
+  userGps?: { lat: number; lng: number };
+  /** Current map viewport bounding box (if available). */
+  bounds?: {
+    ne: { lat: number; lng: number };
+    sw: { lat: number; lng: number };
+  };
+}
+
+/**
  * SearchEngine — the Dependency Inversion boundary.
  *
  * ┌─────────────────────────────────────────────────────────────┐
@@ -28,10 +49,15 @@ export interface SearchEngine {
   /**
    * Performs a full search (Enter key → listing panel).
    * Always resolves to SearchSuggestion[] regardless of provider.
+   *
+   * @param geoContext — optional geographic context for geo-filtered search.
+   *   Only used by PlaceSearchEngine for full search. ProductSearchEngine
+   *   and autocomplete calls ignore this parameter.
    */
   search(
     query: string,
     locationBias?: string,
     signal?: AbortSignal,
+    geoContext?: GeoSearchContext,
   ): Promise<SearchSuggestion[]>;
 }

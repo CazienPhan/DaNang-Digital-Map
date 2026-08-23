@@ -59,7 +59,18 @@ export const POIS_SETTINGS: PoiIndexSettings = {
         "poi_type",
         "dia_chi",
         "lat",
-        "lng"
+        "lng",
+        "_geo"
+    ],
+
+
+    filterableAttributes: [
+        "_geo",
+    ],
+
+
+    sortableAttributes: [
+        "_geo",
     ],
 
 

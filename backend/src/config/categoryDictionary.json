@@ -1,0 +1,386 @@
+{
+  "categories": {
+    "restaurant": {
+      "keywords": [
+        "restaurant",
+        "restaurants",
+        "nhà hàng",
+        "nha hang",
+        "quán ăn",
+        "quan an",
+        "quán ăn uống",
+        "quan an uong",
+        "địa điểm ăn uống",
+        "dia diem an uong",
+        "chỗ ăn",
+        "cho an"
+      ]
+    },
+
+    "coffee": {
+      "keywords": [
+        "coffee",
+        "coffee shop",
+        "coffeehouse",
+        "coffee house",
+        "cafe",
+        "cafes",
+        "café",
+        "cà phê",
+        "ca phe",
+        "quán cà phê",
+        "quan ca phe",
+        "quán cafe",
+        "quan cafe"
+      ]
+    },
+
+    "bakery": {
+      "keywords": [
+        "bakery",
+        "bakeries",
+        "tiệm bánh",
+        "tiem banh",
+        "cửa hàng bánh",
+        "cua hang banh",
+        "tiệm bánh ngọt",
+        "tiem banh ngot",
+        "cửa hàng bánh ngọt",
+        "cua hang banh ngot"
+      ]
+    },
+
+    "hotel": {
+      "keywords": [
+        "hotel",
+        "hotels",
+        "khách sạn",
+        "khach san",
+        "nơi lưu trú",
+        "noi luu tru",
+        "chỗ ở",
+        "cho o"
+      ]
+    },
+
+    "resort": {
+      "keywords": [
+        "resort",
+        "resorts",
+        "khu nghỉ dưỡng",
+        "khu nghi duong",
+        "khu nghỉ mát",
+        "khu nghi mat"
+      ]
+    },
+
+    "bar": {
+      "keywords": [
+        "bar",
+        "bars",
+        "quán bar",
+        "quan bar",
+        "pub",
+        "pubs",
+        "beer bar",
+        "quán bia",
+        "quan bia"
+      ]
+    },
+
+    "nightclub": {
+      "keywords": [
+        "nightclub",
+        "nightclubs",
+        "club",
+        "clubs",
+        "hộp đêm",
+        "hop dem",
+        "vũ trường",
+        "vu truong"
+      ]
+    },
+
+    "spa": {
+      "keywords": [
+        "spa",
+        "spas",
+        "day spa",
+        "massage spa",
+        "tiệm spa",
+        "tiem spa",
+        "dịch vụ spa",
+        "dich vu spa"
+      ]
+    },
+
+    "beauty_salon": {
+      "keywords": [
+        "beauty salon",
+        "beauty salons",
+        "salon",
+        "hair salon",
+        "hair salons",
+        "tiệm tóc",
+        "tiem toc",
+        "salon tóc",
+        "salon toc",
+        "làm tóc",
+        "lam toc",
+        "cắt tóc",
+        "cat toc"
+      ]
+    },
+
+    "shopping_mall": {
+      "keywords": [
+        "shopping mall",
+        "shopping malls",
+        "mall",
+        "malls",
+        "trung tâm thương mại",
+        "trung tam thuong mai",
+        "tttm"
+      ]
+    },
+
+    "supermarket": {
+      "keywords": [
+        "supermarket",
+        "supermarkets",
+        "siêu thị",
+        "sieu thi"
+      ]
+    },
+
+    "convenience_store": {
+      "keywords": [
+        "convenience store",
+        "convenience stores",
+        "cửa hàng tiện lợi",
+        "cua hang tien loi",
+        "cửa hàng tiện ích",
+        "cua hang tien ich"
+      ]
+    },
+
+    "bakery_cafe": {
+      "keywords": [
+        "bakery cafe",
+        "bakery café",
+        "cafe bakery",
+        "tiệm bánh cafe",
+        "tiem banh cafe",
+        "quán bánh và cà phê",
+        "quan banh va ca phe"
+      ]
+    },
+
+    "fast_food": {
+      "keywords": [
+        "fast food",
+        "fast foods",
+        "đồ ăn nhanh",
+        "do an nhanh",
+        "thức ăn nhanh",
+        "thuc an nhanh",
+        "quán ăn nhanh",
+        "quan an nhanh"
+      ]
+    },
+
+    "food_court": {
+      "keywords": [
+        "food court",
+        "food courts",
+        "khu ẩm thực",
+        "khu am thuc",
+        "khu ăn uống",
+        "khu an uong"
+      ]
+    },
+
+    "barbecue": {
+      "keywords": [
+        "barbecue",
+        "barbeque",
+        "bbq",
+        "bbq restaurant",
+        "nhà hàng bbq",
+        "nha hang bbq",
+        "quán nướng",
+        "quan nuong",
+        "đồ nướng",
+        "do nuong"
+      ]
+    },
+
+    "seafood_restaurant": {
+      "keywords": [
+        "seafood",
+        "seafood restaurant",
+        "seafood restaurants",
+        "nhà hàng hải sản",
+        "nha hang hai san",
+        "quán hải sản",
+        "quan hai san",
+        "hải sản",
+        "hai san"
+      ]
+    },
+
+    "vegetarian_restaurant": {
+      "keywords": [
+        "vegetarian restaurant",
+        "vegetarian restaurants",
+        "vegan restaurant",
+        "vegan restaurants",
+        "nhà hàng chay",
+        "nha hang chay",
+        "quán chay",
+        "quan chay",
+        "đồ chay",
+        "do chay"
+      ]
+    },
+
+    "museum": {
+      "keywords": [
+        "museum",
+        "museums",
+        "bảo tàng",
+        "bao tang"
+      ]
+    },
+
+    "park": {
+      "keywords": [
+        "park",
+        "parks",
+        "công viên",
+        "cong vien"
+      ]
+    },
+
+    "tourist_attraction": {
+      "keywords": [
+        "tourist attraction",
+        "tourist attractions",
+        "attraction",
+        "attractions",
+        "điểm du lịch",
+        "diem du lich",
+        "địa điểm du lịch",
+        "dia diem du lich",
+        "điểm tham quan",
+        "diem tham quan",
+        "địa điểm tham quan",
+        "dia diem tham quan"
+      ]
+    },
+
+    "temple": {
+      "keywords": [
+        "temple",
+        "temples",
+        "chùa",
+        "chua",
+        "đền",
+        "den"
+      ]
+    },
+
+    "church": {
+      "keywords": [
+        "church",
+        "churches",
+        "nhà thờ",
+        "nha tho"
+      ]
+    },
+
+    "beach": {
+      "keywords": [
+        "beach",
+        "beaches",
+        "bãi biển",
+        "bai bien"
+      ]
+    },
+
+    "market": {
+      "keywords": [
+        "market",
+        "markets",
+        "chợ",
+        "cho",
+        "khu chợ",
+        "khu cho"
+      ]
+    },
+
+    "pharmacy": {
+      "keywords": [
+        "pharmacy",
+        "pharmacies",
+        "drugstore",
+        "drug store",
+        "nhà thuốc",
+        "nha thuoc",
+        "hiệu thuốc",
+        "hieu thuoc"
+      ]
+    },
+
+    "hospital": {
+      "keywords": [
+        "hospital",
+        "hospitals",
+        "bệnh viện",
+        "benh vien"
+      ]
+    },
+
+    "clinic": {
+      "keywords": [
+        "clinic",
+        "clinics",
+        "phòng khám",
+        "phong kham"
+      ]
+    },
+
+    "bank": {
+      "keywords": [
+        "bank",
+        "banks",
+        "ngân hàng",
+        "ngan hang"
+      ]
+    },
+
+    "atm": {
+      "keywords": [
+        "atm",
+        "atm machine",
+        "cây atm",
+        "cay atm",
+        "máy atm",
+        "may atm"
+      ]
+    },
+
+    "gas_station": {
+      "keywords": [
+        "gas station",
+        "gas stations",
+        "petrol station",
+        "petrol stations",
+        "trạm xăng",
+        "tram xang",
+        "cây xăng",
+        "cay xang"
+      ]
+    }
+  }
+}

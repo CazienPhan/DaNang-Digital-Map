@@ -1,6 +1,6 @@
 import type { SearchMode } from '../types/SearchMode';
 import type { SearchSuggestion } from '../types/SearchSuggestion';
-import type { SearchEngine } from './SearchEngine';
+import type { SearchEngine, GeoSearchContext } from './SearchEngine';
 import { PlaceSearchEngine } from './PlaceSearchEngine';
 import { ProductSearchEngine } from './ProductSearchEngine';
 
@@ -48,13 +48,15 @@ export class SearchEngineAdapter {
 
   /**
    * Full search — always returns SearchSuggestion[] regardless of engine.
-   * locationBias is forwarded to the engine per-call.
+   * locationBias and geoContext are forwarded to the engine per-call.
    */
   search(
     query: string,
     locationBias?: string,
     signal?: AbortSignal,
+    geoContext?: GeoSearchContext,
   ): Promise<SearchSuggestion[]> {
-    return this.engine.search(query, locationBias, signal);
+    return this.engine.search(query, locationBias, signal, geoContext);
   }
 }
+

@@ -106,9 +106,8 @@ export const EventBanner: React.FC<EventBannerProps> = React.memo(({ events, onC
                   setIsTransitioning(true);
                   setCurrentIndex(idx);
                 }}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  isActive ? 'w-4 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/80'
-                }`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${isActive ? 'w-4 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/80'
+                  }`}
               />
             );
           })}

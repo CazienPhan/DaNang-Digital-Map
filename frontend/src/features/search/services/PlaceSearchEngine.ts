@@ -1,7 +1,7 @@
 import { PlaceSearchService } from '@/services/meilisearch/placeSearch.service';
 import type { SearchSuggestion } from '../types/SearchSuggestion';
 import { SearchSuggestionMapper } from './SearchSuggestionMapper';
-import type { SearchEngine } from './SearchEngine';
+import type { SearchEngine, GeoSearchContext } from './SearchEngine';
 
 /**
  * PlaceSearchEngine — composite SearchEngine for Place Search.
@@ -48,19 +48,20 @@ export class PlaceSearchEngine implements SearchEngine {
    * The `source` field in the response is preserved in `original` so the
    * selection handler can distinguish internal POIs from Map4D results.
    *
-   * If the backend returns Map4D results, we could alternatively call
-   * Map4D from the frontend for richer PlaceSuggestion data. However,
-   * since the backend already normalizes both sources to the same
-   * PoiListingItem shape, we use a single mapper path.
+   * geoContext provides the user's GPS coordinates and map viewport bounds
+   * for geographic filtering (category-aware _geoRadius / _geoBoundingBox).
+   * This context is forwarded to the backend via query parameters.
    */
   async search(
     query: string,
     locationBias?: string,
     signal?: AbortSignal,
+    geoContext?: GeoSearchContext,
   ): Promise<SearchSuggestion[]> {
     if (!query.trim()) return [];
 
-    const response = await PlaceSearchService.search(query, locationBias, signal);
+    const response = await PlaceSearchService.search(query, locationBias, signal, 20, 0, geoContext);
     return SearchSuggestionMapper.fromPlaceItems(response.items, response.source);
   }
 }
+

@@ -56,8 +56,16 @@ export interface MapContainerProps {
   onBuiltInPoiClick?: (poi: any) => void;
   onPlaceClick?: (place: any) => void;
   onMapEvent?: (eventName: string, args: any) => void;
+  /** Called when the browser Geolocation API reports the user's position. */
+  onGeolocate?: (coords: MapCoordinate) => void;
   className?: string;
   style?: React.CSSProperties;
+  /**
+   * Temporary search-result markers — one per place returned by the latest
+   * Place Search. Replaced atomically whenever a new search completes.
+   * Pass an empty array (or omit) to remove all search-result markers.
+   */
+  searchResultMarkers?: MapCoordinate[];
   /**
    * Restricts which database POIs the POIOverlay fetches/renders.
    * Omitted -> no filtering (all POIs shown). Provided with both flags
@@ -86,7 +94,9 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   onMapEvent,
   className,
   style,
+  searchResultMarkers,
   activeFilters,
+  onGeolocate,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapInstance, setMapInstance] = useState<any>(null);
@@ -103,6 +113,18 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   // color; a manually-created POI object with the same `type` falls back
   // to a hardcoded red instead, since it bypasses that pipeline.
   const poiOverlayRef = useRef<any>(null);
+  // Search-result markers — temporary, one per place returned by the
+  // latest Place Search. Stored as a flat array; replaced atomically on
+  // every new search so stale markers are always removed first.
+  const searchResultMarkerRefs = useRef<any[]>([]);
+  // watchPosition id for GPS tracking — only ever started from an explicit
+  // click on the SDK's Location Control Button (see the click listener
+  // wired up right after map creation below). Must stay null until that
+  // click happens: starting it eagerly (e.g. as soon as the map/permission
+  // is ready) would let an already-granted browser permission silently
+  // activate the Place Search GPS context with no user interaction at all.
+  const gpsWatchIdRef = useRef<number | null>(null);
+
   // Tier 1 POIs (custom category icon_url) can't go through POIOverlay —
   // it ignores external image URLs — so these are standalone map4d.POI
   // objects we create and track ourselves, keyed by poi.id, diffed against
@@ -114,6 +136,17 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const onBuiltInPoiClickRef = useRef(onBuiltInPoiClick);
   const onPlaceClickRef = useRef(onPlaceClick);
   const onMapEventRef = useRef(onMapEvent);
+  const onGeolocateRef = useRef(onGeolocate);
+  // The 'cameraChanging' SDK listener (below) is bound exactly once, inside
+  // the map-init effect, which never re-runs once mapInstance is set. Without
+  // ref indirection it would permanently close over the onCameraMove/
+  // onZoomChanged function references from that one render — in App.tsx,
+  // handleCameraMove closes over App's mapInstance state, which is still
+  // null at that point, so every subsequent camera change would silently
+  // no-op and mapBounds would freeze at its initial seed value instead of
+  // tracking the real current viewport. Same ref pattern as the callbacks above.
+  const onCameraMoveRef = useRef(onCameraMove);
+  const onZoomChangedRef = useRef(onZoomChanged);
 
   const markerPositionRef = useRef(markerPosition);
   useEffect(() => {
@@ -136,6 +169,18 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   useEffect(() => {
     onMapEventRef.current = onMapEvent;
   }, [onMapEvent]);
+
+  useEffect(() => {
+    onGeolocateRef.current = onGeolocate;
+  }, [onGeolocate]);
+
+  useEffect(() => {
+    onCameraMoveRef.current = onCameraMove;
+  }, [onCameraMove]);
+
+  useEffect(() => {
+    onZoomChangedRef.current = onZoomChanged;
+  }, [onZoomChanged]);
 
   // Initialize SDK
   useEffect(() => {
@@ -182,6 +227,9 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         zoom: zoom,
         minZoom: minZoom,
         maxZoom: maxZoom,
+        controls: true,
+        geolocate: true,
+        controlOptions: window.map4d.ControlOptions.BOTTOM_RIGHT,
       };
 
       const map = new window.map4d.Map(containerRef.current, mapOptions);
@@ -191,6 +239,52 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       // Disable built-in Map4D POIs to avoid duplicating custom OCOP POIs
       map.setPOIsEnabled(false);
       console.log('Built-in POIs status (isPOIsEnabled):', map.isPOIsEnabled());
+
+      // Wire the SDK's own Location Control Button ("My Location", rendered
+      // as `a.mf-location` by the geolocate:true map option) to the app's
+      // GPS state. The button already re-centers the camera internally via
+      // the SDK's own geolocation call; this listener additionally starts
+      // OUR watchPosition — but only from this explicit click, never
+      // automatically — so Current user location becomes available to
+      // Place Search only once the user has actually pressed this button.
+      // The control node is built synchronously inside `new map4d.Map()`,
+      // but poll briefly as a safety net in case that ever changes.
+      let geoButtonAttempts = 0;
+      const attachGeolocateButtonListener = () => {
+        const geoButton = containerRef.current?.querySelector('a.mf-location') as HTMLElement | null;
+        if (!geoButton) {
+          if (++geoButtonAttempts < 20) requestAnimationFrame(attachGeolocateButtonListener);
+          return;
+        }
+        if (!navigator.geolocation) return;
+
+        let lastLat = 0;
+        let lastLng = 0;
+        geoButton.addEventListener('click', () => {
+          if (gpsWatchIdRef.current !== null) return; // already watching from a previous click
+
+          gpsWatchIdRef.current = navigator.geolocation.watchPosition(
+            (position) => {
+              const lat = position.coords.latitude;
+              const lng = position.coords.longitude;
+              // Only fire callback when position actually changes (> ~1 m)
+              if (Math.abs(lat - lastLat) > 0.00001 || Math.abs(lng - lastLng) > 0.00001) {
+                lastLat = lat;
+                lastLng = lng;
+                console.log('[MapContainer] GPS position obtained:', lat, lng);
+                if (onGeolocateRef.current) {
+                  onGeolocateRef.current({ lat, lng });
+                }
+              }
+            },
+            (geoErr) => {
+              console.warn('[MapContainer] GPS watchPosition error:', geoErr.message);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+          );
+        });
+      };
+      attachGeolocateButtonListener();
 
       // Trigger callback with map instance
       if (onMapReady) {
@@ -322,15 +416,19 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       bindMapEvent('hover', 'hover');
       bindMapEvent('drag', 'drag');
 
-      // Map4D SDK 2.6 uses cameraChanging event for both panning and zooming updates
+      // Map4D SDK 2.6 uses cameraChanging event for both panning and zooming
+      // updates. This listener is registered once (this effect never re-runs
+      // after mapInstance is set), so it must read callbacks through refs —
+      // see onCameraMoveRef/onZoomChangedRef above — rather than closing
+      // over the onCameraMove/onZoomChanged prop values directly.
       map.addListener('cameraChanging', () => {
         const camera = map.getCamera();
         const currentZoom = camera.getZoom();
-        if (onCameraMove) {
-          onCameraMove(camera);
+        if (onCameraMoveRef.current) {
+          onCameraMoveRef.current(camera);
         }
-        if (onZoomChanged) {
-          onZoomChanged(currentZoom);
+        if (onZoomChangedRef.current) {
+          onZoomChangedRef.current(currentZoom);
         }
       });
 
@@ -342,6 +440,10 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     // Cleanup listeners or map instances if needed
     return () => {
       // Map4D listeners do not require explicit cleanup if the container DOM is deleted
+      if (gpsWatchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(gpsWatchIdRef.current);
+        gpsWatchIdRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, error, mapInstance]);
@@ -731,6 +833,50 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       }
     }
   }, [routePath, originMarker, destinationMarker, mapInstance]);
+
+  // Synchronize temporary search-result markers.
+  // When a new search completes, searchResultMarkers is replaced atomically:
+  //   1. Remove every marker from the previous search.
+  //   2. Create one marker for each coordinate with valid lat/lng.
+  // Passes an empty array to clear all markers (e.g. on clear or no results).
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    // 1. Remove stale markers from the previous search.
+    searchResultMarkerRefs.current.forEach((m) => {
+      try { m.setMap(null); } catch { /* ignore */ }
+    });
+    searchResultMarkerRefs.current = [];
+
+    // 2. Create new markers only for results with valid coordinates.
+    if (!searchResultMarkers || searchResultMarkers.length === 0) return;
+
+    const created: any[] = [];
+    searchResultMarkers.forEach((coord) => {
+      if (
+        coord == null ||
+        typeof coord.lat !== 'number' ||
+        typeof coord.lng !== 'number' ||
+        !isFinite(coord.lat) ||
+        !isFinite(coord.lng)
+      ) {
+        return; // Skip results without valid coordinates.
+      }
+
+      try {
+        const marker = new window.map4d.Marker({
+          position: new window.map4d.LatLng(coord.lat, coord.lng),
+          visible: true,
+        });
+        marker.setMap(mapInstance);
+        created.push(marker);
+      } catch (err) {
+        console.error('[MapContainer] Failed to create search-result marker:', err);
+      }
+    });
+
+    searchResultMarkerRefs.current = created;
+  }, [searchResultMarkers, mapInstance]);
 
 
   if (error) {

@@ -59,7 +59,7 @@ export const PoiEventSection: React.FC<PoiEventSectionProps> = React.memo(
     }
 
     return (
-      <div className="flex flex-col gap-5 px-4 py-3">
+      <div className="flex flex-col gap-5 px-2 py-2">
         {today.length > 0 && (
           <div className="flex flex-col gap-2">
             <h2 className="text-sm font-bold text-foreground">Sự kiện hôm nay</h2>

@@ -21,22 +21,46 @@ export class PoiSearchService {
      * Full POI search — returns a typed PoiListingResponse.
      *
      * Retrieves only the fields needed for listing and map interaction.
+     *
+     * @param geoFilter — optional Meilisearch filter string for geographic
+     *   filtering (e.g. `_geoRadius(lat, lng, 2000)` or `_geoBoundingBox(...)`).
+     *   When provided, only documents matching the geographic constraint are
+     *   returned. When omitted, no geographic filter is applied (existing behavior).
+     *
+     * @param userLat — optional user GPS latitude. When provided together with
+     *   userLng and a geoFilter, results are sorted by `_geoPoint(lat, lng):asc`
+     *   so Meilisearch returns `_geoDistance` in each hit.
+     *
+     * @param userLng — optional user GPS longitude.
      */
     async search(
         query: string,
         limit = 20,
-        offset = 0
+        offset = 0,
+        geoFilter?: string,
+        userLat?: number,
+        userLng?: number
     ): Promise<PoiListingResponse> {
 
         const client = await meiliClientPromise;
 
+        // Build search options
+        const searchOptions: Record<string, any> = {
+            limit,
+            offset,
+            attributesToRetrieve: ["id", "name", "dia_chi", "lat", "lng"],
+            filter: geoFilter || undefined,
+        };
+
+        // When GPS coordinates and a geo filter are provided, add _geoPoint
+        // sort so Meilisearch computes and returns _geoDistance for each hit.
+        if (userLat !== undefined && userLng !== undefined && geoFilter) {
+            searchOptions.sort = [`_geoPoint(${userLat}, ${userLng}):asc`];
+        }
+
         const result = await client
             .index(INDEXES.POIS)
-            .search<PoiSearchDocument>(query, {
-                limit,
-                offset,
-                attributesToRetrieve: ["id", "name", "dia_chi", "lat", "lng"],
-            });
+            .search<PoiSearchDocument>(query, searchOptions);
 
         const items: PoiListingItem[] = result.hits.map((hit) => ({
             id: hit.id,

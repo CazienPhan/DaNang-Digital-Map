@@ -28,6 +28,8 @@
  * ============================================================================
  */
 
+import type { GeoSearchContext } from '@/features/search/services/SearchEngine';
+
 const API_URL = import.meta.env.VITE_BACKEND_URL;
 
 /* ============================================================================
@@ -121,16 +123,22 @@ export class PlaceSearchService {
      * Place Full Search (Listing)
      * ------------------------------------------------------------------------
      * Backend endpoint: GET /api/places/search?query=<term>&location=<lat,lng>
+     *     &bounds=<neLat,neLng,swLat,swLng>&userLat=<lat>&userLng=<lng>
      * Backend performs: Meilisearch first → Map4D fallback if zero results.
      *
      * Returns PlaceListingResponse with `source` indicating the provider.
+     *
+     * @param geoContext — optional geographic context for geo-filtered search.
+     *   When provided, bounds and userGps are appended as query parameters
+     *   so the backend can determine the appropriate geographic filter.
      */
     static async search(
         query: string,
         location?: string,
         signal?: AbortSignal,
         limit: number = 20,
-        offset: number = 0
+        offset: number = 0,
+        geoContext?: GeoSearchContext,
     ): Promise<PlaceListingResponse> {
 
         if (!query.trim()) {
@@ -146,6 +154,15 @@ export class PlaceSearchService {
         let url = `${API_URL}/api/places/search?query=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`;
         if (location) {
             url += `&location=${encodeURIComponent(location)}`;
+        }
+
+        // Append geographic context for geo-filtered search
+        if (geoContext?.bounds) {
+            const { ne, sw } = geoContext.bounds;
+            url += `&bounds=${ne.lat},${ne.lng},${sw.lat},${sw.lng}`;
+        }
+        if (geoContext?.userGps) {
+            url += `&userLat=${geoContext.userGps.lat}&userLng=${geoContext.userGps.lng}`;
         }
 
         const response = await fetch(url, { signal });
@@ -169,3 +186,4 @@ export class PlaceSearchService {
     }
 
 }
+
