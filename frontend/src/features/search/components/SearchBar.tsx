@@ -71,6 +71,16 @@ interface SearchBarProps {
    * Only fired for place-mode searches — not product searches.
    */
   onPlaceSearchResults?: (results: SearchSuggestion[]) => void;
+  /**
+   * Called when the mouse enters/leaves a listing row, so App.tsx can
+   * highlight/bounce the corresponding map marker. Null on mouse leave.
+   */
+  onListingItemHover?: (result: SearchSuggestion | null) => void;
+  /**
+   * Called when the user navigates from a place's detail view back to the
+   * listing (Back arrow), so App.tsx can restore every listing pin.
+   */
+  onListingBack?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +126,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   poiDetailError = null,
   externalPoiSelectSignal = 0,
   onPlaceSearchResults,
+  onListingItemHover,
+  onListingBack,
 }) => {
   // ---- Query ----
   const [query, setQuery] = useState('');
@@ -257,7 +269,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     }
 
     const currentView = searchViewRef.current;
-    if (currentView !== 'listing' && currentView !== 'refining' && currentView !== 'detail') {
+
+    // A completed listing/detail view isn't "typing a query" — locationBias
+    // can still change underneath it (e.g. the map panning to a hovered
+    // listing row), which would otherwise re-fire this effect and pop the
+    // autocomplete dropdown on top of the listing/detail panel.
+    if (currentView === 'listing' || currentView === 'detail' || currentView === 'product-detail') {
+      return;
+    }
+
+    if (currentView !== 'refining') {
       setSearchView('autocomplete');
     }
 
@@ -381,6 +402,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const handleListingSelect = (suggestion: SearchSuggestion) => {
     suppressAutocompleteRef.current = true;
     setSuggestions([]);
+    // Clear any active hover highlight — otherwise the bounce marker from
+    // the row the user just clicked lingers alongside the new "selected
+    // place" marker created below.
+    onListingItemHover?.(null);
 
     if (suggestion.type === 'product') {
       // Product Detail: switch from listing to product-detail view.
@@ -407,6 +432,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     } else {
       setSearchView('listing');
     }
+    onListingBack?.();
   };
 
   // ---- Clear ----
@@ -573,6 +599,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     loading={listingLoading}
                     query={listingQuery}
                     onSelectItem={handleListingSelect}
+                    onHoverItem={onListingItemHover}
                   />
                 )}
 

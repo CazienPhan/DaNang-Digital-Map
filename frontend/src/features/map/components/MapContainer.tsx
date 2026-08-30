@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MAP4D_CONFIG } from '@/config/map.config';
 import { loadMap4dSDK } from '@/utils/map.helper';
 import { type POIData } from '@/services/supabase/poi.service';
@@ -38,6 +38,38 @@ export interface MapCoordinate {
   lng: number;
 }
 
+// Search-listing hover marker: a bright red bouncing teardrop, created only
+// while a listing row is hovered. At rest, every result — regardless of
+// whether it has a DB icon (icon-url / map4d-type) or not — uses the SDK's
+// own plain default Marker (no custom iconView), so the two states are
+// visually distinct: muted default pin at rest, bright bouncing pin on hover.
+const SEARCH_PIN_ANCHOR = { x: 0.5, y: 1.0 };
+
+function buildBouncePinIconView(): string {
+  return `
+    <div class="dnp-bounce-marker" style="display: flex; flex-direction: column; align-items: center; width: 28px; height: 36px;">
+      <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 0C6.27 0 0 6.27 0 14C0 24.5 14 36 14 36C14 36 28 24.5 28 14C28 6.27 21.73 0 14 0ZM14 19C11.24 19 9 16.76 9 14C9 11.24 11.24 9 14 9C16.76 9 19 11.24 19 14C19 16.76 16.76 19 14 19Z" fill="#ef4444" stroke="#FFFFFF" stroke-width="2"/>
+      </svg>
+    </div>
+  `;
+}
+
+/** How a search-listing item's marker should render — resolved against the
+ * app's own curated DB POI styling (see resolveListingMarkerStyle.ts). */
+export type ListingMarkerStyle =
+  | { kind: 'icon-url'; icon: string; color?: string }
+  | { kind: 'map4d-type'; type: string; color?: string }
+  | { kind: 'none' };
+
+/** One search-result row, enriched with its resolved DB marker style. */
+export interface ListingSearchMarker {
+  id: string;
+  lat: number;
+  lng: number;
+  style: ListingMarkerStyle;
+}
+
 export interface MapContainerProps {
   center?: MapCoordinate;
   zoom?: number;
@@ -65,7 +97,20 @@ export interface MapContainerProps {
    * Place Search. Replaced atomically whenever a new search completes.
    * Pass an empty array (or omit) to remove all search-result markers.
    */
-  searchResultMarkers?: MapCoordinate[];
+  searchResultMarkers?: ListingSearchMarker[];
+  /**
+   * The id (from ListingSearchMarker) of the search-listing row currently
+   * hovered by the mouse, or null/undefined for none. Drives the bounce
+   * highlight marker and temporarily hides the row's normal icon.
+   */
+  hoveredMarkerId?: string | null;
+  /**
+   * The id (from ListingSearchMarker) of the search-listing row the user has
+   * clicked into (detail view open), or null/undefined for none. While set,
+   * every other listing pin is hidden and only this one bounces — cleared
+   * (all listing pins restored) when the user goes back to the listing.
+   */
+  selectedListingMarkerId?: string | null;
   /**
    * Restricts which database POIs the POIOverlay fetches/renders.
    * Omitted -> no filtering (all POIs shown). Provided with both flags
@@ -95,6 +140,8 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   className,
   style,
   searchResultMarkers,
+  hoveredMarkerId = null,
+  selectedListingMarkerId = null,
   activeFilters,
   onGeolocate,
 }) => {
@@ -113,10 +160,29 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   // color; a manually-created POI object with the same `type` falls back
   // to a hardcoded red instead, since it bypasses that pipeline.
   const poiOverlayRef = useRef<any>(null);
-  // Search-result markers — temporary, one per place returned by the
-  // latest Place Search. Stored as a flat array; replaced atomically on
-  // every new search so stale markers are always removed first.
-  const searchResultMarkerRefs = useRef<any[]>([]);
+  // Search-result markers — temporary, one plain red pin per place returned
+  // by the latest Place Search, keyed by listing id.
+  const searchResultMarkerRefs = useRef<Map<string, any>>(new Map());
+  // ids (from the current searchResultMarkers) whose style is 'icon-url' —
+  // their ambient Tier-1 dbPoisRef icon is kept hidden for as long as the
+  // listing is showing them, so only the plain red pin is visible for that
+  // spot. Consulted by the Tier-1 tile-fetch effect below too, so a marker
+  // that only loads *after* the listing already opened also gets hidden.
+  const activeIconUrlIdsRef = useRef<Set<string>>(new Set());
+  // ids (from the current searchResultMarkers) whose style is NOT 'icon-url'
+  // — i.e. 'map4d-type' (native SDK type/color) or 'none' (POIOverlay still
+  // renders these with its own generic default pin even with no type/color
+  // set). Excluded from POIOverlay's parsed data (see parserData below) so
+  // no ambient icon ever renders underneath while the listing shows these as
+  // a plain red pin instead.
+  const activeOverlayIdsRef = useRef<Set<string>>(new Set());
+  // The temporary bouncing marker shown while a listing row is hovered —
+  // created fresh on hover-enter, torn down on hover-leave/change.
+  const hoverBounceMarkerRef = useRef<any>(null);
+  const hoveredMarkerIdRef = useRef<string | null>(null);
+  // The persistent bouncing marker shown for the selected (detail-view)
+  // listing row — created on selection, torn down when back to listing.
+  const selectionBounceMarkerRef = useRef<any>(null);
   // watchPosition id for GPS tracking — only ever started from an explicit
   // click on the SDK's Location Control Button (see the click listener
   // wired up right after map creation below). Must stay null until that
@@ -448,6 +514,22 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, error, mapInstance]);
 
+  // A stable key that changes only when the *set* of currently-listed
+  // non-'icon-url' ids actually changes — used to force the POIOverlay
+  // effect below to recreate the overlay (and so re-fetch/re-parse every
+  // visible tile) whenever a search opens/closes or its results change,
+  // since an already-fetched tile won't otherwise be re-parsed just because
+  // activeOverlayIdsRef's contents changed.
+  const activeOverlayIdsKey = useMemo(
+    () =>
+      (searchResultMarkers || [])
+        .filter((r) => r.style.kind !== 'icon-url')
+        .map((r) => r.id)
+        .sort()
+        .join(','),
+    [searchResultMarkers],
+  );
+
   // Render tier 2/3 Database POIs via POIOverlay — SDK-managed tile
   // lifecycle, native per-type coloring. Tier 1 (custom icon_url) is
   // excluded here; see the next effect.
@@ -484,6 +566,9 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         items.forEach((poi: any) => {
           const style = resolvePoiStyle(poi);
           if (style.icon) return; // tier 1 — handled by the other effect
+          // Currently shown as a plain red pin in the search listing —
+          // don't also render its native ambient icon underneath.
+          if (activeOverlayIdsRef.current.has(poi.id)) return;
 
           standardPois.push({
             id: poi.id,
@@ -513,7 +598,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         poiOverlayRef.current = null;
       }
     };
-  }, [mapInstance, activeFilters?.place, activeFilters?.ocop]);
+  }, [mapInstance, activeFilters?.place, activeFilters?.ocop, activeOverlayIdsKey]);
 
   // Fetch, render and declutter tier 1 Database POIs (custom category
   // icon_url) for the current viewport. POIOverlay can't render these
@@ -630,6 +715,13 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         });
         poiObj.setUserData(poi);
         poiObj.setMap(mapInstance);
+        // If this POI is currently shown in the search listing (as a plain
+        // red pin), keep its own ambient icon hidden so only the pin shows
+        // — covers the case where it only loads *after* the listing opened
+        // (e.g. a hover-triggered pan brought it into view).
+        if (activeIconUrlIdsRef.current.has(id) && typeof poiObj.setVisible === 'function') {
+          poiObj.setVisible(false);
+        }
         dbPoisRef.current.set(id, poiObj);
       });
 
@@ -836,47 +928,163 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
   // Synchronize temporary search-result markers.
   // When a new search completes, searchResultMarkers is replaced atomically:
-  //   1. Remove every marker from the previous search.
-  //   2. Create one marker for each coordinate with valid lat/lng.
-  // Passes an empty array to clear all markers (e.g. on clear or no results).
+  // every result — regardless of DB match (icon-url / map4d-type / none) —
+  // gets the exact same plain red pin (no tinting, no original icon shape).
+  // For 'icon-url' results, the ambient Tier-1 dbPoisRef icon at that spot
+  // is additionally hidden for as long as the listing is open, so only the
+  // plain pin shows. Passes an empty array to clear everything (e.g. on
+  // clear or no results).
   useEffect(() => {
     if (!mapInstance) return;
 
-    // 1. Remove stale markers from the previous search.
-    searchResultMarkerRefs.current.forEach((m) => {
-      try { m.setMap(null); } catch { /* ignore */ }
+    // 1. Restore any Tier-1 icons hidden for the previous search, then
+    //    remove that search's pins. (Non-icon-url ambient icons don't need
+    //    restoring here — the POIOverlay-recreation effect handles that by
+    //    re-fetching/re-parsing tiles once activeOverlayIdsRef changes.)
+    activeIconUrlIdsRef.current.forEach((id) => {
+      const dbPoi = dbPoisRef.current.get(id);
+      if (dbPoi && typeof dbPoi.setVisible === 'function') dbPoi.setVisible(true);
     });
-    searchResultMarkerRefs.current = [];
+    activeIconUrlIdsRef.current = new Set();
 
-    // 2. Create new markers only for results with valid coordinates.
-    if (!searchResultMarkers || searchResultMarkers.length === 0) return;
+    searchResultMarkerRefs.current.forEach((marker) => {
+      try { marker.setMap(null); } catch { /* ignore */ }
+    });
+    searchResultMarkerRefs.current = new Map();
 
-    const created: any[] = [];
-    searchResultMarkers.forEach((coord) => {
+    // 2. Create new pins only for results with valid coordinates.
+    if (!searchResultMarkers || searchResultMarkers.length === 0) {
+      activeOverlayIdsRef.current = new Set();
+      return;
+    }
+
+    const newActiveIconUrlIds = new Set<string>();
+    const newActiveOverlayIds = new Set<string>();
+    const created = new Map<string, any>();
+
+    searchResultMarkers.forEach((result) => {
       if (
-        coord == null ||
-        typeof coord.lat !== 'number' ||
-        typeof coord.lng !== 'number' ||
-        !isFinite(coord.lat) ||
-        !isFinite(coord.lng)
+        result == null ||
+        typeof result.lat !== 'number' ||
+        typeof result.lng !== 'number' ||
+        !isFinite(result.lat) ||
+        !isFinite(result.lng)
       ) {
         return; // Skip results without valid coordinates.
       }
 
+      if (result.style.kind === 'icon-url') {
+        newActiveIconUrlIds.add(result.id);
+        const dbPoi = dbPoisRef.current.get(result.id);
+        if (dbPoi && typeof dbPoi.setVisible === 'function') dbPoi.setVisible(false);
+      } else {
+        // 'map4d-type' or 'none' — POIOverlay renders either with its own
+        // icon (native type/color, or a generic default pin with neither).
+        newActiveOverlayIds.add(result.id);
+      }
+
       try {
+        // Plain default marker — no custom iconView — so it renders with
+        // the SDK's own native pin look while at rest.
         const marker = new window.map4d.Marker({
-          position: new window.map4d.LatLng(coord.lat, coord.lng),
+          position: new window.map4d.LatLng(result.lat, result.lng),
           visible: true,
         });
         marker.setMap(mapInstance);
-        created.push(marker);
+        // If this exact row is the one currently hovered (e.g. the listing
+        // was replaced while the mouse never left that row), keep it hidden
+        // — the hover effect below (re)creates the bounce marker for it.
+        if (hoveredMarkerIdRef.current === result.id && typeof marker.setVisible === 'function') {
+          marker.setVisible(false);
+        }
+        created.set(result.id, marker);
       } catch (err) {
         console.error('[MapContainer] Failed to create search-result marker:', err);
       }
     });
 
+    activeIconUrlIdsRef.current = newActiveIconUrlIds;
+    activeOverlayIdsRef.current = newActiveOverlayIds;
     searchResultMarkerRefs.current = created;
   }, [searchResultMarkers, mapInstance]);
+
+  // Keep the latest hoveredMarkerId in a ref for the Tier-1 idle listener
+  // closure (bound once, see the tile-fetch effect above).
+  useEffect(() => {
+    hoveredMarkerIdRef.current = hoveredMarkerId ?? null;
+  }, [hoveredMarkerId]);
+
+  // Hover highlight: hide the hovered row's plain rest-state pin and show a
+  // temporary bright bouncing pin in its place. Restores on hover-leave/change.
+  useEffect(() => {
+    if (!mapInstance || !hoveredMarkerId || selectedListingMarkerId) return;
+
+    const restMarker = searchResultMarkerRefs.current.get(hoveredMarkerId);
+    if (restMarker && typeof restMarker.setVisible === 'function') restMarker.setVisible(false);
+
+    const result = (searchResultMarkers || []).find((r) => r.id === hoveredMarkerId);
+    if (result) {
+      try {
+        const bounceMarker = new window.map4d.Marker({
+          position: new window.map4d.LatLng(result.lat, result.lng),
+          visible: true,
+          iconView: buildBouncePinIconView(),
+          anchor: SEARCH_PIN_ANCHOR,
+        });
+        bounceMarker.setMap(mapInstance);
+        hoverBounceMarkerRef.current = bounceMarker;
+      } catch (err) {
+        console.error('[MapContainer] Failed to create hover bounce marker:', err);
+      }
+    }
+
+    return () => {
+      if (hoverBounceMarkerRef.current) {
+        try { hoverBounceMarkerRef.current.setMap(null); } catch { /* ignore */ }
+        hoverBounceMarkerRef.current = null;
+      }
+      if (restMarker && typeof restMarker.setVisible === 'function') restMarker.setVisible(true);
+    };
+  }, [hoveredMarkerId, searchResultMarkers, mapInstance, selectedListingMarkerId]);
+
+  // Selection highlight: once a listing row has been clicked into (detail
+  // view), hide every listing pin — not just the selected one — and show a
+  // single persistent bouncing pin at the selected POI. Restores all listing
+  // pins when the user goes back to the listing (selectedListingMarkerId
+  // cleared).
+  useEffect(() => {
+    if (!mapInstance || !selectedListingMarkerId) return;
+
+    searchResultMarkerRefs.current.forEach((marker) => {
+      if (marker && typeof marker.setVisible === 'function') marker.setVisible(false);
+    });
+
+    const result = (searchResultMarkers || []).find((r) => r.id === selectedListingMarkerId);
+    if (result) {
+      try {
+        const bounceMarker = new window.map4d.Marker({
+          position: new window.map4d.LatLng(result.lat, result.lng),
+          visible: true,
+          iconView: buildBouncePinIconView(),
+          anchor: SEARCH_PIN_ANCHOR,
+        });
+        bounceMarker.setMap(mapInstance);
+        selectionBounceMarkerRef.current = bounceMarker;
+      } catch (err) {
+        console.error('[MapContainer] Failed to create selection bounce marker:', err);
+      }
+    }
+
+    return () => {
+      if (selectionBounceMarkerRef.current) {
+        try { selectionBounceMarkerRef.current.setMap(null); } catch { /* ignore */ }
+        selectionBounceMarkerRef.current = null;
+      }
+      searchResultMarkerRefs.current.forEach((marker) => {
+        if (marker && typeof marker.setVisible === 'function') marker.setVisible(true);
+      });
+    };
+  }, [selectedListingMarkerId, searchResultMarkers, mapInstance]);
 
 
   if (error) {

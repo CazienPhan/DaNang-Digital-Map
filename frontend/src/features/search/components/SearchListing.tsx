@@ -13,6 +13,8 @@ interface SearchListingProps {
   loading: boolean;
   query: string;
   onSelectItem: (result: SearchSuggestion) => void;
+  /** Called with the hovered result, and null when the mouse leaves it. */
+  onHoverItem?: (result: SearchSuggestion | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -31,6 +33,7 @@ export const SearchListing: React.FC<SearchListingProps> = ({
   loading,
   query,
   onSelectItem,
+  onHoverItem,
 }) => {
   return (
     <div className="flex flex-col flex-1 overflow-hidden h-full">
@@ -82,6 +85,7 @@ export const SearchListing: React.FC<SearchListingProps> = ({
                 key={result.id}
                 result={result}
                 onSelect={onSelectItem}
+                onHover={onHoverItem}
               />
             ))}
           </div>
