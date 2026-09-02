@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react';
-import { MapContainer, MapClickHandler, type MapCoordinate } from '@/features/map';
+import { useState, useEffect, useRef } from 'react';
+import { MapContainer, MapClickHandler, type MapCoordinate, type ListingSearchMarker } from '@/features/map';
 import { SearchBar, PlaceDetailCard } from '@/features/search';
 import { useDirection, type LocationState } from '@/features/directions';
 import { SearchService } from '@/services/map4d/search.service';
 import type { SearchSuggestion } from '@/features/search/types/SearchSuggestion';
+import { resolveListingMarkerStyles } from '@/features/search/services/resolveListingMarkerStyle';
 import { type PlaceDetail } from '@/services/map4d/placeDetail.service';
 import PoiClientService, { type POIData, type POIDetailData } from '@/services/supabase/poi.service';
 import { PoiDetailCard } from '@/features/poi';
 import './styles/App.css';
+
+// Minimum zoom used when auto-panning to an off-screen listing row on hover —
+// prevents the bounce marker from staying tiny/lost when the map was zoomed
+// out (e.g. showing the whole city).
+const MIN_HOVER_PAN_ZOOM = 15;
 
 function App() {
   const [center, setCenter] = useState<MapCoordinate>({ lat: 16.0544, lng: 108.2022 });
@@ -47,9 +53,21 @@ function App() {
 
   const [mapInstance, setMapInstance] = useState<any>(null);
 
-  // Temporary markers representing places returned by the latest Place Search.
-  // Replaced atomically on each new search; cleared on clear or no results.
-  const [searchResultMarkers, setSearchResultMarkers] = useState<MapCoordinate[]>([]);
+  // Temporary markers representing places returned by the latest Place Search,
+  // enriched with each result's DB marker style (Tier-1 icon-url, Tier-2/3
+  // map4d built-in type, or no DB match). Replaced atomically on each new
+  // search; cleared on clear or no results.
+  const [searchResultMarkers, setSearchResultMarkers] = useState<ListingSearchMarker[]>([]);
+  // The search-listing row currently hovered by the mouse, if any — drives
+  // the bounce/highlight marker on the map.
+  const [hoveredListingMarkerId, setHoveredListingMarkerId] = useState<string | null>(null);
+  // The search-listing row the user has clicked into (detail view open), if
+  // any — hides every other listing pin and bounces just this one. Cleared
+  // when going back to the listing or starting a new search.
+  const [selectedListingMarkerId, setSelectedListingMarkerId] = useState<string | null>(null);
+  // Guards against an older search's async style resolution overwriting a
+  // newer search's results.
+  const searchResultsGenerationRef = useRef(0);
 
   // Track current map viewport bounds for geo-filtered Place Search.
   // Updated on every camera move via the onCameraMove callback.
@@ -266,19 +284,73 @@ function App() {
     console.log(`[App - Event Log] Map event "${eventName}" captured:`, args);
   };
 
-  // Extract valid coordinates from place search results and push them to the map.
+  // Extract valid place results, resolve each one's DB marker style, and
+  // push the enriched list to the map.
   const handlePlaceSearchResults = (results: SearchSuggestion[]) => {
-    const coords: MapCoordinate[] = results
-      .filter(
-        (s) =>
-          s.location != null &&
-          typeof s.location.lat === 'number' &&
-          typeof s.location.lng === 'number' &&
-          isFinite(s.location.lat) &&
-          isFinite(s.location.lng),
-      )
-      .map((s) => ({ lat: s.location!.lat, lng: s.location!.lng }));
-    setSearchResultMarkers(coords);
+    const generation = ++searchResultsGenerationRef.current;
+    setHoveredListingMarkerId(null);
+    setSelectedListingMarkerId(null);
+
+    const valid = results.filter(
+      (s) =>
+        s.location != null &&
+        typeof s.location.lat === 'number' &&
+        typeof s.location.lng === 'number' &&
+        isFinite(s.location.lat) &&
+        isFinite(s.location.lng),
+    );
+
+    if (valid.length === 0) {
+      setSearchResultMarkers([]);
+      return;
+    }
+
+    resolveListingMarkerStyles(valid)
+      .then((styles) => {
+        if (searchResultsGenerationRef.current !== generation) return; // stale
+        const enriched: ListingSearchMarker[] = valid.map((s) => ({
+          id: s.id,
+          lat: s.location!.lat,
+          lng: s.location!.lng,
+          style: styles.get(s.id) ?? { kind: 'none' },
+        }));
+        setSearchResultMarkers(enriched);
+      })
+      .catch(() => {
+        if (searchResultsGenerationRef.current !== generation) return;
+        setSearchResultMarkers(
+          valid.map((s) => ({ id: s.id, lat: s.location!.lat, lng: s.location!.lng, style: { kind: 'none' } })),
+        );
+      });
+  };
+
+  // Called on mouse enter/leave of a listing row. Highlights the matching
+  // marker and, if it's outside the current viewport, pans the map to it
+  // (without changing zoom).
+  const handleListingItemHover = (suggestion: SearchSuggestion | null) => {
+    if (!suggestion) {
+      setHoveredListingMarkerId(null);
+      return;
+    }
+
+    setHoveredListingMarkerId(suggestion.id);
+
+    const location = suggestion.location;
+    if (!location || !mapBounds) return;
+
+    const isVisible =
+      location.lat <= mapBounds.ne.lat &&
+      location.lat >= mapBounds.sw.lat &&
+      location.lng <= mapBounds.ne.lng &&
+      location.lng >= mapBounds.sw.lng;
+
+    if (!isVisible) {
+      setCenter(location);
+      // Zoomed-out views (e.g. the whole city) are too far to make the
+      // bounce marker visible/useful — bring it in to a reasonable close
+      // zoom, but never zoom OUT if the user was already closer than that.
+      setZoom((currentZoom) => Math.max(currentZoom, MIN_HOVER_PAN_ZOOM));
+    }
   };
 
   // Seed mapBounds once on map init so the very first search has valid
@@ -417,6 +489,10 @@ function App() {
   const handleSelectPlaceSuccess = async (suggestion: SearchSuggestion) => {
     // Product suggestions have no coordinates — skip the place detail flow.
     if (!suggestion.location) return;
+
+    // Hide every other listing pin and bounce just this one while its
+    // detail view is open. No-op (harmless) if there's no active listing.
+    setSelectedListingMarkerId(suggestion.id);
 
     // Immediately update selectedPlace for map movement + search input sync.
     setSelectedPlace({
@@ -661,6 +737,7 @@ function App() {
           setSelectedPoiDetails(null);
           setPoiDetailLoading(false);
           setPoiDetailError(null);
+          setSelectedListingMarkerId(null);
           setBackupState(null);
           clearRoute();
         }}
@@ -677,6 +754,8 @@ function App() {
         poiDetailError={poiDetailError}
         externalPoiSelectSignal={poiSelectSignal}
         onPlaceSearchResults={handlePlaceSearchResults}
+        onListingItemHover={handleListingItemHover}
+        onListingBack={() => setSelectedListingMarkerId(null)}
       />
       <MapContainer
         center={center}
@@ -695,6 +774,8 @@ function App() {
         onCameraMove={handleCameraMove}
         onGeolocate={handleGeolocate}
         searchResultMarkers={searchResultMarkers}
+        hoveredMarkerId={hoveredListingMarkerId}
+        selectedListingMarkerId={selectedListingMarkerId}
       />
       {mapInstance && (
         <MapClickHandler

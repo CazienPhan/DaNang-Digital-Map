@@ -5,6 +5,8 @@ import type { SearchSuggestion } from '../types/SearchSuggestion';
 interface SearchListingCardProps {
   result: SearchSuggestion;
   onSelect: (result: SearchSuggestion) => void;
+  /** Called with the result on mouse enter, and null on mouse leave. */
+  onHover?: (result: SearchSuggestion | null) => void;
 }
 
 /**
@@ -15,6 +17,7 @@ interface SearchListingCardProps {
 export const SearchListingCard: React.FC<SearchListingCardProps> = ({
   result,
   onSelect,
+  onHover,
 }) => {
 
 
@@ -23,6 +26,8 @@ export const SearchListingCard: React.FC<SearchListingCardProps> = ({
       type="button"
       className="w-full text-left flex gap-3 p-3 rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={() => onSelect(result)}
+      onMouseEnter={() => onHover?.(result)}
+      onMouseLeave={() => onHover?.(null)}
       aria-label={`Select ${result.title}`}
     >
       {/* Thumbnail — uses image if available, falls back to placeholder */}
