@@ -41,12 +41,12 @@ function TabIcon({ tab, active }: { tab: (typeof TABS)[number]; active: boolean 
   const Icon = tab.key === 'cert' ? Award : tab.key === 'review' ? Star : null;
 
   return (
-    <span className="flex h-10 w-10 items-center justify-center rounded-full shrink-0" style={circleStyle}>
+    <span className="flex h-8 w-8 items-center justify-center rounded-full shrink-0" style={circleStyle}>
       {Icon ? (
-        <Icon size={18} strokeWidth={2.2} color={active ? '#fff' : MAROON} />
+        <Icon size={13} strokeWidth={2} color={active ? '#fff' : MAROON} />
       ) : (
         <span
-          className="text-[17px] font-black italic leading-none"
+          className="text-sm font-black italic leading-none"
           style={{ color: active ? '#fff' : MAROON, fontFamily: 'Georgia, serif' }}
         >
           i
@@ -89,13 +89,16 @@ export const ProductDetailPanel: React.FC<ProductDetailPanelProps> = ({ product,
 
   if (!displayed) return null;
 
+  // products.is_ocop, carried through the product service as badge === 'OCOP'.
+  const isOcop = displayed.badge === 'OCOP';
+
   return (
     <div
       style={{ ['--panel-left' as string]: `${(anchorLeft ?? 480) + 16}px` }}
       className={cn(
         'fixed z-40 flex flex-col bg-white shadow-xl transition-transform duration-300 ease-in-out',
-        'inset-x-0 bottom-0 max-h-[75vh] rounded-t-3xl',
-        'sm:inset-x-auto sm:left-[var(--panel-left)] sm:top-[70px] sm:bottom-15 sm:max-h-none sm:w-[380px] sm:rounded-[28px] sm:border sm:border-neutral-200',
+        'inset-x-0 bottom-0 max-h-[75vh] rounded-xl',
+        'sm:inset-x-auto sm:left-[var(--panel-left)] sm:top-[50px] sm:bottom-10 sm:max-h-none sm:w-[330px] sm:rounded-2xl sm:border sm:border-neutral-200',
         // Closed state flies fully off-screen with a large fixed offset — not
         // relative to the panel's own width — so it stays hidden even when
         // the POI Sheet it would otherwise hide behind has also closed.
@@ -113,7 +116,7 @@ export const ProductDetailPanel: React.FC<ProductDetailPanelProps> = ({ product,
           >
             <X size={20} strokeWidth={2.2} />
           </button>
-          <div className="h-44 w-full rounded-[20px] bg-neutral-100 overflow-hidden">
+          <div className="h-44 w-full rounded-2xl bg-neutral-100 overflow-hidden">
             {displayed.img ? (
               <img src={displayed.img} alt={displayed.name} className="w-full h-full object-cover" />
             ) : (
@@ -127,7 +130,7 @@ export const ProductDetailPanel: React.FC<ProductDetailPanelProps> = ({ product,
         {/* Name + price — sits underneath the image, which overlaps into its
             squared-off top so only the image's rounded corners show there. */}
         <div
-          className="relative z-0 -mt-6 flex items-center justify-between gap-3 rounded-b-2xl px-4 pt-10 pb-3 shrink-0"
+          className="relative z-0 -mt-6 flex items-center justify-between gap-3 rounded-2xl px-4 pt-10 pb-3 shrink-0"
           style={{
             background: CREAM,
             borderLeft: `1px solid ${CREAM_BORDER}`,
@@ -135,11 +138,11 @@ export const ProductDetailPanel: React.FC<ProductDetailPanelProps> = ({ product,
             borderBottom: `1px solid ${CREAM_BORDER}`,
           }}
         >
-          <h2 className="text-[15px] font-extrabold tracking-tight leading-snug" style={{ color: MAROON }}>
+          <h2 className="text-sm font-bold tracking-normal leading-normal" style={{ color: MAROON }}>
             {displayed.name}
           </h2>
           {displayed.price && (
-            <span className="text-[15px] font-extrabold whitespace-nowrap" style={{ color: MAROON }}>
+            <span className="text-sm font-bold whitespace-nowrap" style={{ color: MAROON }}>
               {displayed.price}
             </span>
           )}
@@ -147,7 +150,7 @@ export const ProductDetailPanel: React.FC<ProductDetailPanelProps> = ({ product,
 
         {/* Tab bar — its own rounded card, layered above the content card */}
         <div
-          className="relative z-10 mt-3 flex items-start justify-around px-3 pb-3 pt-4 rounded-[22px] shrink-0"
+          className="relative z-10 mt-3 flex items-start justify-around px-3 pb-3 pt-3 rounded-xl shrink-0"
           style={{ background: ORANGE }}
         >
           {TABS.map((tab) => {
@@ -155,7 +158,7 @@ export const ProductDetailPanel: React.FC<ProductDetailPanelProps> = ({ product,
             return (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="flex flex-col items-center gap-1.5">
                 <TabIcon tab={tab} active={active} />
-                <span className="text-[10px] font-extrabold uppercase tracking-tight" style={{ color: MAROON }}>
+                <span className="text-[11px] font-bold tracking-normal" style={{ color: MAROON }}>
                   {tab.label}
                 </span>
               </button>
@@ -166,17 +169,17 @@ export const ProductDetailPanel: React.FC<ProductDetailPanelProps> = ({ product,
         {/* Content — sits underneath the tab bar, which overlaps ~12px into its
             squared-off top so only the tab bar's rounded corners show there. */}
         <div
-          className="relative z-0 -mt-6 flex-1 min-h-0 overflow-y-auto px-4 pt-10 pb-4 rounded-b-[22px] border border-neutral-200"
+          className="relative z-0 -mt-6 flex-1 min-h-0 overflow-y-auto px-4 pt-10 pb-4 rounded-xl border border-neutral-200"
           style={{ background: CREAM }}
         >
           {activeTab === 'info' &&
             (displayed.detailSections.length > 0 ? (
               displayed.detailSections.map((section, i) => (
                 <div key={i} className={i === 0 ? '' : 'mt-4'}>
-                  <h3 className="mb-1.5 text-[13px] font-extrabold uppercase tracking-tight" style={{ color: MAROON }}>
+                  <h3 className="mb-1.5 text-xs font-extrabold uppercase tracking-normal" style={{ color: MAROON }}>
                     {section.title}
                   </h3>
-                  <p className="text-[13px] leading-snug text-neutral-800 whitespace-pre-line">{section.item}</p>
+                  <p className="text-xs leading-normal text-neutral-800 whitespace-pre-line">{section.item}</p>
                 </div>
               ))
             ) : (
@@ -188,16 +191,50 @@ export const ProductDetailPanel: React.FC<ProductDetailPanelProps> = ({ product,
             ))}
 
           {activeTab === 'cert' &&
-            (displayed.certificateImageUrl ? (
-              <img
-                src={displayed.certificateImageUrl}
-                alt={`Chứng nhận OCOP — ${displayed.name}`}
-                className="w-full rounded-[16px] object-cover"
-              />
+            (isOcop ? (
+              /*
+                OCOP block for this product only: the star count and the
+                certificate file both come from the certifications row joined on
+                product_id, never from the business's own certificates.
+              */
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  {/* <span
+                    className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500 px-2 py-0.5 text-[0.6rem] font-bold uppercase leading-none tracking-widest text-white"
+                  >
+                    OCOP
+                  </span> */}
+                  {/* Star count is whatever so_sao actually holds — never a default.
+                  {displayed.ocopSoSao != null && (
+                    <span className="inline-flex items-center" aria-label={`Chứng nhận OCOP ${displayed.ocopSoSao} sao`}>
+                      {Array.from({ length: displayed.ocopSoSao }).map((_, index) => (
+                        <Star key={index} size={14} fill="#FFD058" stroke="none" className="shrink-0" aria-hidden="true" />
+                      ))}
+                    </span> */}
+                  {/* )} */}
+                </div>
+
+                {displayed.certificateImageUrl ? (
+                  <img
+                    src={displayed.certificateImageUrl}
+                    alt={`Chứng nhận OCOP — ${displayed.name}`}
+                    loading="lazy"
+                    /* A certificate is a document: show all of it, uncropped. */
+                    className="h-auto w-full rounded-2xl border border-neutral-200 bg-white object-contain"
+                  />
+                ) : (
+                  <EmptyState
+                    icon={Award}
+                    title="Chưa có chứng nhận OCOP đính kèm"
+                    description="Chứng nhận sẽ được cập nhật trong thời gian tới."
+                  />
+                )}
+              </div>
             ) : (
+              /* Not an OCOP product — no OCOP block, no certificate frame. */
               <EmptyState
                 icon={Award}
-                title="Chưa có chứng nhận OCOP đính kèm"
+                title="Sản phẩm chưa có chứng nhận"
                 description="Chứng nhận sẽ được cập nhật trong thời gian tới."
               />
             ))}

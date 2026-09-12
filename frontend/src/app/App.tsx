@@ -199,6 +199,8 @@ function App() {
         lat: builtInPoi.lat,
         lng: builtInPoi.lng,
         business_id: null,
+        // Built-in Map4D SDK POI — not backed by poi_details_business.
+        is_business: false,
         category_id: 0,
         address_type: null,
         dia_chi_en: null,
@@ -523,6 +525,8 @@ function App() {
         lat: suggestion.location.lat,
         lng: suggestion.location.lng,
         business_id: null,
+        // POI is not in our database, so it has no poi_details_business row.
+        is_business: false,
         category_id: 0,
         address_type: null,
         dia_chi_en: null,

@@ -26,10 +26,21 @@ export interface POIMediaItem {
   caption: string | null;
   is_primary: boolean;
   created_at: string;
+  /**
+   * poi_media.media_category — e.g. 'gallery', 'banner', 'logo_story'.
+   * null when the row has no category set.
+   */
+  media_category: string | null;
 }
 
 export interface POIDetailData extends POIData {
   business_id: string | null;
+  /**
+   * True only when the POI has a poi_details_business row.
+   * Drives business-only UI such as the "Câu chuyện" tab. business_id is not
+   * a substitute — it is frequently null for business POIs.
+   */
+  is_business: boolean;
   category_id: number;
   address_type: string | null;
   dia_chi_en: string | null;
@@ -100,6 +111,7 @@ export class PoiClientService {
           lat: p.lat || 0,
           lng: p.lng || 0,
           business_id: p.business_id || null,
+          is_business: p.is_business === true,
           category_id: p.category_id || 0,
           address_type: p.address_type || null,
           dia_chi_en: p.dia_chi_en || null,

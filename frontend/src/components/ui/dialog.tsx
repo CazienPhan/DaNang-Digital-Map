@@ -41,13 +41,27 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  overlayClassName,
+  forceOverlay = false,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
+  /**
+   * Extra classes for this dialog's own backdrop — e.g. a stronger dim or a
+   * higher layer for a dialog that has to clear app chrome. Leaves the shared
+   * default untouched for every other dialog.
+   */
+  overlayClassName?: string
+  /**
+   * Render the backdrop even when this dialog is nested inside another one.
+   * Base UI drops nested backdrops by default, which leaves a dialog opened
+   * from inside a Sheet with no dim at all.
+   */
+  forceOverlay?: boolean
 }) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} forceRender={forceOverlay} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(

@@ -7,16 +7,37 @@ interface PoiTitleSectionProps {
   reviewCount: number | null;
   tagColor: string;
   categoryName?: string;
+  /**
+   * This POI's own logo — poi_media.url of its 'logo_story' row, resolved by
+   * the caller. null/undefined when the POI has no logo, and then no logo
+   * area is rendered at all and the name uses the full width.
+   */
+  logoUrl?: string | null;
 }
 
-export const PoiTitleSection: React.FC<PoiTitleSectionProps> = React.memo(({ name, rating, reviewCount, tagColor: _tagColor, categoryName }) => {
+export const PoiTitleSection: React.FC<PoiTitleSectionProps> = React.memo(({ name, rating, reviewCount, tagColor: _tagColor, categoryName, logoUrl }) => {
   const finalRating = rating !== null && rating !== undefined ? rating : 0;
   // const isOcop = categoryName === 'Sản phẩm OCOP';
 
   return (
-    <div className="px-4 pb-4">
+    <div className="flex items-center gap-1 px-5 pb-3">
+      {/* Logo — roughly a third of the header, only when this POI really has
+          one. `contain` keeps the whole mark visible whatever its shape. */}
+      {logoUrl && (
+        <div className="flex w-[30%] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted aspect-square max-h-28">
+          <img
+            src={logoUrl}
+            alt={name ? `Logo ${name}` : 'Logo'}
+            loading="lazy"
+            className="h-full w-full object-contain"
+          />
+        </div>
+      )}
+
+      {/* Name + meta — min-w-0 so long names wrap instead of pushing the logo */}
+      <div className="min-w-0 flex-1">
       {/* Main title */}
-      <h1 className="text-xl uppercase font-black tracking-normal leading-tight text-[#a05d00] mb-2">
+      <h1 className="text-[18px] uppercase font-black tracking-normal leading-tight text-[#a05d00] mb-2">
         {name}
       </h1>
 
@@ -32,10 +53,17 @@ export const PoiTitleSection: React.FC<PoiTitleSectionProps> = React.memo(({ nam
         )}
         {finalRating > 0 && (
           <>
-            <span className="flex items-center gap-1 text-xs text-amber-400 font-semibold">
-              <Star size={13} fill="currentColor" strokeWidth={0} />
-              {finalRating.toFixed(1)}
+            <span className="flex items-center gap-0.5 text-amber-400">
+              {Array.from({ length: Math.floor(finalRating) }).map((_, index) => (
+                <Star
+                  key={index}
+                  size={15}
+                  fill="currentColor"
+                  strokeWidth={0}
+                />
+              ))}
             </span>
+
             {reviewCount !== null && reviewCount !== undefined && (
               <span className="text-xs text-muted-foreground/60">
                 ({reviewCount.toLocaleString()} đánh giá)
@@ -52,6 +80,7 @@ export const PoiTitleSection: React.FC<PoiTitleSectionProps> = React.memo(({ nam
           <span className="text-xs font-semibold">Chứng nhận sản phẩm OCOP</span>
         </div>
       )} */}
+      </div>
     </div>
   );
 });

@@ -345,6 +345,7 @@ export class PoiService {
           b.tam_gia,
           b.sdt,
           b.gioi_thieu AS business_gioi_thieu,
+          (b.poi_id IS NOT NULL) AS is_business,
           t.gioi_thieu,
           t.gioi_thieu_en,
           t.nam_xay_dung,
@@ -388,7 +389,12 @@ export class PoiService {
       const mediaRaw = Array.isArray(raw.media) ? raw.media : [];
       const media = mediaRaw.map((m: any) => ({
         media_type: m.media_type || null,
-        url: m.url || null
+        url: m.url || null,
+        // Already selected by the query above; carried through so callers can
+        // tell a category apart (e.g. the header logo, media_category
+        // 'logo_story') instead of treating every row as gallery media.
+        media_category: m.media_category || null,
+        is_primary: m.is_primary === true
       }));
 
       const categoryName = raw.category_name || '';
@@ -410,6 +416,12 @@ export class PoiService {
       return {
         id: raw.id,
         business_id: raw.business_id || null,
+        /**
+         * True only when a poi.poi_details_business row exists for this POI.
+         * pois.business_id is NOT a reliable indicator (it is frequently null
+         * for business POIs), so the join itself is what decides.
+         */
+        is_business: raw.is_business === true,
         name: raw.name || null,
         poi_type: raw.poi_type || null,
         dia_chi: raw.dia_chi || null,

@@ -21,7 +21,7 @@ export const PoiHeader: React.FC<PoiHeaderProps> = React.memo(({
   return (
     <div className="shrink-0">
       {/* Nav row: back button (left) + close button (right) */}
-      <div className="flex items-center justify-between px-2 pt-0 pb-2">
+      <div className="flex items-center justify-between px-2 pt-0 pb-0">
         {/* Left slot — Back button or spacer */}
         {onBack ? (
           <Button

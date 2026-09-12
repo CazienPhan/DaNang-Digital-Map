@@ -120,7 +120,12 @@ function parseDetailSections(description: unknown): ProductDetailSection[] {
   );
 }
 
-function mapProductRecord(p: any): ProductItem {
+/**
+ * Maps one raw product record from the backend into the UI-facing ProductItem.
+ * Exported so other POI features (e.g. the business-story tab) can reuse the
+ * exact same product shape and therefore the existing product-detail flow.
+ */
+export function mapProductRecord(p: any): ProductItem {
   const detailSections = parseDetailSections(p.description);
 
   /**

@@ -87,7 +87,7 @@ export class ProductService {
           oc.so_sao AS ocop_so_sao
         FROM poi.product_listings pl
         JOIN poi.products pr ON pr.id = pl.product_id
-        LEFT JOIN poi.ocop_certifications oc ON oc.product_id = pr.id
+        LEFT JOIN poi.certifications oc ON oc.product_id = pr.id
         WHERE pl.poi_id = ${poiId}
           AND (pr.is_available IS NULL OR pr.is_available = true)
         ORDER BY pr.is_ocop DESC NULLS LAST, pr.name ASC

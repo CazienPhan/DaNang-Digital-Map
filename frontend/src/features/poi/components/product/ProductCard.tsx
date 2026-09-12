@@ -84,16 +84,18 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(
               OCOP
               {item.ocopSoSao != null && (
                 <span className="inline-flex items-center gap-0">
-                  <span className="font-extrabold text-[#FFD058] leading-none">
-                    {item.ocopSoSao}
+                  <span className="inline-flex items-center gap-0">
+                    {Array.from({ length: item.ocopSoSao }).map((_, index) => (
+                      <Star
+                        key={index}
+                        size={12}
+                        fill="#FFD058"
+                        stroke="none"
+                        className="shrink-0"
+                        aria-hidden="true"
+                      />
+                    ))}
                   </span>
-                  <Star
-                    size={12}
-                    fill="#FFD058"
-                    stroke="none"
-                    className="shrink-0"
-                    aria-hidden="true"
-                  />
                 </span>
               )}
             </span>

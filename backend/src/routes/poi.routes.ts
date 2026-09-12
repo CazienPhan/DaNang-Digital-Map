@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PoiService } from '../services/poi.service';
+import { PoiStoryService } from '../services/poiStory.service';
 
 const router = Router();
 
@@ -64,6 +65,42 @@ router.get('/tile/:x/:y/:zoom', async (req: Request, res: Response) => {
   }
 });
 
+
+/**
+ * Endpoint: GET /api/pois/:id/story
+ * Retrieves the business-story data ("Câu chuyện" tab) for a single POI:
+ * poi_story, story media, highlighted products and certifications.
+ * `story.is_business` is false for POIs that have no poi_details_business row.
+ */
+router.get('/:id/story', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({
+      status: 'INVALID_REQUEST',
+      message: 'POI ID parameter is required.',
+    });
+  }
+
+  try {
+    const story = await PoiStoryService.getStoryByPoiId(id as string);
+    if (!story) {
+      return res.status(404).json({
+        status: 'NOT_FOUND',
+        message: `POI with ID ${id} was not found.`,
+      });
+    }
+    return res.status(200).json({
+      status: 'OK',
+      story,
+    });
+  } catch (error: any) {
+    console.error(`Failed to get business story for POI ${id}:`, error);
+    return res.status(500).json({
+      status: 'ERROR',
+      message: error.message || `Error occurred while retrieving the story for POI ${id}.`,
+    });
+  }
+});
 
 /**
  * Endpoint: GET /api/pois/:id
