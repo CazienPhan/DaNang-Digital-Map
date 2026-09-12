@@ -1,8 +1,9 @@
 import React from 'react';
-import { Loader2, SearchX } from 'lucide-react';
+import { ArrowLeft, Loader2, SearchX } from 'lucide-react';
 import type { SearchSuggestion } from '../types/SearchSuggestion';
 import { SearchListingCard } from './SearchListingCard';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -15,6 +16,12 @@ interface SearchListingProps {
   onSelectItem: (result: SearchSuggestion) => void;
   /** Called with the hovered result, and null when the mouse leaves it. */
   onHoverItem?: (result: SearchSuggestion | null) => void;
+  /**
+   * When provided, shows a back arrow next to the "Results" title — used
+   * when this listing was reached from another view (e.g. the "Khám phá
+   * nhà sản xuất" card in Product Detail) that the user should return to.
+   */
+  onBack?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -34,13 +41,28 @@ export const SearchListing: React.FC<SearchListingProps> = ({
   query,
   onSelectItem,
   onHoverItem,
+  onBack,
 }) => {
   return (
     <div className="flex flex-col flex-1 overflow-hidden h-full">
       {/* Header */}
       <div className="shrink-0 px-4 pt-4 pb-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-foreground">Results</h2>
+          <div className="flex items-center gap-1">
+            {onBack && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onBack}
+                className="-ml-2 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+                aria-label="Quay lại"
+                title="Quay lại"
+              >
+                <ArrowLeft size={18} />
+              </Button>
+            )}
+            <h2 className="text-base font-semibold text-foreground">Results</h2>
+          </div>
           {!loading && results.length > 0 && (
             <span className="text-xs text-muted-foreground">
               {results.length} found

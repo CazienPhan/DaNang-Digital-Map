@@ -4,11 +4,11 @@ import { useProductDetail } from '../../hooks/useProductDetail';
 import { ProductDetailHeader } from './ProductDetailHeader';
 import { ProductDetailBanner } from './ProductDetailBanner';
 import { ProductDetailOverview } from './ProductDetailOverview';
-import { ProductFindStoreButton } from './ProductFindStoreButton';
-import { ProductDetailHistory } from './ProductDetailHistory';
-import { ProductDetailProcess } from './ProductDetailProcess';
-import { ProductDetailTips } from './ProductDetailTips';
-import { ProductImageGallery } from './ProductImageGallery';
+import { ProductDetailAccordionPill } from './ProductDetailAccordionPill';
+import { ProductHistorySection } from './ProductHistorySection';
+import { ProductProcessSection } from './ProductProcessSection';
+import { ProductCultureSection } from './ProductCultureSection';
+import { ProductDetailDiscoverSection } from './ProductDetailDiscoverSection';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -18,6 +18,12 @@ interface ProductDetailCardProps {
   productId: string | null;
   onClose: () => void;
   onBack?: () => void;
+  /**
+   * Called with the product's id + name when the user taps "Khám phá nhà
+   * sản xuất". SearchBar handles switching to Place Search and populating
+   * the listing with the real manufacturer POIs.
+   */
+  onDiscoverManufacturers?: (productId: string, productName: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -65,14 +71,13 @@ const ProductDetailError: React.FC<ProductDetailErrorProps> = ({ error, onClose,
 /**
  * ProductDetailCard — Top-level Product Info Detail container.
  *
- * Composes all seven sections in the specified order:
- *   1. Video Banner   (poi_media: media_category='banner', media_type='VIDEO')
- *   2. Product Name + Overview  (bg #720000, name #ffc14c, text white)
- *   3. Image Gallery  (poi_media: media_category='Quy trinh', media_type='Image')
- *   4. Find Store Button
- *   5. Lịch sử hình thành (header #720000, content #fff8eb)
- *   6. Quy trình            (header #720000, content #fff8eb)
- *   7. Công dụng            (header #720000, content #fff8eb)
+ * Composes sections in order:
+ *   1. Header (back/close)
+ *   2. Overview   (thumbnail + name + overview text, white bg)
+ *   3. Banner image
+ *   4. Pill 1 — Câu chuyện lịch sử (gallery + title + body), open by default
+ *   5. Pill 2 — Quy trình sản xuất (image + title + body)
+ *   6. Pill 3 — Văn hóa & truyền thống (image + body)
  *
  * Data flows exclusively through useProductDetail → GET /api/products/:id → Supabase.
  * Meilisearch is never used here.
@@ -85,6 +90,7 @@ export const ProductDetailCard: React.FC<ProductDetailCardProps> = ({
   productId,
   onClose,
   onBack,
+  onDiscoverManufacturers,
 }) => {
   const { data, loading, error } = useProductDetail(productId);
 
@@ -111,47 +117,65 @@ export const ProductDetailCard: React.FC<ProductDetailCardProps> = ({
     );
   }
 
-  // --- Success: render all 6 sections ---
+  // --- Success ---
   return (
-    <div className="flex-1 flex flex-col overflow-hidden h-full text-foreground">
+    <div className="flex-1 flex flex-col overflow-hidden h-full text-foreground" style={{ backgroundColor: '#ffffff' }}>
       {/* Fixed header */}
       <div className="shrink-0">
         <ProductDetailHeader onClose={onClose} onBack={onBack} />
       </div>
 
-      {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto scrollbar-hidden">
+      {/* Scrollable body — px-2.5 here is the single place controlling the
+          tab's left/right content margin; all child sections rely on it. */}
+      <div className="flex-1 overflow-y-auto scrollbar-hidden px-6.5" style={{ backgroundColor: '#ffffff' }}>
 
-        {/* Section 1 — Video Banner */}
-        <ProductDetailBanner url={data.video_url} productName={data.name} />
-
-        {/* Section 2 — Name + Overview (dark-red bg) */}
-        <ProductDetailOverview name={data.name} overview={data.overview} />
-
-        {/* Section 3 — Image Gallery (poi_media: media_category='Quy trinh', media_type='Image') */}
-        <ProductImageGallery
-          imageUrls={data.gallery_image_urls}
-          productName={data.name}
+        {/* Overview — thumbnail + name + overview */}
+        <ProductDetailOverview
+          name={data.name}
+          overview={data.overview}
+          thumbnailUrl={data.thumbnail_url}
         />
 
-        {/* Section 4 — Find Store (UI-only) */}
-        <ProductFindStoreButton />
+        {/* Banner image */}
+        <ProductDetailBanner url={data.banner_image_url} productName={data.name} />
 
-        {/* Section 4 — Lịch sử hình thành */}
-        {data.lich_su_hinh_thanh.length > 0 && (
-          <ProductDetailHistory items={data.lich_su_hinh_thanh} />
-        )}
-
-        {/* Section 5 — Quy trình */}
-        {data.process_image_url && (
-          <ProductDetailProcess
-            url={data.process_image_url}
+        {/* Pill 1 — Câu chuyện lịch sử (open by default) */}
+        <ProductDetailAccordionPill index={1} title="Câu chuyện lịch sử" defaultOpen>
+          <ProductHistorySection
             productName={data.name}
+            galleryImageUrls={data.gallery_image_urls}
+            title={data.cau_chuyen_lich_su_title}
+            body={data.cau_chuyen_lich_su}
           />
-        )}
+        </ProductDetailAccordionPill>
 
-        {/* Section 6 — Công dụng */}
-        <ProductDetailTips cong_dung={data.cong_dung} />
+        {/* Pill 2 — Quy trình sản xuất */}
+        <ProductDetailAccordionPill index={2} title="Quy trình sản xuất">
+          <ProductProcessSection
+            productName={data.name}
+            imageUrl={data.process_image_url}
+            videoUrl={data.process_video_url}
+            title={data.quy_trinh_sx_title}
+            body={data.quy_trinh_sx}
+          />
+        </ProductDetailAccordionPill>
+
+        {/* Pill 3 — Văn hóa & truyền thống */}
+        <ProductDetailAccordionPill index={3} title="Văn hóa & truyền thống">
+          <ProductCultureSection
+            productName={data.name}
+            imageUrl={data.van_hoa_image_url}
+            body={data.van_hoa}
+          />
+        </ProductDetailAccordionPill>
+
+        {/* Discover more — manufacturers / where-to-eat cards */}
+        <ProductDetailDiscoverSection
+          productName={data.name}
+          onDiscoverManufacturers={
+            onDiscoverManufacturers ? () => onDiscoverManufacturers(data.id, data.name) : undefined
+          }
+        />
 
         {/* Bottom padding */}
         <div className="h-6" />

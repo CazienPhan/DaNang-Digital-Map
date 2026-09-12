@@ -19,6 +19,7 @@ import type { SearchSuggestion } from '../types/SearchSuggestion';
 import { SearchEngineAdapter } from '../services/SearchEngineAdapter';
 import type { GeoSearchContext } from '../services/SearchEngine';
 import { ProductDetailCard } from './product-detail/ProductDetailCard';
+import { ProductDetailClientService } from '@/services/supabase/productDetail.service';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -361,6 +362,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setListingResults([]);
     setListingLoading(true);
     setSearchView('listing');
+    setManufacturersReturnProductId(null);
 
     // Build geographic context for Place Search geo-filtered full search.
     // Only populated when map bounds or GPS are available.
@@ -397,6 +399,85 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       setListingLoading(false);
     }
   }, [query, adapter, locationBias, cachedGps, mapBounds]);
+
+  // ---- "Khám phá nhà sản xuất" card → Place Search listing populated with
+  //      the actual manufacturer POIs (not a generic text search) ----
+  //
+  // NOTE: switching searchMode triggers the "Mode switch → clear stale
+  // results" effect above, which unconditionally wipes listingResults/
+  // listingQuery and resets searchView to 'idle'. Setting the listing state
+  // in the same tick as setSearchMode('place') would get stomped by that
+  // effect, so when a mode switch is needed we stash the request and let a
+  // dedicated effect (declared after the clearing effect, so it runs after
+  // it) perform the actual fetch once searchMode has settled to 'place'.
+  const [pendingManufacturersRequest, setPendingManufacturersRequest] =
+    useState<{ productId: string; productName: string } | null>(null);
+
+  // Remembers which product to return to when the user taps the back arrow
+  // on the manufacturers listing. Cleared once that back navigation happens
+  // (or the user clears/leaves the search entirely).
+  const [manufacturersReturnProductId, setManufacturersReturnProductId] = useState<string | null>(null);
+
+  const runManufacturersFetch = useCallback(async (productId: string, productName: string) => {
+    setSuggestions([]);
+    setQuery(productName);
+    setListingQuery(productName);
+    setListingResults([]);
+    setListingLoading(true);
+    setSearchView('listing');
+
+    try {
+      const pois = await ProductDetailClientService.getManufacturers(productId);
+      const mapped: SearchSuggestion[] = pois.map((poi) => ({
+        id: poi.id,
+        type: 'place',
+        title: poi.name,
+        description: poi.address ?? '',
+        location: poi.lat != null && poi.lng != null ? { lat: poi.lat, lng: poi.lng } : undefined,
+        original: poi,
+      }));
+      setListingResults(mapped);
+      onPlaceSearchResults?.(mapped);
+    } catch (err: unknown) {
+      console.error('Failed to fetch manufacturers:', err);
+      setListingResults([]);
+      onPlaceSearchResults?.([]);
+      showToast('Không tải được danh sách nhà sản xuất.');
+    } finally {
+      setListingLoading(false);
+    }
+  }, [onPlaceSearchResults]);
+
+  const handleDiscoverManufacturers = useCallback((productId: string, productName: string) => {
+    setManufacturersReturnProductId(productId);
+    if (searchMode !== 'place') {
+      setPendingManufacturersRequest({ productId, productName });
+      setSearchMode('place');
+    } else {
+      runManufacturersFetch(productId, productName);
+    }
+  }, [searchMode, runManufacturersFetch]);
+
+  // Back arrow on the manufacturers listing → return to the product detail
+  // the user came from. Setting searchView to 'product-detail' here (not
+  // 'listing'/'refining') means the mode-switch clearing effect won't reset
+  // it back to 'idle', so no pending-request dance is needed for this one.
+  const handleBackFromManufacturers = useCallback(() => {
+    if (!manufacturersReturnProductId) return;
+    setSearchMode('product');
+    setSelectedProductId(manufacturersReturnProductId);
+    setManufacturersReturnProductId(null);
+    setSearchView('product-detail');
+  }, [manufacturersReturnProductId]);
+
+  // Runs after the mode-switch clearing effect has settled searchMode to 'place'.
+  useEffect(() => {
+    if (searchMode === 'place' && pendingManufacturersRequest) {
+      const { productId, productName } = pendingManufacturersRequest;
+      setPendingManufacturersRequest(null);
+      runManufacturersFetch(productId, productName);
+    }
+  }, [searchMode, pendingManufacturersRequest, runManufacturersFetch]);
 
   // ---- Listing item selected ----
   const handleListingSelect = (suggestion: SearchSuggestion) => {
@@ -442,6 +523,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setListingResults([]);
     setListingQuery('');
     setSelectedProductId(null);
+    setManufacturersReturnProductId(null);
     setSearchView('idle');
     onCloseInfoCard();
     // Clear search-result markers from the map.
@@ -570,23 +652,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             ref={sheetContentRef}
             side="left"
             withOverlay={false}
-            className={[
-              'w-[480px] sm:w-[520px] sm:max-w-[520px] p-0 h-screen flex flex-col shadow-lg',
-              searchView === 'product-detail' ? '' : 'bg-background border-r',
-            ].join(' ')}
-            style={searchView === 'product-detail' ? { backgroundColor: '#ffe48a' } : undefined}
+            className="w-[480px] sm:w-[520px] sm:max-w-[520px] p-0 h-screen flex flex-col shadow-lg bg-background border-r"
             showCloseButton={false}
           >
-            {/* #720000 border ring — absolute overlay so it is never clipped by
-                 overflow-hidden children and is always visible on all four sides. */}
-            {searchView === 'product-detail' && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 z-50"
-                style={{ border: '6px solid #720000' }}
-              />
-            )}
-
             <div className="flex flex-col flex-1 overflow-hidden">
               <div className="h-[140px] shrink-0" />
 
@@ -600,6 +668,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     query={listingQuery}
                     onSelectItem={handleListingSelect}
                     onHoverItem={onListingItemHover}
+                    onBack={manufacturersReturnProductId ? handleBackFromManufacturers : undefined}
                   />
                 )}
 
@@ -609,6 +678,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     productId={selectedProductId}
                     onClose={handleClearAll}
                     onBack={productOnBack}
+                    onDiscoverManufacturers={handleDiscoverManufacturers}
                   />
                 )}
 
