@@ -22,7 +22,7 @@ const InfoRow: React.FC<InfoRowProps> = ({ icon, label, children }) => (
       {icon}
     </div>
     <div className="flex-1 min-w-0">
-      {label && <p className="text-xs font-semibold tracking-wider text-muted-foreground/70 mb-0.5">{label}</p>}
+      {label && <p className="text-xs font-semibold tracking-normal text-muted-foreground/70 mb-0.5">{label}</p>}
       <div className="text-xs text-foreground">{children}</div>
     </div>
   </div>

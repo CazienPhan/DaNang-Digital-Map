@@ -38,10 +38,10 @@ const DiscoverCard: React.FC<DiscoverCardProps> = ({
           {icon}
         </div>
       </div>
-      <p className="text-sm font-bold leading-snug" style={{ color: textColor }}>
+      <p className="text-sm font-bold leading-normal" style={{ color: textColor }}>
         {title}
       </p>
-      <p className="text-[10px] leading-snug" style={{ color: textColor }}>
+      <p className="text-[11px] leading-normal" style={{ color: textColor }}>
         {subtitle}
       </p>
       <div className="mt-auto flex w-full justify-center pt-1">
@@ -65,11 +65,11 @@ export const ProductDetailDiscoverSection: React.FC<ProductDetailDiscoverSection
       <h2 className="text-base font-extrabold uppercase text-foreground">
         Khám phá những điều thú vị hơn?
       </h2>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-2 text-xs text-muted-foreground leading-normal">
         Chọn hành trình phù hợp với bạn để khám phá sâu hơn về {productName}.
       </p>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="mt-5 grid grid-cols-2 gap-3">
         <DiscoverCard
           icon={<Store size={18} color="#13aa22" />}
           title="Khám phá nhà sản xuất"

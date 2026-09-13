@@ -127,7 +127,7 @@ export const ProductDetailCard: React.FC<ProductDetailCardProps> = ({
 
       {/* Scrollable body — px-2.5 here is the single place controlling the
           tab's left/right content margin; all child sections rely on it. */}
-      <div className="flex-1 overflow-y-auto scrollbar-hidden px-6.5" style={{ backgroundColor: '#ffffff' }}>
+      <div className="flex-1 overflow-y-auto scrollbar-hidden px-6" style={{ backgroundColor: '#ffffff' }}>
 
         {/* Overview — thumbnail + name + overview */}
         <ProductDetailOverview
@@ -140,7 +140,12 @@ export const ProductDetailCard: React.FC<ProductDetailCardProps> = ({
         <ProductDetailBanner url={data.banner_image_url} productName={data.name} />
 
         {/* Pill 1 — Câu chuyện lịch sử (open by default) */}
-        <ProductDetailAccordionPill index={1} title="Câu chuyện lịch sử" defaultOpen>
+        <ProductDetailAccordionPill
+          index={1}
+          title="Câu chuyện lịch sử"
+          defaultOpen
+          className="mt-10"
+        >
           <ProductHistorySection
             productName={data.name}
             galleryImageUrls={data.gallery_image_urls}

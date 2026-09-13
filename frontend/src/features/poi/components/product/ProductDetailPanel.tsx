@@ -200,7 +200,7 @@ export const ProductDetailPanel: React.FC<ProductDetailPanelProps> = ({ product,
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   {/* <span
-                    className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500 px-2 py-0.5 text-[0.6rem] font-bold uppercase leading-none tracking-widest text-white"
+                    className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500 px-2 py-0.5 text-[0.6rem] font-bold uppercase leading-none tracking-normal text-white"
                   >
                     OCOP
                   </span> */}

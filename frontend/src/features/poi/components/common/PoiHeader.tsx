@@ -56,7 +56,7 @@ export const PoiHeader: React.FC<PoiHeaderProps> = React.memo(({
       {(categoryName || poiType) && (
         <div className="px-4 pb-1">
           <span
-            className="inline-flex items-center text-[0.68rem] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
+            className="inline-flex items-center text-[0.68rem] font-bold uppercase tracking-normal px-2.5 py-1 rounded-full"
             style={{
               color: tagColor,
               background: `${tagColor}18`,

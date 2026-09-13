@@ -55,7 +55,7 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
   };
 
   return (
-    <div className="w-full relative px-2 py-1">
+    <div className="w-full relative py-1">
       {/* Left scroll button */}
       <button
         type="button"
@@ -70,12 +70,12 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
       {/* Scrollable image strip */}
       <div
         ref={scrollRef}
-        className="flex gap-2 overflow-x-auto scroll-smooth px-5 scrollbar-hidden"
+        className="flex gap-1 overflow-x-auto scroll-smooth scrollbar-hidden"
       >
         {imageUrls.map((url, index) => (
           <div
             key={index}
-            className="shrink-0 w-[152px] h-[152px] overflow-hidden border border-amber-200"
+            className="shrink-0 w-[152px] h-[152px] overflow-hidden rounded-xl"
           >
             <img
               src={url}

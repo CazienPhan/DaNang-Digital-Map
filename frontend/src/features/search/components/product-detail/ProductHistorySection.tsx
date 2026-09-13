@@ -21,7 +21,7 @@ export const ProductHistorySection: React.FC<ProductHistorySectionProps> = ({
   return (
     <div className="space-y-3">
       <ProductImageGallery imageUrls={galleryImageUrls} productName={productName} />
-      {title && <p className="text-sm font-bold text-foreground">{title}</p>}
+      {title && <p className="mt-4 text-sm font-bold text-foreground uppercase">{title}</p>}
       {body && (
         <p className="text-justify text-xs leading-relaxed whitespace-pre-line text-foreground">
           {body}

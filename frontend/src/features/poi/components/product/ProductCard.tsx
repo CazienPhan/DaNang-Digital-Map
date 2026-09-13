@@ -80,7 +80,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(
 
           {/* OCOP badge — only when badge === 'OCOP' */}
           {item.badge === 'OCOP' && (
-            <span className="absolute top-2 left-2 inline-flex items-center justify-center gap-0.5 text-[0.6rem] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm leading-none">
+            <span className="absolute top-2 left-2 inline-flex items-center justify-center gap-0.5 text-[0.6rem] font-bold uppercase tracking-normal px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm leading-none">
               OCOP
               {item.ocopSoSao != null && (
                 <span className="inline-flex items-center gap-0">

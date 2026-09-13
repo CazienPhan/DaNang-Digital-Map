@@ -114,7 +114,7 @@ function Hero() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 relative z-10 text-center">
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-8 max-w-4xl mx-auto leading-[1.1] drop-shadow-xl">
+        <h1 className="text-4xl md:text-6xl font-extrabold tracking-normal text-white mb-8 max-w-4xl mx-auto leading-normal drop-shadow-xl uppercase">
           Bản đồ số và nền tảng hệ sinh thái địa phương.
         </h1>
 
@@ -122,7 +122,7 @@ function Hero() {
           Nền tảng kết nối du khách với địa điểm, doanh nghiệp, sản phẩm và trải nghiệm địa phương trong một hành trình thống nhất.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a href="#demo" className="w-full sm:w-auto px-8 py-4 bg-teal-500 text-white rounded-full font-semibold hover:bg-teal-400 hover:scale-105 transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-900/50">
+          <a href="/map/" className="w-full sm:w-auto px-8 py-4 bg-teal-500 text-white rounded-full font-semibold hover:bg-teal-400 hover:scale-105 transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-900/50">
             KHÁM PHÁ NỀN TẢNG
             <ArrowRight className="w-4 h-4" />
           </a>
@@ -166,7 +166,7 @@ function Problem() {
   return (
     <section id="problem" className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-6 text-center">
-        <h2 className="text-xl font-bold tracking-widest text-slate-400 uppercase mb-8">VẤN ĐỀ</h2>
+        <h2 className="text-xl font-bold tracking-normal text-slate-400 uppercase mb-8">VẤN ĐỀ</h2>
         <blockquote className="text-4xl md:text-5xl font-black text-slate-900 leading-normal mb-16 tracking-normal">
           "Sản phẩm địa phương ở khắp mọi nơi.<br />
           <span className="text-slate-400">Nhưng sự kết nối đang bị phân mảnh."</span>
@@ -175,7 +175,7 @@ function Problem() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
           {problems.map((item, idx) => (
             <div key={idx} className={`rounded-3xl p-10 border transition-all hover:shadow-xl ${item.colorClass}`}>
-              <div className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6 border ${item.badgeColor}`}>
+              <div className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-normal mb-6 border ${item.badgeColor}`}>
                 {item.target}
               </div>
               <h3 className={`text-xl font-bold mb-4 ${item.titleColor}`}>
@@ -199,7 +199,7 @@ function Solution() {
         
         {/* Tầng 1 — Statement */}
         <div className="text-center mb-24 relative z-10">
-          <h2 className="text-xs font-bold tracking-widest text-teal-400 uppercase mb-8">GIẢI PHÁP CỦA CHÚNG TÔI</h2>
+          <h2 className="text-xs font-bold tracking-normal text-teal-400 uppercase mb-8">GIẢI PHÁP CỦA CHÚNG TÔI</h2>
           <h3 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 tracking-normal leading-normal">
             MỘT NỀN TẢNG.<br />ĐA KẾT NỐI.
           </h3>
@@ -211,8 +211,8 @@ function Solution() {
         {/* Tầng 4 — “How the platform creates value” */}
         <div className="max-w-4xl mx-auto mb-40">
           <div className="text-center mb-20">
-            <h3 className="text-xs font-bold tracking-widest text-teal-400 uppercase mb-4">LUỒNG TẠO GIÁ TRỊ</h3>
-            <h4 className="text-3xl md:text-4xl font-black text-white tracking-tight">Cách nền tảng tạo ra giá trị</h4>
+            <h3 className="text-xs font-bold tracking-normal text-teal-400 uppercase mb-4">LUỒNG TẠO GIÁ TRỊ</h3>
+            <h4 className="text-3xl md:text-4xl font-black text-white tracking-tight">Cách nền tảng tạo ra giá trị...</h4>
           </div>
 
           <div className="relative">
@@ -227,7 +227,7 @@ function Solution() {
                 <div className="pt-2 md:pt-4">
                   <div className="flex items-center gap-3 mb-3">
                     <Database className="w-5 h-5 text-blue-400" />
-                    <h5 className="text-xl font-bold text-white tracking-wide">Dữ Liệu: Thông tin doanh nghiệp & sản phẩm</h5>
+                    <h5 className="text-xl font-bold text-white tracking-normal">Dữ Liệu: Thông tin doanh nghiệp & sản phẩm</h5>
                   </div>
                   <p className="text-slate-400 leading-relaxed text-base">Doanh nghiệp, sản phẩm, địa điểm, chứng nhận, điểm bán và thông tin OCOP được số hóa.</p>
                 </div>
@@ -241,7 +241,7 @@ function Solution() {
                 <div className="pt-2 md:pt-4">
                   <div className="flex items-center gap-3 mb-3">
                     <Search className="w-5 h-5 text-teal-400" />
-                    <h5 className="text-xl font-bold text-white tracking-wide">Khám phá: Tiếp cận giá trị địa phương</h5>
+                    <h5 className="text-xl font-bold text-white tracking-normal">Khám phá: Tiếp cận giá trị địa phương</h5>
                   </div>
                   <p className="text-slate-400 leading-relaxed text-base">Khách hàng tìm thấy sản phẩm, doanh nghiệp, địa điểm và trải nghiệm phù hợp.</p>
                 </div>
@@ -255,7 +255,7 @@ function Solution() {
                 <div className="pt-2 md:pt-4">
                   <div className="flex items-center gap-3 mb-3">
                     <MapPin className="w-5 h-5 text-slate-300" />
-                    <h5 className="text-xl font-bold text-white tracking-wide">Lập kế hoạch: Biến khám phá thành hành trình</h5>
+                    <h5 className="text-xl font-bold text-white tracking-normal">Lập kế hoạch: Biến khám phá thành hành trình</h5>
                   </div>
                   <p className="text-slate-400 leading-relaxed text-base">Người dùng đưa những điểm quan tâm vào itinerary để lên kế hoạch trải nghiệm.</p>
                 </div>
@@ -269,10 +269,10 @@ function Solution() {
                 <div className="pt-2 md:pt-4">
                   <div className="flex items-center gap-3 mb-3">
                     <Navigation className="w-5 h-5 text-emerald-400" />
-                    <h5 className="text-xl font-bold text-white tracking-wide">Trải nghiệm: Thúc đẩy lượng khách thực tế</h5>
+                    <h5 className="text-xl font-bold text-white tracking-normal">Trải nghiệm: Thúc đẩy lượng khách thực tế</h5>
                   </div>
                   <p className="text-slate-400 leading-relaxed text-base mb-4">Nền tảng biến khám phá trực tuyến thành lưu lượng khách hàng thực tế:</p>
-                  <div className="flex items-center flex-wrap gap-2 text-[11px] uppercase tracking-wider font-bold text-emerald-400/90 bg-emerald-900/10 w-fit px-4 py-2 rounded-xl border border-emerald-800/30">
+                  <div className="flex items-center flex-wrap gap-2 text-[11px] uppercase tracking-normal font-bold text-emerald-400/90 bg-emerald-900/10 w-fit px-4 py-2 rounded-xl border border-emerald-800/30">
                     <span>Chỉ đường</span> <ArrowRight className="w-3 h-3 text-emerald-800" /> 
                     <span>Điểm đến</span> <ArrowRight className="w-3 h-3 text-emerald-800" /> 
                     <span>Quét QR</span> <ArrowRight className="w-3 h-3 text-emerald-800" /> 
@@ -289,10 +289,10 @@ function Solution() {
                 <div className="pt-2 md:pt-4">
                   <div className="flex items-center gap-3 mb-3">
                     <ShoppingBag className="w-5 h-5 text-orange-400" />
-                    <h5 className="text-xl font-bold text-white tracking-wide">Thương mại: Tạo ra giá trị kinh tế</h5>
+                    <h5 className="text-xl font-bold text-white tracking-normal">Thương mại: Tạo ra giá trị kinh tế</h5>
                   </div>
                   <p className="text-slate-400 leading-relaxed text-base mb-4">Thúc đẩy giao dịch mua sắm tại điểm bán và trực tuyến:</p>
-                  <div className="flex items-center flex-wrap gap-2 text-[11px] uppercase tracking-wider font-bold text-orange-400/90 bg-orange-900/10 w-fit px-4 py-2 rounded-xl border border-orange-800/30">
+                  <div className="flex items-center flex-wrap gap-2 text-[11px] uppercase tracking-normal font-bold text-orange-400/90 bg-orange-900/10 w-fit px-4 py-2 rounded-xl border border-orange-800/30">
                     <span>Ghé thăm</span> <ArrowRight className="w-3 h-3 text-orange-800" /> 
                     <span>Mua sắm</span> <ArrowRight className="w-3 h-3 text-orange-800" /> 
                     <span>Đặt hàng</span> <ArrowRight className="w-3 h-3 text-orange-800" /> 
@@ -309,10 +309,10 @@ function Solution() {
                 <div className="pt-2 md:pt-4">
                   <div className="flex items-center gap-3 mb-3">
                     <Activity className="w-5 h-5 text-blue-400" />
-                    <h5 className="text-xl font-bold text-white tracking-wide">Phân tích: Khai thác dữ liệu hệ sinh thái</h5>
+                    <h5 className="text-xl font-bold text-white tracking-normal">Phân tích: Khai thác dữ liệu hệ sinh thái</h5>
                   </div>
                   <p className="text-slate-400 leading-relaxed text-base mb-4">Hệ thống thu thập, phân tích và trả về dữ liệu giá trị:</p>
-                  <div className="flex items-center flex-wrap gap-2 text-[11px] uppercase tracking-wider font-bold text-blue-400/90 bg-blue-900/10 w-fit px-4 py-2 rounded-xl border border-blue-800/30">
+                  <div className="flex items-center flex-wrap gap-2 text-[11px] uppercase tracking-normal font-bold text-blue-400/90 bg-blue-900/10 w-fit px-4 py-2 rounded-xl border border-blue-800/30">
                     <span>Nhu cầu</span> <ArrowRight className="w-3 h-3 text-blue-800" /> 
                     <span>Hành vi</span> <ArrowRight className="w-3 h-3 text-blue-800" /> 
                     <span>Mức quan tâm</span> <ArrowRight className="w-3 h-3 text-blue-800" /> 
@@ -360,7 +360,7 @@ function SystemDemo() {
     <section id="demo" className="py-24 bg-white border-y border-slate-100">
       <div className="max-w-[1440px] mx-auto px-6">
         <div className="text-center mb-16 max-w-4xl mx-auto">
-          <h2 className="text-xs font-bold tracking-widest text-teal-600 uppercase mb-4">Trải nghiệm thực tế</h2>
+          <h2 className="text-xs font-bold tracking-normal text-teal-600 uppercase mb-4">Trải nghiệm thực tế</h2>
           <h3 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">OCOP GO DEMO</h3>
           <p className="text-lg md:text-xl text-slate-600 font-light">
             Khám phá trực tiếp cách hệ sinh thái bản đồ số kết nối điểm đến, sản phẩm và trải nghiệm.
@@ -380,7 +380,7 @@ function SystemDemo() {
               <MapPin className="w-3 h-3 text-teal-500" /> goocop.vn/map/
             </div>
             <a
-              href="https://goocop.vn/map/"
+              href="/map/"
               className="flex items-center gap-1.5 bg-white text-teal-600 border border-teal-500 text-xs font-semibold px-3 py-1.5 rounded-md hover:bg-teal-50 transition-colors whitespace-nowrap"
             >
               Mở trong OCOP GO
@@ -389,16 +389,25 @@ function SystemDemo() {
           </div>
           {/* Embedded Map iframe */}
           <div className="w-full aspect-square md:aspect-video lg:aspect-[21/9] bg-slate-100 relative">
-            <iframe
-              src="https://goocop.vn/map/"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen={true}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="absolute inset-0 w-full h-full"
-            ></iframe>
+            {/*
+              /map/ is served by the separate Map app — nginx in production, the
+              dev proxy in vite.config.ts locally. If that route were ever
+              misconfigured and fell back to this landing page, the iframe would
+              load the landing inside itself, over and over. Embedding only when
+              this page is the top-level window caps that at one level.
+            */}
+            {(typeof window === 'undefined' || window.self === window.top) && (
+              <iframe
+                src="/map/"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={true}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="absolute inset-0 w-full h-full"
+              ></iframe>
+            )}
           </div>
         </div>
       </div>
@@ -411,7 +420,7 @@ function FiveLayerPlatform() {
     <section id="layers" className="py-24 bg-[#F8F9FA] border-y border-slate-200">
       <div className="max-w-[1440px] mx-auto px-6">
         <div className="text-center mb-16 max-w-4xl mx-auto">
-          <h2 className="text-xs font-bold tracking-widest text-teal-700 uppercase mb-4">Mô hình cốt lõi</h2>
+          <h2 className="text-xs font-bold tracking-normal text-teal-700 uppercase mb-4">Mô hình cốt lõi</h2>
           <h3 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">MÔ HÌNH 5 LỚP</h3>
           <p className="text-lg md:text-xl text-slate-500 font-light leading-relaxed">
             OCOP GO lấy số hóa doanh nghiệp và dữ liệu địa phương làm nền tảng, từng bước mở rộng qua khám phá, lên kế hoạch, trải nghiệm và thương mại. Mỗi lớp vừa tạo thêm giá trị, vừa làm giàu dữ liệu cho lớp tiếp theo, đưa OCOP GO trở thành nền tảng kết nối và dữ liệu cho hệ sinh thái địa phương.
@@ -500,7 +509,7 @@ function BusinessModel() {
       <div className="max-w-[1440px] mx-auto px-6">
         <div className="mb-12 max-w-4xl mx-auto text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <span className="text-xs font-bold tracking-widest text-teal-700 uppercase">MÔ HÌNH HỢP TÁC</span>
+            <span className="text-xs font-bold tracking-normal text-teal-700 uppercase">MÔ HÌNH HỢP TÁC</span>
           </div>
           <h3 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight leading-tight">
             Hệ sinh thái mở.<br />
@@ -543,7 +552,7 @@ function BusinessModel() {
            
            <div className="flex flex-col xl:flex-row items-center gap-8 relative z-10">
               <div className="flex flex-col xl:w-1/3 w-full text-center xl:text-left">
-                 <h5 className="text-teal-400 font-bold text-sm tracking-widest uppercase mb-2">GIÁ TRỊ DOANH NGHIỆP</h5>
+                 <h5 className="text-teal-400 font-bold text-sm tracking-normal uppercase mb-2">GIÁ TRỊ DOANH NGHIỆP</h5>
                  <p className="text-white font-bold text-xl md:text-2xl leading-snug">Tăng nhận diện. Thêm khách hàng. Tăng trưởng mạnh mẽ.</p>
               </div>
 
@@ -552,35 +561,35 @@ function BusinessModel() {
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <Megaphone className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Tăng nhận diện<br/>thương hiệu</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Tăng nhận diện<br/>thương hiệu</span>
                  </div>
                  
                  <div className="flex items-center gap-3 relative xl:before:content-[''] xl:before:absolute xl:before:-left-2 xl:before:top-1/2 xl:before:-translate-y-1/2 xl:before:w-px xl:before:h-8 xl:before:bg-teal-800/50">
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <MapPin className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Tăng khách đến<br/>điểm bán</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Tăng khách đến<br/>điểm bán</span>
                  </div>
                  
                  <div className="flex items-center gap-3 relative xl:before:content-[''] xl:before:absolute xl:before:-left-2 xl:before:top-1/2 xl:before:-translate-y-1/2 xl:before:w-px xl:before:h-8 xl:before:bg-teal-800/50">
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <TrendingUp className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Tăng lead /<br/>đơn hàng</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Tăng lead /<br/>đơn hàng</span>
                  </div>
                  
                  <div className="flex items-center gap-3 relative xl:before:content-[''] xl:before:absolute xl:before:-left-2 xl:before:top-1/2 xl:before:-translate-y-1/2 xl:before:w-px xl:before:h-8 xl:before:bg-teal-800/50">
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <Database className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Có dữ liệu<br/>đo lường</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Có dữ liệu<br/>đo lường</span>
                  </div>
                  
                  <div className="flex items-center gap-3 relative xl:before:content-[''] xl:before:absolute xl:before:-left-2 xl:before:top-1/2 xl:before:-translate-y-1/2 xl:before:w-px xl:before:h-8 xl:before:bg-teal-800/50">
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <ShieldCheck className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Tăng mức độ<br/>tin cậy</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Tăng mức độ<br/>tin cậy</span>
                  </div>
               </div>
            </div>
@@ -608,7 +617,7 @@ function Impact() {
       
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center mb-16">
-          <h2 className="text-xs font-bold tracking-widest text-teal-400 uppercase mb-4">Giá trị cốt lõi</h2>
+          <h2 className="text-xs font-bold tracking-normal text-teal-400 uppercase mb-4">Giá trị cốt lõi</h2>
           <h3 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">TÁC ĐỘNG ĐẾN HỆ SINH THÁI</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -618,7 +627,7 @@ function Impact() {
                 <item.icon className="w-7 h-7" />
               </div>
               <h4 className="text-xl font-bold text-white mb-1">{item.title}</h4>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">{item.subtitle}</p>
+              <p className="text-[10px] font-bold uppercase tracking-normal text-slate-400 mb-4">{item.subtitle}</p>
               <p className="text-slate-300 leading-relaxed text-base">{item.desc}</p>
             </div>
           ))}
@@ -676,4 +685,3 @@ export default function App() {
     </div>
   );
 }
-

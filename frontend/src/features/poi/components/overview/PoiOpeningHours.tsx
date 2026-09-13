@@ -66,7 +66,7 @@ export const PoiOpeningHours: React.FC<PoiOpeningHoursProps> = React.memo(
             <>
                 {/* Header + Status */}
                 <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs font-semibold tracking-wider text-muted-foreground/70">
+                    <span className="text-xs font-semibold tracking-normal text-muted-foreground/70">
                         Giờ mở cửa
                     </span>
 
