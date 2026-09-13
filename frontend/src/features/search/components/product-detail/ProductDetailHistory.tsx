@@ -1,5 +1,10 @@
 import React from 'react';
-import type { HistoryItem } from '@/services/supabase/productDetail.service';
+
+interface HistoryItem {
+  thoi_gian: string;
+  mo_ta: string;
+  hinh_anh_url: string | null;
+}
 
 interface ProductDetailHistoryProps {
   items: HistoryItem[];

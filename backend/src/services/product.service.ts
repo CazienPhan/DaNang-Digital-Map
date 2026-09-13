@@ -25,34 +25,67 @@ export interface ProductRecord {
   ocop_so_sao: number | null;
 }
 
-// ─── Product Type Detail ─────────────────────────────────────────────────────
+// ─── Manufacturer POIs ────────────────────────────────────────────────────────
 
-export interface HistoryItem {
-  thoi_gian: string;
-  mo_ta: string;
-  hinh_anh_url: string | null;
+export interface ManufacturerPoi {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
 }
+
+// ─── Product Type Detail ─────────────────────────────────────────────────────
 
 export interface ProductTypeDetailRecord {
   id: string;
   name: string;
   overview: string | null;
-  cong_dung: string[];
-  lich_su_hinh_thanh: HistoryItem[];
+  /** product_types.cau_chuyen_lich_su_title — bold subtitle for pill 1. */
+  cau_chuyen_lich_su_title: string | null;
+  /** product_types.cau_chuyen_lich_su — body paragraph for pill 1. */
+  cau_chuyen_lich_su: string | null;
+  /** product_types.quy_trinh_sx_title — bold subtitle for pill 2. */
+  quy_trinh_sx_title: string | null;
+  /** product_types.quy_trinh_sx — body paragraph for pill 2. */
+  quy_trinh_sx: string | null;
+  /** product_types.van_hoa — body paragraph for pill 3. */
+  van_hoa: string | null;
   /**
-   * Banner VIDEO url — sourced from poi.poi_media where
-   *   media_category = 'banner' AND media_type = 'VIDEO'
+   * Thumbnail/logo image url — sourced from poi.poi_media where
+   *   media_category = 'thumbnail' AND product_type_id = <id>
+   * Null when no matching record exists.
+   */
+  thumbnail_url: string | null;
+  /**
+   * Banner IMAGE url — sourced from poi.poi_media where
+   *   media_category = 'banner' AND media_type = 'IMAGE'
    *   AND product_type_id = <id>
    * Null when no matching record exists.
    */
-  video_url: string | null;
+  banner_image_url: string | null;
   /**
    * Process image url — sourced from poi.poi_media where
-   *   media_category = 'quy_trinh'
+   *   media_category = 'quy_trinh' AND media_type = 'IMAGE'
    *   AND product_type_id = <id>
    * Null when no matching record exists.
    */
   process_image_url: string | null;
+  /**
+   * Process video url — sourced from poi.poi_media where
+   *   media_category = 'quy_trinh' AND media_type = 'VIDEO'
+   *   AND product_type_id = <id>
+   * Null when no matching record exists. Frontend prefers this over
+   * process_image_url when both are present.
+   */
+  process_video_url: string | null;
+  /**
+   * Culture image url — sourced from poi.poi_media where
+   *   media_category = 'van_hoa' AND media_type = 'IMAGE'
+   *   AND product_type_id = <id>
+   * Null when no matching record exists.
+   */
+  van_hoa_image_url: string | null;
   /**
    * Gallery image urls — sourced from poi.poi_media where
    *   media_category = 'gallery' AND media_type = 'IMAGE'
@@ -142,7 +175,9 @@ export class ProductService {
     const { data: pt, error: ptError } = await supabase
       .schema('poi')
       .from('product_types')
-      .select('id, name, overview, cong_dung, lich_su_hinh_thanh')
+      .select(
+        'id, name, overview, cau_chuyen_lich_su, cau_chuyen_lich_su_title, quy_trinh_sx, quy_trinh_sx_title, van_hoa'
+      )
       .eq('id', id)
       .single();
 
@@ -154,8 +189,11 @@ export class ProductService {
 
     // 2. Resolve media from poi_media table.
     //    Graceful: if the media query fails, both urls remain null.
-    let video_url: string | null = null;
+    let thumbnail_url: string | null = null;
+    let banner_image_url: string | null = null;
     let process_image_url: string | null = null;
+    let process_video_url: string | null = null;
+    let van_hoa_image_url: string | null = null;
     let gallery_image_urls: string[] = [];
 
     try {
@@ -164,30 +202,36 @@ export class ProductService {
         .from('poi_media')
         .select('media_type, media_category, url')
         .eq('product_type_id', id)
-        .in('media_category', ['banner', 'quy_trinh', 'gallery']);
+        .in('media_category', ['thumbnail', 'banner', 'quy_trinh', 'van_hoa', 'gallery']);
 
       if (mediaError) {
         console.warn(`[ProductService] poi_media query failed (id=${id}): ${mediaError.message}`);
       } else if (mediaRows && mediaRows.length > 0) {
-        // Banner VIDEO: media_category = 'banner' AND media_type = 'VIDEO'
-        const bannerVideo = mediaRows.find(
-          (m: any) =>
-            m.media_category === 'banner' &&
-            m.media_type === 'VIDEO'
-        );
-        if (bannerVideo) {
-          video_url = bannerVideo.url ?? null;
-        }
+        const findImage = (category: string) =>
+          mediaRows.find(
+            (m: any) =>
+              m.media_category === category &&
+              m.media_type === 'IMAGE' &&
+              typeof m.url === 'string' &&
+              m.url.length > 0
+          );
 
-        // Process image: media_category = 'quy_trinh'
-        const processMedia = mediaRows.find(
-          (m: any) => m.media_category === 'quy_trinh'
-        );
-        if (processMedia) {
-          process_image_url = processMedia.url ?? null;
-        }
+        const findVideo = (category: string) =>
+          mediaRows.find(
+            (m: any) =>
+              m.media_category === category &&
+              m.media_type === 'VIDEO' &&
+              typeof m.url === 'string' &&
+              m.url.length > 0
+          );
+
+        thumbnail_url = findImage('thumbnail')?.url ?? null;
+        banner_image_url = findImage('banner')?.url ?? null;
+        process_image_url = findImage('quy_trinh')?.url ?? null;
+        process_video_url = findVideo('quy_trinh')?.url ?? null;
+        van_hoa_image_url = findImage('van_hoa')?.url ?? null;
+
         // Gallery images: media_category = 'gallery' AND media_type = 'IMAGE'
-        // (Actual database values — NOT 'Quy trinh'/'Image' which don't exist in DB)
         const galleryImages = mediaRows.filter(
           (m: any) =>
             m.media_category === 'gallery' &&
@@ -205,11 +249,54 @@ export class ProductService {
       id: pt.id,
       name: pt.name ?? '',
       overview: pt.overview ?? null,
-      cong_dung: Array.isArray(pt.cong_dung) ? pt.cong_dung : [],
-      lich_su_hinh_thanh: Array.isArray(pt.lich_su_hinh_thanh) ? pt.lich_su_hinh_thanh : [],
-      video_url,
+      cau_chuyen_lich_su_title: pt.cau_chuyen_lich_su_title ?? null,
+      cau_chuyen_lich_su: pt.cau_chuyen_lich_su ?? null,
+      quy_trinh_sx_title: pt.quy_trinh_sx_title ?? null,
+      quy_trinh_sx: pt.quy_trinh_sx ?? null,
+      van_hoa: pt.van_hoa ?? null,
+      thumbnail_url,
+      banner_image_url,
       process_image_url,
+      process_video_url,
+      van_hoa_image_url,
       gallery_image_urls,
     };
+  }
+
+  /**
+   * Returns the distinct POIs that manufacture a given product type, via
+   *   poi.products.product_type_id = <productTypeId>
+   *   AND poi.products.manufacturer_poi_id = poi.pois.id
+   * Used by the "Khám phá nhà sản xuất" card so results are the actual
+   * producer POIs rather than a generic text search on the product name
+   * (many producers' business names don't contain the product name).
+   */
+  static async getManufacturersByProductTypeId(productTypeId: string): Promise<ManufacturerPoi[]> {
+    try {
+      const result = await sql`
+        SELECT DISTINCT ON (p.id)
+          p.id,
+          p.name,
+          p.dia_chi,
+          g.lat,
+          g.lng
+        FROM poi.products pr
+        JOIN poi.pois p ON p.id = pr.manufacturer_poi_id
+        LEFT JOIN poi.poi_geometries g ON g.poi_id = p.id
+        WHERE pr.product_type_id = ${productTypeId}
+          AND pr.manufacturer_poi_id IS NOT NULL
+      `;
+
+      return result.map((raw: any): ManufacturerPoi => ({
+        id: raw.id,
+        name: raw.name ?? '',
+        address: raw.dia_chi || null,
+        lat: raw.lat !== null && raw.lat !== undefined ? Number(raw.lat) : null,
+        lng: raw.lng !== null && raw.lng !== undefined ? Number(raw.lng) : null,
+      }));
+    } catch (err: any) {
+      console.error(`Error fetching manufacturers for product type ${productTypeId}:`, err);
+      throw new Error(`Database Query Failure: ${err.message || err}`);
+    }
   }
 }

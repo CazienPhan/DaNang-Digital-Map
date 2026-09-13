@@ -83,5 +83,38 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Endpoint: GET /api/products/:id/manufacturers
+ *
+ * Returns the distinct POIs that manufacture this product type — used by
+ * the "Khám phá nhà sản xuất" card to show actual producer locations
+ * instead of running a generic text search on the product name.
+ */
+router.get('/:id/manufacturers', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(id as string)) {
+    return res.status(400).json({
+      status: 'INVALID_REQUEST',
+      message: 'id must be a valid UUID.',
+    });
+  }
+
+  try {
+    const manufacturers = await ProductService.getManufacturersByProductTypeId(id as string);
+    return res.status(200).json({
+      status: 'OK',
+      manufacturers,
+    });
+  } catch (error: any) {
+    console.error(`[ProductManufacturersRoute] Failed to get manufacturers for ${id}:`, error);
+    return res.status(500).json({
+      status: 'ERROR',
+      message: error.message || `Error retrieving manufacturers for product type ${id}.`,
+    });
+  }
+});
+
 export default router;
 

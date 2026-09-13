@@ -3,38 +3,53 @@ import React from 'react';
 interface ProductDetailOverviewProps {
   name: string;
   overview: string | null;
+  thumbnailUrl: string | null;
+}
+
+/** Groups words two at a time so long names wrap ~2 words/line; short names stay on one line. */
+function toNameLines(name: string): string[] {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 2) return [words.join(' ')];
+  const lines: string[] = [];
+  for (let i = 0; i < words.length; i += 2) {
+    lines.push(words.slice(i, i + 2).join(' '));
+  }
+  return lines;
 }
 
 /**
- * ProductDetailOverview — Section 2.
- *
- * Displays the product name (product_types.name) and overview
- * (product_types.overview) on a dark-red (#720000) background.
- *
- * Name  → color #ffc14c (amber)
- * Text  → color white
+ * ProductDetailOverview — thumbnail/logo (left) + product name (right, same
+ * row, ~2 words/line), then the overview paragraph. White background.
  */
 export const ProductDetailOverview: React.FC<ProductDetailOverviewProps> = ({
   name,
   overview,
+  thumbnailUrl,
 }) => {
+  const nameLines = toNameLines(name);
+
   return (
-    <section
-      className="relative z-10 mt-12 mb-8 w-full px-6 py-8"
-      style={{ backgroundColor: '#720000' }}
-    >
-      <h1
-        className="text-center text-2xl font-extrabold uppercase leading-tight"
-        style={{ color: '#ffc14c' }}
-      >
-        {name}
-      </h1>
+    <section className="w-full bg-white pt-4 pb-6 ">
+      <div className="flex items-center gap-1.25">
+        {thumbnailUrl && (
+          <img
+            src={thumbnailUrl}
+            alt={name}
+            className="-ml-4 h-32 w-32 shrink-0 object-contain"
+            loading="lazy"
+          />
+        )}
+        <h1 className="font-display min-w-0 flex-1 text-left text-4xl font-bold leading-tight text-foreground">
+          {nameLines.map((line, index) => (
+            <span key={index} className="block whitespace-nowrap">
+              {line}
+            </span>
+          ))}
+        </h1>
+      </div>
 
       {overview && (
-        <p
-          className=" mx-2 mt-4 text-justify text-xs leading-relaxed whitespace-pre-line"
-          style={{ color: 'white' }}
-        >
+        <p className="mt-3 text-justify text-xs leading-relaxed whitespace-pre-line text-muted-foreground">
           {overview}
         </p>
       )}

@@ -61,7 +61,7 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
         type="button"
         aria-label="Cuộn trái"
         onClick={() => scroll('left')}
-        className="absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full shadow-md transition hover:scale-105 active:scale-90"
+        className="absolute left-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full shadow-md transition hover:scale-105 active:scale-90"
         style={{ backgroundColor: 'rgba(255,255,255,0.85)', color: '#720000' }}
       >
         <ChevronLeft size={20} />
@@ -70,12 +70,12 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
       {/* Scrollable image strip */}
       <div
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto scroll-smooth px-10 scrollbar-hidden"
+        className="flex gap-2 overflow-x-auto scroll-smooth px-5 scrollbar-hidden"
       >
         {imageUrls.map((url, index) => (
           <div
             key={index}
-            className="shrink-0 w-[152px] h-[152px] rounded-xl overflow-hidden border border-amber-200"
+            className="shrink-0 w-[152px] h-[152px] overflow-hidden border border-amber-200"
           >
             <img
               src={url}
@@ -92,7 +92,7 @@ export const ProductImageGallery: React.FC<ProductImageGalleryProps> = ({
         type="button"
         aria-label="Cuộn phải"
         onClick={() => scroll('right')}
-        className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full shadow-md transition hover:scale-105 active:scale-90"
+        className="absolute right-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full shadow-md transition hover:scale-105 active:scale-90"
         style={{ backgroundColor: 'rgba(255,255,255,0.85)', color: '#720000' }}
       >
         <ChevronRight size={20} />
