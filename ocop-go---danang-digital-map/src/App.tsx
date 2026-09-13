@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Map as MapIcon, 
   MapPin,
@@ -37,7 +37,38 @@ import {
   ArrowRightLeft
 } from 'lucide-react';
 
+const NAV_LINKS = [
+  { id: 'problem', label: 'Vấn đề' },
+  { id: 'solution', label: 'Giải pháp' },
+  { id: 'demo', label: 'Demo' },
+  { id: 'layers', label: 'Mô hình 5 lớp' },
+  { id: 'business', label: 'Hợp tác' },
+  { id: 'impact', label: 'Tác động' },
+];
+
 function Navbar() {
+  const [activeId, setActiveId] = useState<string>('');
+
+  useEffect(() => {
+    const sections = NAV_LINKS
+      .map(({ id }) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveId(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: '-40% 0px -55% 0px', threshold: 0 }
+    );
+
+    sections.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
@@ -48,12 +79,17 @@ function Navbar() {
           <span className="font-bold text-xl tracking-tight text-slate-900">OCOP GO</span>
         </div>
         <div className="hidden md:flex items-center gap-8 text-base font-medium text-slate-600">
-          <a href="#problem" className="hover:text-teal-600 transition-colors">Vấn đề</a>
-          <a href="#solution" className="hover:text-teal-600 transition-colors">Giải pháp</a>
-          <a href="#demo" className="hover:text-teal-600 transition-colors">Demo</a>
-          <a href="#layers" className="hover:text-teal-600 transition-colors">Mô hình 5 lớp</a>
-          <a href="#business" className="hover:text-teal-600 transition-colors">Hợp tác</a>
-          <a href="#impact" className="hover:text-teal-600 transition-colors">Tác động</a>
+          {NAV_LINKS.map(({ id, label }) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              className={`transition-colors ${
+                activeId === id ? 'text-teal-600 font-semibold' : 'hover:text-teal-600'
+              }`}
+            >
+              {label}
+            </a>
+          ))}
         </div>
         <button className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-slate-800 transition-colors">
           Trở thành Đối tác
@@ -341,14 +377,20 @@ function SystemDemo() {
               <div className="w-3 h-3 rounded-full bg-slate-300"></div>
             </div>
             <div className="mx-auto bg-white rounded-md px-4 py-1.5 text-xs text-slate-500 font-mono flex items-center justify-center gap-2 w-1/2 max-w-sm border border-slate-200 shadow-sm">
-              <MapPin className="w-3 h-3 text-teal-500" /> goocop.vn
+              <MapPin className="w-3 h-3 text-teal-500" /> goocop.vn/map/
             </div>
-            <div className="w-20"></div> {/* spacer to center the address bar */}
+            <a
+              href="https://goocop.vn/map/"
+              className="flex items-center gap-1.5 bg-white text-teal-600 border border-teal-500 text-xs font-semibold px-3 py-1.5 rounded-md hover:bg-teal-50 transition-colors whitespace-nowrap"
+            >
+              Mở trong OCOP GO
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
           {/* Embedded Map iframe */}
           <div className="w-full aspect-square md:aspect-video lg:aspect-[21/9] bg-slate-100 relative">
             <iframe
-              src="https://goocop.vn"
+              src="https://goocop.vn/map/"
               width="100%"
               height="100%"
               style={{ border: 0 }}
