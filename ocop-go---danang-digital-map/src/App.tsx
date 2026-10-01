@@ -2,46 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { 
   Map as MapIcon, 
   MapPin,
-  Layers, 
   Users, 
+  User,
   TrendingUp, 
   Handshake, 
-  ChevronRight, 
   Navigation, 
-  Globe, 
   Building, 
+  Landmark,
   ArrowRight, 
-  ArrowDown,
   BarChart3,
-  Network,
   Store,
   Compass,
-  PieChart,
-  Target,
   ExternalLink,
-  CheckCircle,
-  Search,
-  Filter,
-  Box,
+  Calendar,
+  ShoppingCart,
   Star,
   QrCode,
-  ShoppingBag,
   Crown,
   Megaphone,
   ShieldCheck,
   Database,
   Check,
-  Mountain,
-  Briefcase,
-  Activity,
-  ArrowRightLeft
+  Mountain
 } from 'lucide-react';
 
 const NAV_LINKS = [
   { id: 'problem', label: 'Vấn đề' },
   { id: 'solution', label: 'Giải pháp' },
   { id: 'demo', label: 'Demo' },
-  { id: 'layers', label: 'Mô hình 5 lớp' },
+  { id: 'layers', label: 'Business Model' },
   { id: 'business', label: 'Hợp tác' },
   { id: 'impact', label: 'Tác động' },
 ];
@@ -52,20 +41,19 @@ function Navbar() {
   useEffect(() => {
     const sections = NAV_LINKS
       .map(({ id }) => document.getElementById(id))
-      .filter((el): el is HTMLElement => el !== null);
+      .filter((element): element is HTMLElement => element !== null);
 
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
-        });
+        const activeEntry = entries.find((entry) => entry.isIntersecting);
+        if (activeEntry) {
+          setActiveId(activeEntry.target.id);
+        }
       },
       { rootMargin: '-40% 0px -55% 0px', threshold: 0 }
     );
 
-    sections.forEach((el) => observer.observe(el));
+    sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
   }, []);
 
@@ -114,13 +102,10 @@ function Hero() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 relative z-10 text-center">
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-normal text-white mb-8 max-w-4xl mx-auto leading-normal drop-shadow-xl uppercase">
+        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-12 max-w-4xl mx-auto leading-[1.1] drop-shadow-xl">
           Bản đồ số và nền tảng hệ sinh thái địa phương.
         </h1>
 
-        <p className="text-xl md:text-xl text-slate-300 mb-12 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-md">
-          Nền tảng kết nối du khách với địa điểm, doanh nghiệp, sản phẩm và trải nghiệm địa phương trong một hành trình thống nhất.
-        </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <a href="/map/" className="w-full sm:w-auto px-8 py-4 bg-teal-500 text-white rounded-full font-semibold hover:bg-teal-400 hover:scale-105 transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-900/50">
             KHÁM PHÁ NỀN TẢNG
@@ -175,7 +160,7 @@ function Problem() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
           {problems.map((item, idx) => (
             <div key={idx} className={`rounded-3xl p-10 border transition-all hover:shadow-xl ${item.colorClass}`}>
-              <div className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-normal mb-6 border ${item.badgeColor}`}>
+              <div className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6 border ${item.badgeColor}`}>
                 {item.target}
               </div>
               <h3 className={`text-xl font-bold mb-4 ${item.titleColor}`}>
@@ -193,223 +178,291 @@ function Problem() {
 }
 
 function Solution() {
+  const stakeholders = [
+    {
+      icon: Landmark,
+      title: 'Cơ quan quản lý',
+      desc: 'Minh bạch dữ liệu'
+    },
+    {
+      icon: Store,
+      title: 'Doanh nghiệp',
+      desc: 'Tăng cơ hội kinh doanh'
+    },
+    {
+      icon: User,
+      title: 'Du khách',
+      desc: 'Trải nghiệm trọn vẹn'
+    },
+    {
+      icon: Users,
+      title: 'Cộng đồng',
+      desc: 'Phát triển bền vững'
+    }
+  ];
+
+  const leftFlowCards = [
+    {
+      num: '01',
+      title: 'Dữ liệu',
+      desc: 'Thông tin doanh nghiệp, sản phẩm, địa điểm và thông tin OCOP được số hóa.',
+      icon: Database,
+      circleBg: 'bg-teal-500 shadow-teal-500/30',
+      textColor: 'text-teal-500'
+    },
+    {
+      num: '02',
+      title: 'Khám phá',
+      desc: 'Khách hàng tìm thấy sản phẩm, doanh nghiệp, địa điểm và trải nghiệm phù hợp.',
+      icon: MapPin,
+      circleBg: 'bg-violet-500 shadow-violet-500/30',
+      textColor: 'text-violet-500'
+    },
+    {
+      num: '03',
+      title: 'Lập kế hoạch',
+      desc: 'Người dùng đưa những điểm quan tâm vào itinerary để lên kế hoạch trải nghiệm.',
+      icon: Calendar,
+      circleBg: 'bg-emerald-500 shadow-emerald-500/30',
+      textColor: 'text-emerald-500'
+    }
+  ];
+
+  const rightFlowCards = [
+    {
+      num: '04',
+      title: 'Trải nghiệm',
+      desc: 'Nền tảng biến khám phá trực tuyến thành lưu lượng khách hàng thực tế.',
+      icon: Navigation,
+      circleBg: 'bg-amber-400 shadow-amber-400/30',
+      textColor: 'text-amber-500'
+    },
+    {
+      num: '05',
+      title: 'Thương mại',
+      desc: 'Thúc đẩy giao dịch mua sắm tại điểm bán và trực tuyến.',
+      icon: ShoppingCart,
+      circleBg: 'bg-rose-400 shadow-rose-400/30',
+      textColor: 'text-rose-500'
+    },
+    {
+      num: '06',
+      title: 'Phân tích',
+      desc: 'Hệ thống thu thập, phân tích và trả về dữ liệu giá trị.',
+      icon: BarChart3,
+      circleBg: 'bg-indigo-500 shadow-indigo-500/30',
+      textColor: 'text-indigo-500'
+    }
+  ];
+
+  const loopSteps = [
+    { label: 'Dữ liệu', icon: Database, circleBg: 'bg-teal-500 shadow-teal-500/30' },
+    { label: 'Khám phá', icon: MapPin, circleBg: 'bg-violet-500 shadow-violet-500/30' },
+    { label: 'Trải nghiệm', icon: Star, circleBg: 'bg-amber-400 shadow-amber-400/30' },
+    { label: 'Thương mại', icon: ShoppingCart, circleBg: 'bg-rose-400 shadow-rose-400/30' },
+    { label: 'Phân tích', icon: BarChart3, circleBg: 'bg-indigo-500 shadow-indigo-500/30' }
+  ];
+
   return (
-    <section id="solution" className="py-32 bg-slate-900 text-white overflow-hidden">
+    <section id="solution" className="py-24 md:py-32 bg-gradient-to-b from-[#F2FBF9] via-[#EBF8F5] to-[#F4FBF9] text-slate-900 overflow-hidden border-t border-teal-100/60">
       <div className="max-w-[1440px] mx-auto px-6">
         
-        {/* Tầng 1 — Statement */}
-        <div className="text-center mb-24 relative z-10">
-          <h2 className="text-xs font-bold tracking-normal text-teal-400 uppercase mb-8">GIẢI PHÁP CỦA CHÚNG TÔI</h2>
-          <h3 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 tracking-normal leading-normal">
-            MỘT NỀN TẢNG.<br />ĐA KẾT NỐI.
-          </h3>
-          <p className="text-lg md:text-xl text-slate-400 max-w-3xl mx-auto font-light leading-relaxed">
-            Một lớp hạ tầng số kết nối cơ quan quản lý, sản phẩm OCOP, du lịch và khách hàng trong cùng một hệ sinh thái.
-          </p>
-        </div>
-
-        {/* Tầng 4 — “How the platform creates value” */}
-        <div className="max-w-4xl mx-auto mb-40">
-          <div className="text-center mb-20">
-            <h3 className="text-xs font-bold tracking-normal text-teal-400 uppercase mb-4">LUỒNG TẠO GIÁ TRỊ</h3>
-            <h4 className="text-3xl md:text-4xl font-black text-white tracking-tight">Cách nền tảng tạo ra giá trị...</h4>
+        {/* Tầng 1 — Header 2 cột cân xứng: Một nền tảng. Đa kết nối. + 4 đối tượng thụ hưởng */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center mb-24">
+          <div className="lg:col-span-5 text-center">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <span className="w-6 h-[1.5px] bg-teal-500"></span>
+              <h2 className="text-xs font-bold tracking-widest text-teal-600 uppercase">
+                GIẢI PHÁP CỦA CHÚNG TÔI
+              </h2>
+              <span className="w-6 h-[1.5px] bg-teal-500"></span>
+            </div>
+            <h3 className="text-4xl md:text-5xl lg:text-[56px] font-black text-slate-900 tracking-normal leading-[1.12] uppercase">
+              Một nền tảng.<br />
+              <span className="text-teal-600">Đa kết nối.</span>
+            </h3>
           </div>
 
-          <div className="relative">
-            {/* Vertical connection line removed */}
+          <div className="lg:col-span-7">
+            <div className="bg-white/95 backdrop-blur-md rounded-[2.25rem] p-6 md:p-8 shadow-xl shadow-teal-900/5 border border-white">
+              <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+                {stakeholders.map((item, idx) => (
+                  <div key={idx} className="px-4 py-3 sm:py-1 flex flex-col items-center text-center">
+                    <div className="w-12 h-12 rounded-2xl bg-teal-50/80 text-teal-600 flex items-center justify-center mb-3">
+                      <item.icon className="w-6 h-6 stroke-[1.75]" />
+                    </div>
+                    <h4 className="text-sm md:text-base font-bold text-slate-900 mb-1">
+                      {item.title}
+                    </h4>
+                    <p className="text-xs text-slate-500 leading-snug">
+                      {item.desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tầng 2 — 3 Cột đồng bộ chiều cao (01-03, OCOP GO Demo mở rộng ở giữa, 04-06) */}
+        <div id="demo" className="mb-28 scroll-mt-24 w-screen relative left-1/2 -translate-x-1/2 max-w-[1920px] px-4 md:px-6 xl:px-10">
+          <div className="flex flex-col xl:flex-row gap-6 lg:gap-6 items-stretch">
             
-            <div className="space-y-12">
-              {/* 01 DATA */}
-              <div className="flex flex-col md:flex-row gap-6 md:gap-10 relative z-10 group">
-                <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shadow-xl group-hover:border-blue-500/50 transition-colors">
-                  <span className="text-slate-400 font-bold text-lg md:text-xl group-hover:text-blue-400 transition-colors">01</span>
-                </div>
-                <div className="pt-2 md:pt-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Database className="w-5 h-5 text-blue-400" />
-                    <h5 className="text-xl font-bold text-white tracking-normal">Dữ Liệu: Thông tin doanh nghiệp & sản phẩm</h5>
+            {/* Cột Trái — 01 Dữ liệu, 02 Khám phá, 03 Lập kế hoạch */}
+            <div className="w-full xl:w-[260px] 2xl:w-[290px] shrink-0 order-2 xl:order-1 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-1 gap-5">
+              {leftFlowCards.map((card) => (
+                <div
+                  key={card.num}
+                  className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 shadow-lg shadow-teal-950/5 border border-white hover:border-teal-200 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-center"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-full ${card.circleBg} text-white flex items-center justify-center shadow-lg shrink-0`}>
+                      <card.icon className="w-5 h-5" />
+                    </div>
+                    <span className={`text-lg font-bold leading-none pt-1 ${card.textColor}`}>
+                      {card.num}
+                    </span>
                   </div>
-                  <p className="text-slate-400 leading-relaxed text-base">Doanh nghiệp, sản phẩm, địa điểm, chứng nhận, điểm bán và thông tin OCOP được số hóa.</p>
+                  <h5 className={`text-lg font-bold mb-2 ${card.textColor}`}>
+                    {card.title}
+                  </h5>
+                  <p className="text-sm text-slate-500 leading-relaxed">
+                    {card.desc}
+                  </p>
                 </div>
-              </div>
+              ))}
+            </div>
 
-              {/* 02 DISCOVERY */}
-              <div className="flex flex-col md:flex-row gap-6 md:gap-10 relative z-10 group">
-                <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shadow-xl group-hover:border-teal-500/50 transition-colors">
-                  <span className="text-slate-400 font-bold text-lg md:text-xl group-hover:text-teal-400 transition-colors">02</span>
-                </div>
-                <div className="pt-2 md:pt-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Search className="w-5 h-5 text-teal-400" />
-                    <h5 className="text-xl font-bold text-white tracking-normal">Khám phá: Tiếp cận giá trị địa phương</h5>
+            {/* Cột Giữa — Giao diện bản đồ OCOP GO DEMO (Mở rộng chiều ngang tương đương ảnh Business Model) */}
+            <div className="flex-1 min-w-0 order-1 xl:order-2 flex flex-col">
+              {/* Browser / Map Mockup container */}
+              <div className="rounded-3xl overflow-hidden border border-slate-200 shadow-2xl shadow-teal-950/10 bg-white flex flex-col h-full min-h-[460px] lg:min-h-[580px] w-full">
+                {/* Browser Header */}
+                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3.5 flex items-center justify-between shrink-0">
+                  <div className="flex gap-1.5 w-20">
+                    <div className="w-3 h-3 rounded-full bg-slate-300"></div>
+                    <div className="w-3 h-3 rounded-full bg-slate-300"></div>
+                    <div className="w-3 h-3 rounded-full bg-slate-300"></div>
                   </div>
-                  <p className="text-slate-400 leading-relaxed text-base">Khách hàng tìm thấy sản phẩm, doanh nghiệp, địa điểm và trải nghiệm phù hợp.</p>
-                </div>
-              </div>
-
-              {/* 03 PLANNING */}
-              <div className="flex flex-col md:flex-row gap-6 md:gap-10 relative z-10 group">
-                <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shadow-xl group-hover:border-slate-400/50 transition-colors">
-                  <span className="text-slate-400 font-bold text-lg md:text-xl group-hover:text-slate-300 transition-colors">03</span>
-                </div>
-                <div className="pt-2 md:pt-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <MapPin className="w-5 h-5 text-slate-300" />
-                    <h5 className="text-xl font-bold text-white tracking-normal">Lập kế hoạch: Biến khám phá thành hành trình</h5>
+                  <div className="mx-auto bg-white rounded-md px-4 py-1.5 text-xs text-slate-500 font-mono flex items-center justify-center gap-2 w-1/2 max-w-sm border border-slate-200 shadow-sm">
+                    <MapPin className="w-3 h-3 text-teal-500" /> goocop.vn/map/
                   </div>
-                  <p className="text-slate-400 leading-relaxed text-base">Người dùng đưa những điểm quan tâm vào itinerary để lên kế hoạch trải nghiệm.</p>
+                  <a
+                    href="/map/"
+                    className="flex items-center gap-1.5 bg-white text-teal-600 border border-teal-500 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-teal-50 transition-colors whitespace-nowrap"
+                  >
+                    Mở trong OCOP GO
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
-              </div>
-
-              {/* 04 VISIT */}
-              <div className="flex flex-col md:flex-row gap-6 md:gap-10 relative z-10 group">
-                <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shadow-xl group-hover:border-emerald-500/50 transition-colors">
-                  <span className="text-slate-400 font-bold text-lg md:text-xl group-hover:text-emerald-400 transition-colors">04</span>
-                </div>
-                <div className="pt-2 md:pt-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Navigation className="w-5 h-5 text-emerald-400" />
-                    <h5 className="text-xl font-bold text-white tracking-normal">Trải nghiệm: Thúc đẩy lượng khách thực tế</h5>
-                  </div>
-                  <p className="text-slate-400 leading-relaxed text-base mb-4">Nền tảng biến khám phá trực tuyến thành lưu lượng khách hàng thực tế:</p>
-                  <div className="flex items-center flex-wrap gap-2 text-[11px] uppercase tracking-normal font-bold text-emerald-400/90 bg-emerald-900/10 w-fit px-4 py-2 rounded-xl border border-emerald-800/30">
-                    <span>Chỉ đường</span> <ArrowRight className="w-3 h-3 text-emerald-800" /> 
-                    <span>Điểm đến</span> <ArrowRight className="w-3 h-3 text-emerald-800" /> 
-                    <span>Quét QR</span> <ArrowRight className="w-3 h-3 text-emerald-800" /> 
-                    <span>Trải nghiệm</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 05 COMMERCE */}
-              <div className="flex flex-col md:flex-row gap-6 md:gap-10 relative z-10 group">
-                <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shadow-xl group-hover:border-orange-500/50 transition-colors">
-                  <span className="text-slate-400 font-bold text-lg md:text-xl group-hover:text-orange-400 transition-colors">05</span>
-                </div>
-                <div className="pt-2 md:pt-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <ShoppingBag className="w-5 h-5 text-orange-400" />
-                    <h5 className="text-xl font-bold text-white tracking-normal">Thương mại: Tạo ra giá trị kinh tế</h5>
-                  </div>
-                  <p className="text-slate-400 leading-relaxed text-base mb-4">Thúc đẩy giao dịch mua sắm tại điểm bán và trực tuyến:</p>
-                  <div className="flex items-center flex-wrap gap-2 text-[11px] uppercase tracking-normal font-bold text-orange-400/90 bg-orange-900/10 w-fit px-4 py-2 rounded-xl border border-orange-800/30">
-                    <span>Ghé thăm</span> <ArrowRight className="w-3 h-3 text-orange-800" /> 
-                    <span>Mua sắm</span> <ArrowRight className="w-3 h-3 text-orange-800" /> 
-                    <span>Đặt hàng</span> <ArrowRight className="w-3 h-3 text-orange-800" /> 
-                    <span>Kết nối</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 06 INTELLIGENCE */}
-              <div className="flex flex-col md:flex-row gap-6 md:gap-10 relative z-10 group">
-                <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shadow-xl group-hover:border-blue-500/50 transition-colors">
-                  <span className="text-slate-400 font-bold text-lg md:text-xl group-hover:text-blue-400 transition-colors">06</span>
-                </div>
-                <div className="pt-2 md:pt-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Activity className="w-5 h-5 text-blue-400" />
-                    <h5 className="text-xl font-bold text-white tracking-normal">Phân tích: Khai thác dữ liệu hệ sinh thái</h5>
-                  </div>
-                  <p className="text-slate-400 leading-relaxed text-base mb-4">Hệ thống thu thập, phân tích và trả về dữ liệu giá trị:</p>
-                  <div className="flex items-center flex-wrap gap-2 text-[11px] uppercase tracking-normal font-bold text-blue-400/90 bg-blue-900/10 w-fit px-4 py-2 rounded-xl border border-blue-800/30">
-                    <span>Nhu cầu</span> <ArrowRight className="w-3 h-3 text-blue-800" /> 
-                    <span>Hành vi</span> <ArrowRight className="w-3 h-3 text-blue-800" /> 
-                    <span>Mức quan tâm</span> <ArrowRight className="w-3 h-3 text-blue-800" /> 
-                    <span>Hiệu quả kinh doanh</span>
-                  </div>
+                {/* Embedded Map iframe */}
+                <div className="w-full flex-1 aspect-square md:aspect-video xl:aspect-auto bg-slate-100 relative">
+                  {(typeof window === 'undefined' || window.self === window.top) && (
+                  <iframe 
+                    src="/map/" 
+                    title="OCOP GO Digital Map Demo"
+                    width="100%" 
+                    height="100%" 
+                    style={{ border: 0 }} 
+                    allowFullScreen={true} 
+                    loading="lazy" 
+                    referrerPolicy="no-referrer-when-downgrade"
+                    className="absolute inset-0 w-full h-full"
+                  ></iframe>
+                  )}
                 </div>
               </div>
             </div>
+
+            {/* Cột Phải — 04 Trải nghiệm, 05 Thương mại, 06 Phân tích */}
+            <div className="w-full xl:w-[260px] 2xl:w-[290px] shrink-0 order-3 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-1 gap-5">
+              {rightFlowCards.map((card) => (
+                <div
+                  key={card.num}
+                  className="bg-white/95 backdrop-blur-sm rounded-3xl p-6 shadow-lg shadow-teal-950/5 border border-white hover:border-teal-200 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-center"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-full ${card.circleBg} text-white flex items-center justify-center shadow-lg shrink-0`}>
+                      <card.icon className="w-5 h-5" />
+                    </div>
+                    <span className={`text-lg font-bold leading-none pt-1 ${card.textColor}`}>
+                      {card.num}
+                    </span>
+                  </div>
+                  <h5 className={`text-lg font-bold mb-2 ${card.textColor}`}>
+                    {card.title}
+                  </h5>
+                  <p className="text-sm text-slate-500 leading-relaxed">
+                    {card.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+
           </div>
         </div>
 
-        {/* Tầng 5 — The Loop */}
-        <div className="max-w-4xl mx-auto bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-600 shadow-2xl shadow-teal-900/30 rounded-[3rem] p-10 md:p-16 text-center relative overflow-hidden">
-          {/* Background effects */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] bg-teal-500/10 blur-3xl rounded-full"></div>
-          
-          <h3 className="text-3xl md:text-4xl font-black text-white mb-6 tracking-tight leading-tight">
-            Hệ sinh thái thông minh hơn <br className="hidden md:block"/>qua từng tương tác.
-          </h3>
-          <p className="text-slate-400 max-w-2xl mx-auto mb-12 text-base md:text-lg leading-relaxed text-center">
-            OCOP GO hình thành một vòng lặp khép kín: dữ liệu doanh nghiệp và địa phương được số hóa, chuyển thành khả năng khám phá, trải nghiệm và thương mại; mỗi tương tác lại tạo thêm dữ liệu để tiếp tục phân tích và hoàn thiện hệ thống. Càng nhiều doanh nghiệp và khách hàng tham gia, vòng lặp càng được làm giàu, tạo nên một hệ sinh thái ngày càng thông minh, kết nối và hiệu quả hơn.          
+        {/* Tầng 3 — HỆ SINH THÁI THÔNG MINH HƠN: Qua từng tương tác */}
+        <div className="max-w-5xl mx-auto text-center pt-4">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <span className="w-10 h-[1.5px] bg-teal-400/70"></span>
+            <h3 className="text-xs font-bold tracking-widest text-teal-600 uppercase">
+              HỆ SINH THÁI THÔNG MINH HƠN
+            </h3>
+            <span className="w-10 h-[1.5px] bg-teal-400/70"></span>
+          </div>
+
+          <h4 className="text-3xl md:text-5xl font-black text-slate-900 mb-5 tracking-tight">
+            Qua từng tương tác.
+          </h4>
+
+          <p className="text-slate-600 max-w-2xl mx-auto mb-14 text-base md:text-lg leading-relaxed">
+            OCOP GO vận hành theo một vòng lặp khép kín: dữ liệu số hóa thúc đẩy khám phá, trải nghiệm và thương mại; mỗi tương tác lại tạo ra dữ liệu phân tích giúp hệ sinh thái ngày càng thông minh và hiệu quả hơn.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 md:gap-5 text-xs md:text-sm font-bold text-slate-300">
-            <span className="text-blue-400">DỮ LIỆU</span>
-            <ArrowRight className="w-4 h-4 text-slate-600" />
-            <span className="text-teal-400">KHÁM PHÁ</span>
-            <ArrowRight className="w-4 h-4 text-slate-600" />
-            <span className="text-emerald-400">TRẢI NGHIỆM</span>
-            <ArrowRight className="w-4 h-4 text-slate-600" />
-            <span className="text-orange-400">THƯƠNG MẠI</span>
-            <ArrowRight className="w-4 h-4 text-slate-600" />
-            <span className="text-indigo-400">PHÂN TÍCH</span>
-            <ArrowRight className="w-4 h-4 text-slate-600" />
-            <span className="text-blue-400">DỮ LIỆU</span>
+
+          {/* 5 hình tròn chu trình khép kín */}
+          <div className="relative max-w-4xl mx-auto">
+            <div className="flex flex-wrap md:flex-nowrap items-center justify-center gap-4 md:gap-3 lg:gap-5 relative z-10">
+              {loopSteps.map((step, index) => (
+                <React.Fragment key={step.label}>
+                  <div className="w-28 h-28 md:w-36 md:h-36 rounded-full bg-white shadow-xl shadow-teal-950/5 border border-teal-50 flex flex-col items-center justify-center gap-2.5 shrink-0 hover:-translate-y-1 transition-transform duration-300">
+                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full ${step.circleBg} text-white flex items-center justify-center shadow-md`}>
+                      <step.icon className="w-5 h-5 md:w-6 md:h-6" />
+                    </div>
+                    <span className="text-xs md:text-sm font-bold text-slate-800">
+                      {step.label}
+                    </span>
+                  </div>
+                  {index < loopSteps.length - 1 && (
+                    <ArrowRight className="w-5 h-5 text-violet-300 hidden md:block shrink-0" />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Đường vòng cung phản hồi bên dưới: Tạo giá trị bền vững */}
+            <div className="hidden md:flex flex-col items-center mt-2 relative">
+              <svg className="w-3/4 h-12 text-teal-400/70 overflow-visible" viewBox="0 0 600 50" fill="none">
+                <path
+                  d="M 560 5 C 560 42, 40 42, 40 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  fill="none"
+                />
+                <polygon points="36,10 40,2 45,9" fill="currentColor" />
+              </svg>
+              <span className="-mt-6 px-4 py-1 bg-[#EFF9F7] text-teal-700 font-bold text-xs md:text-sm rounded-full">
+                Tạo giá trị bền vững
+              </span>
+            </div>
+            <div className="md:hidden mt-6">
+              <span className="inline-block px-4 py-1.5 bg-white/80 border border-teal-200 text-teal-700 font-bold text-xs rounded-full shadow-sm">
+                ↻ Tạo giá trị bền vững
+              </span>
+            </div>
           </div>
         </div>
 
-      </div>
-    </section>
-  );
-}
-
-function SystemDemo() {
-  return (
-    <section id="demo" className="py-24 bg-white border-y border-slate-100">
-      <div className="max-w-[1440px] mx-auto px-6">
-        <div className="text-center mb-16 max-w-4xl mx-auto">
-          <h2 className="text-xs font-bold tracking-normal text-teal-600 uppercase mb-4">Trải nghiệm thực tế</h2>
-          <h3 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">OCOP GO DEMO</h3>
-          <p className="text-lg md:text-xl text-slate-600 font-light">
-            Khám phá trực tiếp cách hệ sinh thái bản đồ số kết nối điểm đến, sản phẩm và trải nghiệm.
-          </p>
-        </div>
-        
-        {/* Browser / Map Mockup container */}
-        <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-2xl shadow-teal-900/5 bg-white">
-          {/* Browser Header */}
-          <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-            <div className="flex gap-1.5 w-20">
-              <div className="w-3 h-3 rounded-full bg-slate-300"></div>
-              <div className="w-3 h-3 rounded-full bg-slate-300"></div>
-              <div className="w-3 h-3 rounded-full bg-slate-300"></div>
-            </div>
-            <div className="mx-auto bg-white rounded-md px-4 py-1.5 text-xs text-slate-500 font-mono flex items-center justify-center gap-2 w-1/2 max-w-sm border border-slate-200 shadow-sm">
-              <MapPin className="w-3 h-3 text-teal-500" /> goocop.vn/map/
-            </div>
-            <a
-              href="/map/"
-              className="flex items-center gap-1.5 bg-white text-teal-600 border border-teal-500 text-xs font-semibold px-3 py-1.5 rounded-md hover:bg-teal-50 transition-colors whitespace-nowrap"
-            >
-              Mở trong OCOP GO
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-          {/* Embedded Map iframe */}
-          <div className="w-full aspect-square md:aspect-video lg:aspect-[21/9] bg-slate-100 relative">
-            {/*
-              /map/ is served by the separate Map app — nginx in production, the
-              dev proxy in vite.config.ts locally. If that route were ever
-              misconfigured and fell back to this landing page, the iframe would
-              load the landing inside itself, over and over. Embedding only when
-              this page is the top-level window caps that at one level.
-            */}
-            {(typeof window === 'undefined' || window.self === window.top) && (
-              <iframe
-                src="/map/"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen={true}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                className="absolute inset-0 w-full h-full"
-              ></iframe>
-            )}
-          </div>
-        </div>
       </div>
     </section>
   );
@@ -420,8 +473,8 @@ function FiveLayerPlatform() {
     <section id="layers" className="py-24 bg-[#F8F9FA] border-y border-slate-200">
       <div className="max-w-[1440px] mx-auto px-6">
         <div className="text-center mb-16 max-w-4xl mx-auto">
-          <h2 className="text-xs font-bold tracking-normal text-teal-700 uppercase mb-4">Mô hình cốt lõi</h2>
-          <h3 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">MÔ HÌNH 5 LỚP</h3>
+          <h2 className="text-xs font-bold tracking-widest text-teal-700 uppercase mb-4">Mô hình cốt lõi</h2>
+          <h3 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">BUSINESS MODEL</h3>
           <p className="text-lg md:text-xl text-slate-500 font-light leading-relaxed">
             OCOP GO lấy số hóa doanh nghiệp và dữ liệu địa phương làm nền tảng, từng bước mở rộng qua khám phá, lên kế hoạch, trải nghiệm và thương mại. Mỗi lớp vừa tạo thêm giá trị, vừa làm giàu dữ liệu cho lớp tiếp theo, đưa OCOP GO trở thành nền tảng kết nối và dữ liệu cho hệ sinh thái địa phương.
           </p>
@@ -509,7 +562,7 @@ function BusinessModel() {
       <div className="max-w-[1440px] mx-auto px-6">
         <div className="mb-12 max-w-4xl mx-auto text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <span className="text-xs font-bold tracking-normal text-teal-700 uppercase">MÔ HÌNH HỢP TÁC</span>
+            <span className="text-xs font-bold tracking-widest text-teal-700 uppercase">MÔ HÌNH HỢP TÁC</span>
           </div>
           <h3 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight leading-tight">
             Hệ sinh thái mở.<br />
@@ -552,7 +605,7 @@ function BusinessModel() {
            
            <div className="flex flex-col xl:flex-row items-center gap-8 relative z-10">
               <div className="flex flex-col xl:w-1/3 w-full text-center xl:text-left">
-                 <h5 className="text-teal-400 font-bold text-sm tracking-normal uppercase mb-2">GIÁ TRỊ DOANH NGHIỆP</h5>
+                 <h5 className="text-teal-400 font-bold text-sm tracking-widest uppercase mb-2">GIÁ TRỊ DOANH NGHIỆP</h5>
                  <p className="text-white font-bold text-xl md:text-2xl leading-snug">Tăng nhận diện. Thêm khách hàng. Tăng trưởng mạnh mẽ.</p>
               </div>
 
@@ -561,35 +614,35 @@ function BusinessModel() {
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <Megaphone className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Tăng nhận diện<br/>thương hiệu</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Tăng nhận diện<br/>thương hiệu</span>
                  </div>
                  
                  <div className="flex items-center gap-3 relative xl:before:content-[''] xl:before:absolute xl:before:-left-2 xl:before:top-1/2 xl:before:-translate-y-1/2 xl:before:w-px xl:before:h-8 xl:before:bg-teal-800/50">
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <MapPin className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Tăng khách đến<br/>điểm bán</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Tăng khách đến<br/>điểm bán</span>
                  </div>
                  
                  <div className="flex items-center gap-3 relative xl:before:content-[''] xl:before:absolute xl:before:-left-2 xl:before:top-1/2 xl:before:-translate-y-1/2 xl:before:w-px xl:before:h-8 xl:before:bg-teal-800/50">
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <TrendingUp className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Tăng lead /<br/>đơn hàng</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Tăng lead /<br/>đơn hàng</span>
                  </div>
                  
                  <div className="flex items-center gap-3 relative xl:before:content-[''] xl:before:absolute xl:before:-left-2 xl:before:top-1/2 xl:before:-translate-y-1/2 xl:before:w-px xl:before:h-8 xl:before:bg-teal-800/50">
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <Database className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Có dữ liệu<br/>đo lường</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Có dữ liệu<br/>đo lường</span>
                  </div>
                  
                  <div className="flex items-center gap-3 relative xl:before:content-[''] xl:before:absolute xl:before:-left-2 xl:before:top-1/2 xl:before:-translate-y-1/2 xl:before:w-px xl:before:h-8 xl:before:bg-teal-800/50">
                     <div className="w-10 h-10 rounded-full border border-teal-600/50 flex items-center justify-center shrink-0 bg-teal-800/30 text-teal-300">
                        <ShieldCheck className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-normal">Tăng mức độ<br/>tin cậy</span>
+                    <span className="text-[11px] font-bold leading-tight text-white uppercase tracking-wide">Tăng mức độ<br/>tin cậy</span>
                  </div>
               </div>
            </div>
@@ -617,7 +670,7 @@ function Impact() {
       
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center mb-16">
-          <h2 className="text-xs font-bold tracking-normal text-teal-400 uppercase mb-4">Giá trị cốt lõi</h2>
+          <h2 className="text-xs font-bold tracking-widest text-teal-400 uppercase mb-4">Giá trị cốt lõi</h2>
           <h3 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">TÁC ĐỘNG ĐẾN HỆ SINH THÁI</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -627,7 +680,7 @@ function Impact() {
                 <item.icon className="w-7 h-7" />
               </div>
               <h4 className="text-xl font-bold text-white mb-1">{item.title}</h4>
-              <p className="text-[10px] font-bold uppercase tracking-normal text-slate-400 mb-4">{item.subtitle}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">{item.subtitle}</p>
               <p className="text-slate-300 leading-relaxed text-base">{item.desc}</p>
             </div>
           ))}
@@ -676,7 +729,6 @@ export default function App() {
       <Hero />
       <Problem />
       <Solution />
-      <SystemDemo />
       <FiveLayerPlatform />
       <BusinessModel />
       <Impact />
