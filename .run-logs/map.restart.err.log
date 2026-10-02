@@ -1,0 +1,166 @@
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6559/3727/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6562/3728/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6559/3728/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6561/3726/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6562/3726/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6561/3728/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6559/3726/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6560/3726/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6561/3725/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6560/3727/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6561/3727/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6560/3728/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6560/3725/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6562/3725/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6562/3727/13: TypeError: Failed to fetch
+    at http://localhost:5173/map/src/features/map/components/MapContainer.tsx:561:24
+    at Array.map (<anonymous>)
+    at t.refreshPois [as _eventCallback] (http://localhost:5173/map/src/features/map/components/MapContainer.tsx:559:48)
+    at https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028748
+    at Array.forEach (<anonymous>)
+    at t.notify (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:1028718)
+    at e.notifyCameraDidChange (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:201782)
+    at onUpdateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:216360)
+    at t.updateTransitions (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:217053)
+    at e.update (https://api.map4d.vn/sdk/map/js?version=2.6&key=bf8f1c62d2c93bc720a8e12ba9ac0af7&callback=__map4d_init_callback__:2:176248)
+10:08:41 PM [vite] (client) [console.error] Failed to fetch POI tile 6558/3727/13: TypeError: Failed to fetch
