@@ -1,0 +1,297 @@
+[PlaceSearchController] search error: i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:61:24)
+    at async PlaceSearchController.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceSearchController.ts:136:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 13:50:34 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/pois/search'
+  }
+}
+[PlaceAutocompleteController] autocomplete FAILED
+  query      : đo
+  index name : pois
+  error      : i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:97:24)
+    at async PlaceAutocompleteController.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceAutocompleteController.ts:43:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 13:51:22 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/pois/search'
+  }
+}
+  stack      : MeilisearchApiError: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:97:24)
+    at async PlaceAutocompleteController.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceAutocompleteController.ts:43:17)
+[PlaceAutocompleteController] autocomplete FAILED
+  query      : đô
+  index name : pois
+  error      : i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:97:24)
+    at async PlaceAutocompleteController.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceAutocompleteController.ts:43:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 13:51:23 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/pois/search'
+  }
+}
+  stack      : MeilisearchApiError: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:97:24)
+    at async PlaceAutocompleteController.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceAutocompleteController.ts:43:17)
+[PlaceSearchController] search error: i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:61:24)
+    at async PlaceSearchController.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceSearchController.ts:136:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 13:51:25 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/pois/search'
+  }
+}
+[ProductAutocompleteController] autocomplete FAILED
+  query      : Cơ sở sản xuất Bánh Khô mè Bà Liễu Mẹ
+  index name : products
+  error      : i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async ProductSearchService.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\ProductSearchService.ts:68:24)
+    at async ProductAutocompleteController.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\ProductAutocompleteController.ts:40:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 13:53:01 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/products/search'
+  }
+}
+  stack      : MeilisearchApiError: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async ProductSearchService.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\ProductSearchService.ts:68:24)
+    at async ProductAutocompleteController.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\ProductAutocompleteController.ts:40:17)
+[ProductSearchController] search error: i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async ProductSearchService.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\ProductSearchService.ts:32:24)
+    at async ProductSearchController.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\ProductSearchController.ts:39:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 13:53:03 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/products/search'
+  }
+}
+[SearchRuleService] Failed to fetch rule "search_instant_business": Meilisearch returned HTTP 404 for rule "search_instant_business": {"error":"Instance does not exist or is not ready yet"}
+[SearchRuleService] No cache available; using fallback pin count: 5
+[PlaceSearchController] search error: i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:61:24)
+    at async PlaceSearchController.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceSearchController.ts:154:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 14:23:02 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/pois/search'
+  }
+}
+[SearchRuleService] Failed to fetch rule "search_instant_business": Meilisearch returned HTTP 404 for rule "search_instant_business": {"error":"Instance does not exist or is not ready yet"}
+[SearchRuleService] No cache available; using fallback pin count: 5
+[PlaceSearchController] search error: i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:61:24)
+    at async PlaceSearchController.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceSearchController.ts:154:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 14:23:03 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/pois/search'
+  }
+}
+[PlaceAutocompleteController] autocomplete FAILED
+  query      : càu
+  index name : pois
+  error      : i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:97:24)
+    at async PlaceAutocompleteController.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceAutocompleteController.ts:43:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 14:23:21 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/pois/search'
+  }
+}
+  stack      : MeilisearchApiError: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:97:24)
+    at async PlaceAutocompleteController.autocomplete (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceAutocompleteController.ts:43:17)
+[PlaceSearchController] search error: i [MeilisearchApiError]: 404: Not Found
+    at _.#o (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/http-requests.ts:267:13)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async C.search (file:///D:/Onedrive/Documents/DaNang-Digital-Map/backend/node_modules/meilisearch/src/indexes.ts:110:12)
+    at async PoiSearchService.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\meilisearch\services\PoiSearchService.ts:61:24)
+    at async PlaceSearchController.search (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\controllers\PlaceSearchController.ts:154:17) {
+  cause: { error: 'Instance does not exist or is not ready yet' },
+  response: Response {
+    status: 404,
+    statusText: 'Not Found',
+    headers: Headers {
+      'content-type': 'application/json',
+      'content-length': '55',
+      date: 'Fri, 02 Oct 2026 14:23:22 GMT',
+      connection: 'close'
+    },
+    body: ReadableStream { locked: true, state: 'closed', supportsBYOB: true },
+    bodyUsed: true,
+    ok: false,
+    redirected: false,
+    type: 'basic',
+    url: 'https://ms-5ed585df03b3-54206.sgp.meilisearch.io/indexes/pois/search'
+  }
+}
+Error: listen EADDRINUSE: address already in use :::5000
+    at Server.setupListenHandle [as _listen2] (node:net:2009:16)
+    at listenInCluster (node:net:2066:12)
+    at Server.listen (node:net:2171:7)
+    at app.listen (D:\Onedrive\Documents\DaNang-Digital-Map\backend\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (D:\Onedrive\Documents\DaNang-Digital-Map\backend\src\index.ts:45:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Module.m._compile (D:\Onedrive\Documents\DaNang-Digital-Map\backend\node_modules\ts-node\src\index.ts:1618:23)
+    at node:internal/modules/cjs/loader:2002:10
+    at Object.require.extensions.<computed> [as .ts] (D:\Onedrive\Documents\DaNang-Digital-Map\backend\node_modules\ts-node\src\index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1594:32) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 5000
+}

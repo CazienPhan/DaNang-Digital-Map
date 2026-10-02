@@ -104,6 +104,7 @@ export class SearchSuggestionMapper {
       type: 'place',
       title: item.name,
       description: item.dia_chi ?? '',
+      image: item.logo_url || undefined,
       location: {
         lat: item.lat,
         lng: item.lng,

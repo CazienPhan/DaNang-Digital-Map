@@ -49,6 +49,8 @@ export interface PlaceListingItem {
     dia_chi: string;
     lat: number;
     lng: number;
+    /** Optional business logo selected from poi_media logo_story image rows. */
+    logo_url?: string;
 }
 
 /* ============================================================================

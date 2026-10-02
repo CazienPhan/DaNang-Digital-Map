@@ -1,0 +1,24 @@
+8:50:38 PM [vite] (client) [console.error] Search listing fetch failed: Error: Failed to search places.
+    at PlaceSearchService.search (http://localhost:5173/map/src/services/meilisearch/placeSearch.service.ts:76:10)
+    at async PlaceSearchEngine.search (http://localhost:5173/map/src/features/search/services/PlaceSearchEngine.ts:48:20)
+    at async http://localhost:5173/map/src/features/search/components/SearchBar.tsx:246:20
+8:51:25 PM [vite] (client) [console.error] Search listing fetch failed: Error: Failed to search places.
+    at PlaceSearchService.search (http://localhost:5173/map/src/services/meilisearch/placeSearch.service.ts:76:10)
+    at async PlaceSearchEngine.search (http://localhost:5173/map/src/features/search/services/PlaceSearchEngine.ts:48:20)
+    at async http://localhost:5173/map/src/features/search/components/SearchBar.tsx:246:20
+8:53:03 PM [vite] (client) [console.error] Search listing fetch failed: Error: Failed to search products.
+    at ProductSearchService.search (http://localhost:5173/map/src/services/meilisearch/productSearch.service.ts:88:10)
+    at async ProductSearchEngine.search (http://localhost:5173/map/src/features/search/services/ProductSearchEngine.ts:42:17)
+    at async http://localhost:5173/map/src/features/search/components/SearchBar.tsx:246:20
+9:23:03 PM [vite] (client) [console.error] Empty search fetch failed: Error: Failed to search places.
+    at PlaceSearchService.search (http://localhost:5173/map/src/services/meilisearch/placeSearch.service.ts:70:10)
+    at async PlaceSearchEngine.search (http://localhost:5173/map/src/features/search/services/PlaceSearchEngine.ts:50:20)
+    at async http://localhost:5173/map/src/features/search/components/SearchBar.tsx:235:20
+9:23:03 PM [vite] (client) [console.error] Empty search fetch failed: Error: Failed to search places.
+    at PlaceSearchService.search (http://localhost:5173/map/src/services/meilisearch/placeSearch.service.ts:70:10)
+    at async PlaceSearchEngine.search (http://localhost:5173/map/src/features/search/services/PlaceSearchEngine.ts:50:20)
+    at async http://localhost:5173/map/src/features/search/components/SearchBar.tsx:235:20
+9:23:23 PM [vite] (client) [console.error] Search listing fetch failed: Error: Failed to search places.
+    at PlaceSearchService.search (http://localhost:5173/map/src/services/meilisearch/placeSearch.service.ts:70:10)
+    at async PlaceSearchEngine.search (http://localhost:5173/map/src/features/search/services/PlaceSearchEngine.ts:50:20)
+    at async http://localhost:5173/map/src/features/search/components/SearchBar.tsx:298:20

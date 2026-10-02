@@ -1,0 +1,12 @@
+
+> frontend@0.0.0 dev
+> vite
+
+
+  VITE v8.1.0  ready in 729 ms
+
+  ➜  Local:   http://localhost:5173/map/
+  ➜  Network: use --host to expose
+9:31:46 PM [vite] (client) hmr update /src/app/styles/index.css, /src/features/search/components/SearchBar.tsx
+9:31:46 PM [vite] (client) hmr update /src/app/styles/index.css, /src/features/search/components/SearchBar.tsx
+9:42:31 PM [vite] (client) hmr update /src/app/styles/index.css, /src/features/search/components/SearchListingCard.tsx

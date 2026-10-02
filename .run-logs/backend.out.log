@@ -1,0 +1,41 @@
+
+> backend@1.0.0 dev
+> nodemon --watch src --ext ts --exec "ts-node src/index.ts"
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): src\**\*[39m
+[33m[nodemon] watching extensions: ts[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[Server] Digital Map Platform backend listening at http://localhost:5000
+[PlaceSearchController] query="bà liễu" isCategory=false hasUserGps=false hasBounds=true gpsInsideViewport=false userLat=(none) userLng=(none) rule=Rule3 geoFilter=_geoBoundingBox([16.12689892616902, 108.34868479503672], [15.981874665013095, 108.05571520496335])
+[PlaceSearchController] query="đông trùng" isCategory=false hasUserGps=false hasBounds=true gpsInsideViewport=false userLat=(none) userLng=(none) rule=Rule3 geoFilter=_geoBoundingBox([16.12689892616902, 108.34868479503672], [15.981874665013095, 108.05571520496335])
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[Server] Digital Map Platform backend listening at http://localhost:5000
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[Server] Digital Map Platform backend listening at http://localhost:5000
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[Server] Digital Map Platform backend listening at http://localhost:5000
+[PlaceSearchController] query="" isCategory=false hasUserGps=false hasBounds=false gpsInsideViewport=false userLat=(none) userLng=(none) rule=NoGeo geoFilter=(none)
+[PlaceSearchController] Empty query — limiting to pinCount=5 (original limit=20)
+[PlaceSearchController] query="" isCategory=false hasUserGps=false hasBounds=false gpsInsideViewport=false userLat=(none) userLng=(none) rule=NoGeo geoFilter=(none)
+[PlaceSearchController] Empty query — limiting to pinCount=5 (original limit=20)
+[PlaceSearchController] query="cầu rồng" isCategory=false hasUserGps=false hasBounds=true gpsInsideViewport=false userLat=(none) userLng=(none) rule=Rule3 geoFilter=_geoBoundingBox([16.01570501216989, 108.15847944235662], [15.997572632833354, 108.12185824359739])
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[Server] Digital Map Platform backend listening at http://localhost:5000
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[Server] Digital Map Platform backend listening at http://localhost:5000
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m

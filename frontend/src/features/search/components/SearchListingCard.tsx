@@ -31,15 +31,17 @@ export const SearchListingCard: React.FC<SearchListingCardProps> = ({
       aria-label={`Select ${result.title}`}
     >
       {/* Thumbnail — uses image if available, falls back to placeholder */}
-      <div className="shrink-0 w-16 h-16 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+      <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
         {result.image ? (
           <img
             src={result.image}
             alt={result.title}
-            className="w-full h-full object-cover"
+            className="absolute inset-0 size-full object-cover"
           />
         ) : (
-          <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+          <div className="flex size-full items-center justify-center">
+            <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+          </div>
         )}
       </div>
 

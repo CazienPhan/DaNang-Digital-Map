@@ -3,6 +3,7 @@ import { INDEXES } from "../indexes";
 import { PoiListingItem } from "../models/PoiListingItem";
 import { PoiListingResponse } from "../models/PoiListingResponse";
 import { PoiSearchDocument } from "../documents/PoiSearchDocument";
+import sql from "../../db";
 
 /**
  * PoiSearchService — queries the "pois" Meilisearch index.
@@ -70,6 +71,8 @@ export class PoiSearchService {
             lng: hit.lng,
         }));
 
+        await this.attachBusinessLogos(items);
+
         return {
             query: result.query,
             processingTimeMs: result.processingTimeMs,
@@ -78,6 +81,36 @@ export class PoiSearchService {
             source: "meilisearch",
         };
 
+    }
+
+    /**
+     * Enriches only the full Place Search listing with its business logo.
+     * This uses one batched database query, avoiding an N+1 lookup per card.
+     */
+    private async attachBusinessLogos(items: PoiListingItem[]): Promise<void> {
+        if (items.length === 0) return;
+
+        const poiIds = items.map((item) => item.id);
+        const mediaRows = await sql<{ poi_id: string; url: string }[]>`
+            SELECT DISTINCT ON (m.poi_id)
+                m.poi_id,
+                m.url
+            FROM poi.poi_media m
+            WHERE m.poi_id IN ${sql(poiIds)}
+              AND m.media_category = 'logo_story'
+              AND LOWER(m.media_type) = 'image'
+              AND NULLIF(BTRIM(m.url), '') IS NOT NULL
+            ORDER BY m.poi_id, m.is_primary DESC, m.created_at DESC NULLS LAST
+        `;
+
+        const logoByPoiId = new Map(
+            mediaRows.map((media) => [media.poi_id, media.url])
+        );
+
+        for (const item of items) {
+            const logoUrl = logoByPoiId.get(item.id);
+            if (logoUrl) item.logo_url = logoUrl;
+        }
     }
 
     /**
