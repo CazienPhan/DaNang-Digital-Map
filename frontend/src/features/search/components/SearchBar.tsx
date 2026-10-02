@@ -349,10 +349,59 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     onSelectPlaceSuccess?.(suggestion);
   };
 
+  // ---- Empty-query search (fires the Meilisearch isEmpty:true rule) ----
+  // This is a stable callback that performs a full search with an empty
+  // query string, allowing the `search_instant_business` dynamic search rule
+  // to return its pinned/curated POI list. It intentionally does NOT guard
+  // against empty queries — that is the entire point.
+  const triggerEmptySearch = useCallback(async () => {
+    if (searchMode !== 'place') return;
+
+    autocompleteAbortRef.current?.abort();
+    autocompleteAbortRef.current = null;
+
+    setSuggestions([]);
+    setListingQuery('');
+    setListingResults([]);
+    setListingLoading(true);
+    setSearchView('listing');
+    setManufacturersReturnProductId(null);
+
+    const geoContext: GeoSearchContext = {};
+    if (cachedGps) {
+      geoContext.userGps = { lat: cachedGps.lat, lng: cachedGps.lng };
+    }
+    if (mapBounds) {
+      geoContext.bounds = mapBounds;
+    }
+
+    console.log('[SearchBar] triggerEmptySearch: firing isEmpty rule');
+
+    try {
+      const results = await adapter.search('', locationBias, undefined, geoContext);
+      const sliced = results.slice(0, 20);
+      setListingResults(sliced);
+      onPlaceSearchResults?.(sliced);
+    } catch (err: unknown) {
+      console.error('Empty search fetch failed:', err);
+      setListingResults([]);
+      onPlaceSearchResults?.([]);
+    } finally {
+      setListingLoading(false);
+    }
+  }, [searchMode, adapter, locationBias, cachedGps, mapBounds, onPlaceSearchResults]);
+
   // ---- Enter key → full search ----
   const handleEnterSearch = useCallback(async () => {
     const trimmed = query.trim();
-    if (!trimmed) return;
+
+    // Allow empty queries in place mode — they trigger the Meilisearch
+    // `isEmpty: true` dynamic search rule (search_instant_business).
+    if (!trimmed && searchMode !== 'place') return;
+    if (!trimmed) {
+      await triggerEmptySearch();
+      return;
+    }
 
     autocompleteAbortRef.current?.abort();
     autocompleteAbortRef.current = null;
@@ -398,7 +447,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     } finally {
       setListingLoading(false);
     }
-  }, [query, adapter, locationBias, cachedGps, mapBounds]);
+  }, [query, searchMode, adapter, locationBias, cachedGps, mapBounds, triggerEmptySearch]);
 
   // ---- "Khám phá nhà sản xuất" card → Place Search listing populated with
   //      the actual manufacturer POIs (not a generic text search) ----
@@ -534,12 +583,35 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const handleQueryChange = (val: string) => {
     setQuery(val);
     if (val === '') {
-      handleClearAll();
+      // When the user clears the input, fire an empty-query search so the
+      // Meilisearch `isEmpty: true` rule (search_instant_business) returns
+      // its curated list. Do NOT reset to idle and hide results.
+      if (searchMode === 'place') {
+        triggerEmptySearch();
+      } else {
+        handleClearAll();
+      }
       return;
     }
     if (searchView === 'listing') setSearchView('refining');
     else if (searchView === 'detail') setSearchView('autocomplete');
   };
+
+  // ---- Auto-trigger empty search on initial mount and on mode switch to place ----
+  // This ensures the `isEmpty: true` dynamic search rule fires immediately
+  // when the user opens the page without typing anything.
+  // The dependency array uses `searchMode` so it also fires when the user
+  // switches back to place mode (the mode-switch clearing effect runs first,
+  // so by the time this effect runs searchMode is already 'place').
+  useEffect(() => {
+    if (searchMode === 'place' && query === '') {
+      triggerEmptySearch();
+    }
+    // Intentionally exclude `triggerEmptySearch` from deps — it is stable
+    // but adding it would cause unnecessary re-runs. `searchMode` alone is
+    // the correct trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchMode]);
 
   // ---- Derived flags ----
   const isSidebarOpen = !!(

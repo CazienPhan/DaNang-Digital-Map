@@ -58,7 +58,9 @@ export class PlaceSearchEngine implements SearchEngine {
     signal?: AbortSignal,
     geoContext?: GeoSearchContext,
   ): Promise<SearchSuggestion[]> {
-    if (!query.trim()) return [];
+    // NOTE: Empty queries are intentionally forwarded to the backend so that
+    // Meilisearch's `isEmpty: true` dynamic search rule can fire and return
+    // curated/pinned POI results. Only autocomplete blocks empty queries.
 
     const response = await PlaceSearchService.search(query, locationBias, signal, 20, 0, geoContext);
     return SearchSuggestionMapper.fromPlaceItems(response.items, response.source);

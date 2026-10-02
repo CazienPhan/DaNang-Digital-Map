@@ -79,9 +79,14 @@ function Navbar() {
             </a>
           ))}
         </div>
-        <button className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-slate-800 transition-colors">
+        <a
+          href="https://docs.google.com/forms/d/e/1FAIpQLSdSEqbaTZ4MV0og4YYpxO7o_x2VWrv0Y7GvHCbpXN-pRkMJNw/viewform"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-slate-800 transition-colors"
+        >
           Trở thành Đối tác
-        </button>
+        </a>
       </div>
     </nav>
   );
@@ -111,7 +116,7 @@ function Hero() {
             KHÁM PHÁ NỀN TẢNG
             <ArrowRight className="w-4 h-4" />
           </a>
-          <a href="#partner" className="w-full sm:w-auto px-8 py-4 bg-white/10 text-white border border-white/20 backdrop-blur-md rounded-full font-semibold hover:bg-white/20 transition-all flex items-center justify-center gap-2">
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLSdSEqbaTZ4MV0og4YYpxO7o_x2VWrv0Y7GvHCbpXN-pRkMJNw/viewform" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto px-8 py-4 bg-white/10 text-white border border-white/20 backdrop-blur-md rounded-full font-semibold hover:bg-white/20 transition-all flex items-center justify-center gap-2">
             TRỞ THÀNH ĐỐI TÁC
           </a>
         </div>
@@ -698,10 +703,15 @@ function PartnerWithUs() {
         <p className="text-xl md:text-2xl text-teal-100 mb-12 font-light leading-snug">
           "Hãy cùng nhau xây dựng<br />hệ sinh thái số địa phương."
         </p>
-        <button className="px-10 py-5 bg-white text-teal-600 rounded-full font-bold text-lg shadow-xl shadow-teal-900/20 hover:bg-slate-50 hover:scale-105 transition-all flex items-center justify-center gap-2 mx-auto">
+        <a
+          href="https://docs.google.com/forms/d/e/1FAIpQLSdSEqbaTZ4MV0og4YYpxO7o_x2VWrv0Y7GvHCbpXN-pRkMJNw/viewform"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-10 py-5 bg-white text-teal-600 rounded-full font-bold text-lg shadow-xl shadow-teal-900/20 hover:bg-slate-50 hover:scale-105 transition-all flex items-center justify-center gap-2 mx-auto"
+        >
           <Handshake className="w-5 h-5" />
           Trở thành Đối tác
-        </button>
+        </a>
       </div>
     </section>
   );

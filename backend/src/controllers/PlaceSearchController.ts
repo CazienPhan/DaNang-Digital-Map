@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { PoiSearchService } from "../meilisearch/services/PoiSearchService";
+import { SearchRuleService } from "../meilisearch/services/SearchRuleService";
 import { Map4dBackendService } from "../services/map4d.service";
 import { CategoryDetectionService } from "../services/CategoryDetectionService";
 import type { PoiListingItem } from "../meilisearch/models/PoiListingItem";
@@ -46,16 +47,11 @@ export class PlaceSearchController {
                     ? String(req.query.location)
                     : undefined;
 
-            if (!query) {
-
-                res.status(400).json({
-                    success: false,
-                    message: "Query is required.",
-                });
-
-                return;
-
-            }
+            // NOTE: An empty query is intentionally allowed.
+            // When query === "", Meilisearch applies the `isEmpty: true`
+            // dynamic search rule (search_instant_business), which pins
+            // curated POIs to the top of the results. Blocking empty queries
+            // here would prevent that rule from ever firing.
 
             // ── Parse NEW geographic parameters ────────────────────────────
             const userLat =
@@ -132,8 +128,30 @@ export class PlaceSearchController {
                 `geoFilter=${geoFilter ?? "(none)"}`
             );
 
+            // ── EMPTY-QUERY: use the rule's pin count as the limit ───────────
+            // Meilisearch's `pin` action is additive: pinned docs fill
+            // their positions and organic results fill the remaining slots.
+            // When the query is empty every document in the index qualifies
+            // as "organic", so a limit > pinCount means extra unrelated POIs
+            // are appended after the curated ones.
+            //
+            // The fix is to cap the limit to the exact number of pinned docs
+            // so that no organic fill slots remain.  We derive this count
+            // from the LIVE rule via SearchRuleService (cached, 5-min TTL)
+            // so no document IDs or counts are hardcoded here.
+            let effectiveLimit = limit;
+
+            if (!query) {
+                const pinCount = await SearchRuleService.getEmptySearchPinCount();
+                effectiveLimit = pinCount;
+                console.log(
+                    `[PlaceSearchController] Empty query — limiting to pinCount=${pinCount} ` +
+                    `(original limit=${limit})`
+                );
+            }
+
             const meiliResult =
-                await poiSearchService.search(query, limit, offset, geoFilter, userLat, userLng);
+                await poiSearchService.search(query, effectiveLimit, offset, geoFilter, userLat, userLng);
 
             console.log(
                 `[PlaceSearchController] Meilisearch returned ${meiliResult.items.length} item(s)` +
@@ -153,6 +171,17 @@ export class PlaceSearchController {
             }
 
             // ── STEP 3: Map4D Text Search fallback ─────────────────────────
+            // Skip the Map4D fallback for empty queries — an empty Map4D
+            // text-search is meaningless and we want to return the Meilisearch
+            // curated result (from the isEmpty rule) directly.
+            if (!query) {
+                res.status(200).json({
+                    success: true,
+                    data: meiliResult,
+                });
+                return;
+            }
+
             try {
 
                 const map4dData =

@@ -141,16 +141,9 @@ export class PlaceSearchService {
         geoContext?: GeoSearchContext,
     ): Promise<PlaceListingResponse> {
 
-        if (!query.trim()) {
-            return {
-                query: '',
-                processingTimeMs: 0,
-                estimatedTotalHits: 0,
-                items: [],
-                source: 'meilisearch',
-            };
-        }
-
+        // NOTE: Empty queries are intentionally forwarded to the backend.
+        // The backend passes them to Meilisearch where the `isEmpty: true`
+        // dynamic search rule (search_instant_business) pins curated POIs.
         let url = `${API_URL}/api/places/search?query=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`;
         if (location) {
             url += `&location=${encodeURIComponent(location)}`;
